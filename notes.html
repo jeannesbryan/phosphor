@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Notes / Article</title>
     <link rel="stylesheet" href="terminal.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
         .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
@@ -478,7 +478,14 @@
 
             let readTimeStr = calculateReadTime(ev.content || "");
             let fullMetaLine = `${info.handleLine} · ${publishedAt}`;
-            let renderedHtml = marked.parse(ev.content || "");
+            let renderedHtml;
+            try {
+                renderedHtml = (typeof marked !== "undefined" && marked.parse)
+                    ? marked.parse(ev.content || "")
+                    : escapeHtml(ev.content || "").replace(/\n/g, "<br>");
+            } catch (e) {
+                renderedHtml = escapeHtml(ev.content || "").replace(/\n/g, "<br>");
+            }
 
             mainPostContainer.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
