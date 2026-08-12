@@ -1,0 +1,24 @@
+# Phosphor 📟
+
+Phosphor is a Nostr web client built on the **KISS (Keep It Simple, Stupid)** principle, wrapped in a thick cyberpunk-terminal aesthetic. It is specifically designed for a lightweight, instant reading and interaction experience on the Nostr network without the bloat of modern interfaces.
+
+This client UI is built entirely on top of the [Terminal Framework](https://github.com/jeannesbryan/terminal) created by [@jeannesbryan](https://github.com/jeannesbryan).
+
+## 🚀 Key Features
+*   **Minimalist Timeline:** Fetch Text Note feeds (NIP-01) in real-time without lag.
+*   **Long Form Article (NIP-23):** Read Markdown articles directly from the Nostr network.
+*   **Universal Repost (NIP-18):** Supports reposting standard notes (Kind 6) and Generic Repost (Kind 16) for articles.
+*   **Quote & Threading:** Quote messages and open discussion threads easily using a clean modal interface.
+*   **Multi-Relay Connection:** Pull and broadcast data across multiple relays independently and simultaneously.
+*   **NIP-07 Login:** Seamlessly integrates with Nostr signer extensions (nos2x, Alby, etc.).
+
+## 🛠️ Installation & Usage
+Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.
+
+1. Clone or download this repository.
+2. Ensure the `terminal.css` file is in the same directory.
+3. Run a local web server within the folder (e.g., `python -m http.server 5500` or use the Live Server extension in VSCode).
+4. Open your browser and navigate to `http://localhost:5500`.
+
+## 📜 License
+Developed for decentralization. Free to modify, fork, and use as needed. Hack the planet! 🌐

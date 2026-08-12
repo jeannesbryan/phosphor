@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phosphor</title>
+    <link rel="stylesheet" href="terminal.css">
+    
+    <style>
+        .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        
+        .post-card { 
+            display: flex; 
+            border: 1px solid currentColor; 
+            padding: 15px; 
+            margin-bottom: 15px;
+            background: transparent;
+        }
+        
+        .avatar-box {
+            width: 48px; height: 48px;
+            border: 1px dashed currentColor;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; font-weight: bold; font-size: 1.1em;
+            overflow: hidden; background: var(--bg-base);
+        }
+        .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
+        
+        .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
+        
+        /* Header Postingan ala Jumble */
+        .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
+        .author-line { font-size: 1.1em; font-weight: bold; }
+        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        
+        .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
+        
+        /* Thumbnail Anti-Offside */
+        .post-media {
+            margin-top: 10px; margin-bottom: 12px;
+            max-width: 250px; height: 160px;
+            border: 1px dashed currentColor; padding: 3px;
+            overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02);
+        }
+        .post-media img {
+            width: 100%; height: 100%; object-fit: cover;
+            filter: grayscale(1) sepia(0.3); display: block;
+            transition: transform 0.2s;
+        }
+        .post-media:hover img { transform: scale(1.03); }
+        
+        /* Modal & Lightbox */
+        #lightboxModal, #quoteModal, #relayModal {
+            display: none; position: fixed; z-index: 9999;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            justify-content: center; align-items: center;
+        }
+        #lightboxModal { cursor: zoom-out; }
+        #lightboxModal img {
+            max-width: 90%; max-height: 90%;
+            border: 2px solid var(--t-green, #00ff41);
+        }
+        
+        .modal-content-box {
+            background: var(--bg-base, #030303);
+            border: 2px solid currentColor;
+            padding: 20px; width: 90%; max-width: 550px;
+            box-sizing: border-box;
+        }
+
+        .post-actions { display: flex; justify-content: space-between; max-width: 300px; margin-top: 10px; }
+        .action-btn { 
+            background: transparent !important; border: none; color: inherit; 
+            cursor: pointer; font-family: inherit; padding: 5px 8px; 
+            text-decoration: none !important; display: inline-block;
+        }
+        .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
+        
+        .client-tag { text-align: right; font-style: italic; opacity: 0.4; font-size: 0.8em; margin-top: 5px; }
+
+        .composer-card { border: 2px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; }
+        textarea.sys-input { 
+            width: 100%; box-sizing: border-box; background: transparent; 
+            color: inherit; border: none; border-bottom: 1px dashed currentColor; 
+            padding: 10px 0; font-family: inherit; margin-bottom: 10px; resize: vertical; outline: none;
+        }
+        
+        .broadcast-btn, .modal-btn { 
+            width: auto; padding: 5px 10px; margin: 0; cursor: pointer; 
+            background: transparent !important; color: inherit; border: 1px dashed currentColor; font-family: inherit;
+        }
+        .broadcast-btn:hover, .modal-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
+        
+        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;}
+        nav a { text-decoration: none !important; color: inherit; }
+        nav a:hover { color: var(--t-green, #00ff41); text-decoration: none !important; }
+        
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
+        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+    </style>
+</head>
+<body class="terminal t-crt">
+    <div class="container">
+        
+        <header>
+            <h1>> Phosphor</h1>
+            <nav>
+                <a href="index.html">[ TIMELINE ]</a>
+                <a href="profile.html">[ PROFILE ]</a>
+                <a href="#" id="loginBtn">[ LOGIN ]</a>
+                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
+                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+            </nav>
+        </header>
+
+        <div class="composer-card">
+            <div class="avatar-box" id="userAvatarBox">[JB]</div>
+            <div class="post-main">
+                <textarea id="postContentInput" class="sys-input" rows="3" placeholder="Apa yang sedang terjadi di jaringan?"></textarea>
+                <div style="text-align: right;">
+                    <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
+                </div>
+            </div>
+        </div>
+
+        <section id="feed">
+            <div id="posts-container"></div>
+            <p id="noMoreText" style="text-align: center; opacity: 0.5;">[ Mendengarkan Multi-Relay Jaringan... ]</p>
+        </section>
+    </div>
+
+    <!-- Lightbox Modal Viewer -->
+    <div id="lightboxModal" onclick="this.style.display='none'">
+        <img id="lightboxImg" src="" alt="Zoomed Image">
+    </div>
+
+    <!-- Modal Quote-Reply -->
+    <div id="quoteModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
+            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px solid currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
+            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
+                <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Status Relay -->
+    <div id="relayModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" style="margin-bottom: 15px;">
+                <p style="opacity: 0.5;">Memeriksa koneksi jaringan...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[TUTUP]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const RELAYS = [
+            'wss://strfry.jeannesbryan.my.id',
+            'wss://relay.damus.io',
+            'wss://nos.lol',
+            'wss://relay.primal.net'
+        ];
+
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
+        let profileCache = {};
+        let eventsCache = {};
+        let quoteTargetEvent = null;
+        let relayStatusMap = {};
+
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const relayStatusBtn = document.getElementById('relayStatusBtn');
+        const broadcastBtn = document.getElementById('broadcastBtn');
+        const postContentInput = document.getElementById('postContentInput');
+        const postsContainer = document.getElementById('posts-container');
+        const userAvatarBox = document.getElementById('userAvatarBox');
+
+        const quoteModal = document.getElementById('quoteModal');
+        const quoteTargetPreview = document.getElementById('quoteTargetPreview');
+        const quoteContentInput = document.getElementById('quoteContentInput');
+        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
+
+        const relayModal = document.getElementById('relayModal');
+        const relayListContainer = document.getElementById('relayListContainer');
+
+        let activeSockets = [];
+
+        function updateAuthState() {
+            if (currentUserPubkey) {
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+                userAvatarBox.innerHTML = "[JB]";
+            }
+        }
+
+        loginBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+                try {
+                    currentUserPubkey = await window.nostr.getPublicKey();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    updateAuthState();
+                    fetchMyAvatar();
+                    alert('> KONEKSI BERHASIL.');
+                } catch (err) { alert('> ERROR.'); }
+            } else { alert('> PERINGATAN: NIP-07 tidak ada.'); }
+        });
+
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            localStorage.removeItem('phosphor_pubkey');
+            currentUserPubkey = null;
+            updateAuthState();
+            alert('> SESI BERAKHIR.');
+        });
+
+        function fetchMyAvatar() {
+            if (!currentUserPubkey) return;
+            RELAYS.forEach(url => {
+                let sock = new WebSocket(url);
+                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-av", {kinds:[0], authors:[currentUserPubkey], limit:1}]));
+                sock.onmessage = (e) => {
+                    let d = JSON.parse(e.data);
+                    if (d[0] === "EVENT" && d[2] && d[2].kind === 0) {
+                        try {
+                            let meta = JSON.parse(d[2].content);
+                            if (meta.picture) userAvatarBox.innerHTML = `<img src="${meta.picture}" alt="Me">`;
+                        } catch(err){}
+                    }
+                };
+            });
+        }
+
+        function timeAgo(unixTimestamp) {
+            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
+            let intervals = { tahun: 31536000, bulan: 2592000, hari: 86400, jam: 3600, menit: 60 };
+            if (seconds < 60) return "Baru saja";
+            for (let i in intervals) {
+                let count = Math.floor(seconds / intervals[i]);
+                if (count >= 1) return `${count} ${i} yang lalu`;
+            }
+            return "Baru saja";
+        }
+
+        function openLightbox(imgSrc) {
+            document.getElementById('lightboxImg').src = imgSrc;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+
+        function openQuoteModal(eventId) {
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            quoteTargetEvent = ev;
+            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
+            quoteContentInput.value = "";
+            quoteModal.style.display = 'flex';
+        }
+
+        function closeQuoteModal() {
+            quoteModal.style.display = 'none';
+            quoteTargetEvent = null;
+        }
+
+        function openRelayModal() {
+            let htmlContent = "";
+            RELAYS.forEach(url => {
+                let isOnline = relayStatusMap[url] === true;
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: #ff4141;">[OFFLINE]</span>';
+                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
+            });
+            relayListContainer.innerHTML = htmlContent;
+            relayModal.style.display = 'flex';
+        }
+
+        function closeRelayModal() { relayModal.style.display = 'none'; }
+
+        async function repostEvent(eventId) {
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!confirm('> Repost postingan ini ke timeline?')) return;
+
+            let rawEvent = {
+                kind: 6,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ["e", ev.id, "", "mention"],
+                    ["p", ev.pubkey, ""]
+                ],
+                content: JSON.stringify(ev),
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                let sentCount = 0;
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+                alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
+            } catch (err) {
+                alert('> ERROR: Gagal mengirim repost.');
+            }
+        }
+
+        function connectMultiRelays() {
+            let onlineCount = 0;
+            RELAYS.forEach(url => {
+                relayStatusMap[url] = false;
+                let socket = new WebSocket(url);
+
+                socket.onopen = function() {
+                    onlineCount++;
+                    relayStatusMap[url] = true;
+                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    socket.send(JSON.stringify(["REQ", "feed-" + Math.random(), { "kinds": [1], "limit": 40 }]));
+                    socket.send(JSON.stringify(["REQ", "profiles-" + Math.random(), { "kinds": [0], "limit": 60 }]));
+                };
+
+                socket.onerror = function() { relayStatusMap[url] = false; };
+                socket.onclose = function() { relayStatusMap[url] = false; };
+
+                socket.onmessage = function(event) {
+                    try {
+                        let data = JSON.parse(event.data);
+                        if (data[0] === "EVENT" && data[2]) {
+                            let ev = data[2];
+                            if (ev.kind === 0) {
+                                try {
+                                    let meta = JSON.parse(ev.content);
+                                    profileCache[ev.pubkey] = {
+                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
+                                        handle: meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`,
+                                        nip05: meta.nip05 || "",
+                                        picture: meta.picture || null
+                                    };
+                                    updatePostUI(ev.pubkey);
+                                } catch(e){}
+                            }
+                            if (ev.kind === 1) {
+                                eventsCache[ev.id] = ev; 
+                                renderPost(ev);
+                            }
+                        }
+                    } catch (err) {}
+                };
+                activeSockets.push(socket);
+            });
+        }
+
+        function updatePostUI(pubkey) {
+            let info = profileCache[pubkey];
+            if (!info) return;
+            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle} ${info.nip05 ? '· ' + info.nip05 : ''}`; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
+                if (info.picture) el.innerHTML = `<img src="${info.picture}" alt="Avatar">`;
+            });
+        }
+
+        function renderPost(ev) {
+            if (document.getElementById(`post-${ev.id}`)) return;
+
+            let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
+            let info = profileCache[ev.pubkey] || {
+                name: `Node_${shortPub}`,
+                handle: `@${ev.pubkey.substring(0, 8)}`,
+                nip05: "",
+                picture: null
+            };
+
+            let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
+            let timeStr = timeAgo(ev.created_at);
+            let clientName = "Phosphor";
+            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });
+
+            let contentText = ev.content;
+            let mediaHtml = "";
+            let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?)/gi;
+            
+            contentText = contentText.replace(urlRegex, function(url) {
+                mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Thumbnail"></div>`;
+                return "";
+            });
+
+            let card = document.createElement('div');
+            card.className = 'post-card';
+            card.id = `post-${ev.id}`;
+
+            card.innerHTML = `
+                <div class="avatar-box avatar-${ev.pubkey}">${avatarHtml}</div>
+                <div class="post-main">
+                    <div class="post-header">
+                        <span class="author-line"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></span>
+                        <span class="dim-text meta-line handle-${ev.pubkey}">${escapeHtml(info.handle)} ${info.nip05 ? '· ' + escapeHtml(info.nip05) : ''} · ${timeStr}</span>
+                    </div>
+                    <div class="post-content">${escapeHtml(contentText.trim())}</div>
+                    ${mediaHtml}
+                    <div class="post-actions">
+                        <a href="thread.html?id=${ev.id}" class="action-btn">[r] balasan</a>
+                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
+                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                    </div>
+                    <div class="client-tag">> via ${escapeHtml(clientName)}</div>
+                </div>
+            `;
+
+            postsContainer.prepend(card);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        broadcastBtn.addEventListener('click', async function() {
+            let contentText = postContentInput.value.trim();
+            if (!contentText) { alert('> ERROR: Kosong!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+
+            let rawEvent = {
+                kind: 1,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [["client", "Phosphor"]],
+                content: contentText,
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                broadcastBtn.textContent = '> SIGNING...';
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                
+                let sentCount = 0;
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+
+                alert(`> SUKSES: Di-broadcast ke ${sentCount} relay!`);
+                postContentInput.value = '';
+                broadcastBtn.textContent = '> BROADCAST_EVENT';
+                
+                eventsCache[signedEvent.id] = signedEvent;
+                renderPost(signedEvent);
+            } catch (err) {
+                alert('> ERROR: Gagal.');
+                broadcastBtn.textContent = '> BROADCAST_EVENT';
+            }
+        });
+
+        sendQuoteBtn.addEventListener('click', async function() {
+            let quoteText = quoteContentInput.value.trim();
+            if (!quoteTargetEvent) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+
+            let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
+
+            let rawEvent = {
+                kind: 1,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ["e", quoteTargetEvent.id, "", "quote"],
+                    ["p", quoteTargetEvent.pubkey, ""],
+                    ["client", "Phosphor"]
+                ],
+                content: finalContent,
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                sendQuoteBtn.textContent = '> SIGNING...';
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+
+                let sentCount = 0;
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+
+                alert(`> QUOTE SUKSES: Disebarkan ke ${sentCount} relay!`);
+                closeQuoteModal();
+                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
+                
+                eventsCache[signedEvent.id] = signedEvent;
+                renderPost(signedEvent);
+            } catch (err) {
+                alert('> ERROR: Gagal mengirim quote.');
+                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
+            }
+        });
+
+        updateAuthState();
+        fetchMyAvatar();
+        connectMultiRelays();
+    </script>
+</body>
+</html>
