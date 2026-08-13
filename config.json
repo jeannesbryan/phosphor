@@ -1,0 +1,14 @@
+{
+  "relays": [
+    "wss://strfry.jeannesbryan.my.id",
+    "wss://relay.damus.io",
+    "wss://nos.lol",
+    "wss://relay.primal.net"
+  ],
+  "blossom_servers": [
+    "blossom.jeannesbryan.my.id",
+    "blossom.data.haus",
+    "blossom.ditto.pub",
+    "blossom.primal.net"
+  ]
+}

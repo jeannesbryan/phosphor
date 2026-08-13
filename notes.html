@@ -9,7 +9,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    <!-- NostrTools for NIP-19 Encoding/Decoding -->
     <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
@@ -54,12 +53,12 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #rawModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
 
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 400px; margin-top: 10px; flex-wrap: wrap; }
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 450px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
@@ -121,7 +120,7 @@
         </div>
     </div>
 
-    <!-- Lightbox & Modals -->
+    <!-- Modals -->
     <div id="lightboxModal" onclick="this.style.display='none'">
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
@@ -150,13 +149,20 @@
         </div>
     </div>
 
+    <!-- Raw Data Modal -->
+    <div id="rawModal">
+        <div class="modal-content-box" style="width: 95%; max-width: 600px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
+            <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const RELAYS = [
-            'wss://strfry.jeannesbryan.my.id',
-            'wss://relay.damus.io',
-            'wss://nos.lol',
-            'wss://relay.primal.net'
-        ];
+        let RELAYS = [];
+        let BLOSSOM_SERVERS = [];
 
         const urlParams = new URLSearchParams(window.location.search);
         const articleId = urlParams.get('id') || '';
@@ -194,6 +200,22 @@
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
 
+        const rawModal = document.getElementById('rawModal');
+        const rawEventContent = document.getElementById('rawEventContent');
+
+        async function loadConfig() {
+            try {
+                let res = await fetch('config.json');
+                let config = await res.json();
+                RELAYS = config.relays || [];
+                BLOSSOM_SERVERS = config.blossom_servers || [];
+                initNotes();
+            } catch (e) {
+                console.error("Failed to load config.json", e);
+                alert("> ERROR: Missing config.json");
+            }
+        }
+
         function updateAuthState() {
             if (currentUserPubkey) {
                 loginBtn.classList.add('hidden');
@@ -229,20 +251,11 @@
         function copyNaddr(kind, pubkey, identifier) {
             if (window.NostrTools && window.NostrTools.nip19) {
                 try {
-                    let naddr = window.NostrTools.nip19.naddrEncode({
-                        kind: parseInt(kind),
-                        pubkey: pubkey,
-                        identifier: identifier
-                    });
-                    let fullUrl = `nostr:${naddr}`;
-                    navigator.clipboard.writeText(fullUrl);
-                    alert(`> SUCCESS: Copied to clipboard!\n\n${fullUrl}`);
-                } catch (e) {
-                    alert('> ERROR: Failed to encode NIP-19 naddr.');
-                }
-            } else {
-                alert('> ERROR: NostrTools library not loaded. Cannot encode naddr.');
-            }
+                    let naddr = window.NostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
+                    navigator.clipboard.writeText(`nostr:${naddr}`);
+                    alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
+                } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
+            } else { alert('> ERROR: NostrTools library not loaded.'); }
         }
 
         function timeAgo(unixTimestamp) {
@@ -262,10 +275,16 @@
             return `${minutes} min read`;
         }
 
-        function openLightbox(imgSrc) {
-            document.getElementById('lightboxImg').src = imgSrc;
-            document.getElementById('lightboxModal').style.display = 'flex';
+        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        
+        function openRawModal(eventId) {
+            let ev = eventsCache[eventId];
+            if (ev) {
+                rawEventContent.textContent = JSON.stringify(ev, null, 2);
+                rawModal.style.display = 'flex';
+            }
         }
+        function closeRawModal() { rawModal.style.display = 'none'; }
 
         function openQuoteModal(eventId) {
             let ev = eventsCache[eventId];
@@ -275,11 +294,7 @@
             quoteContentInput.value = "";
             quoteModal.style.display = 'flex';
         }
-
-        function closeQuoteModal() {
-            quoteModal.style.display = 'none';
-            quoteTargetEvent = null;
-        }
+        function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
         function openRelayModal() {
             let htmlContent = "";
@@ -291,12 +306,9 @@
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';
         }
-
         function closeRelayModal() { relayModal.style.display = 'none'; }
 
-        function initMetrics(id) {
-            if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() };
-        }
+        function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
 
         function updateMetricsUI(id) {
             let m = metricsCache[id];
@@ -328,25 +340,11 @@
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
 
-            let rawEvent = {
-                kind: 7,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]],
-                content: "+",
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
-                });
-                
-                likedEvents.add(eventId);
-                initMetrics(eventId);
-                metricsCache[eventId].processed.add(signedEvent.id);
-                metricsCache[eventId].likes++;
-                updateMetricsUI(eventId);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId);
             } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
         }
 
@@ -357,39 +355,28 @@
             if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
             if (!confirm('> Repost this content to your timeline?')) return;
 
-            let rawEvent = {
-                kind: 6,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]],
-                content: JSON.stringify(ev),
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
             if (ev.kind === 30023) {
                 let dTag = ev.tags.find(t => t[0] === 'd');
-                if (dTag) {
-                    rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]);
-                    rawEvent.kind = 16;
-                }
+                if (dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
             }
-
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 let sentCount = 0;
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-                
-                repostedEvents.add(eventId);
-                initMetrics(eventId);
-                metricsCache[eventId].processed.add(signedEvent.id);
-                metricsCache[eventId].reposts++;
-                updateMetricsUI(eventId);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId);
                 alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
             } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
+        }
+
+        function updatePostUI(pubkey) {
+            let info = profileCache[pubkey];
+            if (!info || info.pending) return;
+            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handleLine; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
+                if (info.picture) el.innerHTML = `<img src="${info.picture}" alt="Avatar">`;
+            });
         }
 
         function initNotes() {
@@ -416,7 +403,6 @@
                     if (articleId) filterObj.ids = [articleId];
 
                     socket.send(JSON.stringify(["REQ", "fetch-nip23", filterObj]));
-                    socket.send(JSON.stringify(["REQ", "article-profiles", { "kinds": [0], "limit": 60 }]));
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-av-notes", { "kinds": [0], "authors": [currentUserPubkey], "limit": 1 }]));
@@ -448,11 +434,18 @@
                                     if (ev.pubkey === currentUserPubkey && meta.picture) {
                                         myReplyAvatar.innerHTML = `<img src="${meta.picture}" alt="Me">`;
                                     }
-                                    if (parentEvent) renderMainArticle(parentEvent);
+                                    updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
                             
-                            // Process Metrics
+                            if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                if (!profileCache[ev.pubkey]) {
+                                    profileCache[ev.pubkey] = { pending: true };
+                                    let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
+                                    activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                }
+                            }
+
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(targetId => {
@@ -491,15 +484,10 @@
         }
 
         function renderMainArticle(ev) {
-            initMetrics(ev.id);
-            requestMetrics(ev.id);
+            initMetrics(ev.id); requestMetrics(ev.id);
             
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey] || {
-                name: `Node_${shortPub}`,
-                handleLine: `@${ev.pubkey.substring(0, 8)}`,
-                picture: null
-            };
+            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
 
             let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
@@ -515,35 +503,25 @@
                 if (t[0] === "client") clientName = t[1];
                 if (t[0] === "title") title = t[1];
                 if (t[0] === "d") dTagValue = t[1];
-                if (t[0] === "published_at") {
-                    let pubTimestamp = parseInt(t[1]);
-                    if (!isNaN(pubTimestamp)) publishedAt = timeAgo(pubTimestamp);
-                }
+                if (t[0] === "published_at") { let pubTimestamp = parseInt(t[1]); if (!isNaN(pubTimestamp)) publishedAt = timeAgo(pubTimestamp); }
             });
 
             let readTimeStr = calculateReadTime(ev.content || "");
-            let fullMetaLine = `${info.handleLine} · ${publishedAt}`;
             let renderedHtml;
-            try {
-                renderedHtml = (typeof marked !== "undefined" && marked.parse)
-                    ? marked.parse(ev.content || "")
-                    : escapeHtml(ev.content || "").replace(/\n/g, "<br>");
-            } catch (e) {
-                renderedHtml = escapeHtml(ev.content || "").replace(/\n/g, "<br>");
-            }
+            try { renderedHtml = (typeof marked !== "undefined" && marked.parse) ? marked.parse(ev.content || "") : escapeHtml(ev.content || "").replace(/\n/g, "<br>");
+            } catch (e) { renderedHtml = escapeHtml(ev.content || "").replace(/\n/g, "<br>"); }
 
             mainPostContainer.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div>
-                        <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
-                        <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(fullMetaLine)}</span>
+                        <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong class="author-${ev.pubkey}" style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
+                        <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${publishedAt}</span>
                     </div>
                 </div>
                 
                 <h1 class="article-main-title">${escapeHtml(title)}</h1>
                 <div class="article-stats-info">${readTimeStr} · Last edited: ${timeStr}</div>
-
                 <div class="main-post-content">${renderedHtml}</div>
 
                 <div class="post-actions" style="margin-top: 20px;">
@@ -552,6 +530,7 @@
                     <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                     <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                     <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                    <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
                 </div>
                 <div class="post-footer-meta">> long_form (NIP-23) / via ${escapeHtml(clientName)}</div>
             `;
@@ -561,15 +540,10 @@
         function renderReply(ev) {
             if (repliesContainer.querySelector('p')) { repliesContainer.innerHTML = ''; }
             if (document.getElementById(`reply-${ev.id}`)) return;
-            initMetrics(ev.id);
-            requestMetrics(ev.id);
+            initMetrics(ev.id); requestMetrics(ev.id);
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey] || {
-                name: `Node_${shortPub}`,
-                handleLine: `@${ev.pubkey.substring(0, 8)}`,
-                picture: null
-            };
+            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
 
             let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
@@ -581,72 +555,48 @@
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
                 if (t[0] === "expiration") {
-                    hasExpiration = true;
-                    let expUnix = parseInt(t[1]);
-                    let diff = expUnix - Math.floor(Date.now() / 1000);
-                    if (diff > 0) {
-                        let h = Math.floor(diff / 3600);
-                        let m = Math.floor((diff % 3600) / 60);
-                        expTimeStr = `Exp in ${h}h ${m}m`;
-                    } else {
-                        expTimeStr = "Expired";
-                    }
+                    hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
+                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
                 }
             });
 
-            let isJsonPayload = false;
-            let parsedJsonContent = "";
+            let isJsonPayload = false; let parsedJsonContent = "";
             if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try {
-                    let parsed = JSON.parse(ev.content.trim());
-                    parsedJsonContent = JSON.stringify(parsed, null, 2);
-                    isJsonPayload = true;
-                } catch (e) {}
+                try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
             }
             
             let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
-
-            let contentHtml = "";
-            let mediaHtml = "";
+            let contentHtml = ""; let mediaHtml = "";
 
             if (isJsonPayload) {
                 contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
-                let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
-                contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                     let lowerExt = ext.toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                        mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
-                    } else {
-                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
-                    }
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`;
+                    else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
                     return "";
                 });
                 
-                // Parse NIP-19 Embeds
-                let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
-                contentText = escapeHtml(contentText.trim()).replace(nostrRegex, function(match, nip19Id) {
+                contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
-
                 contentHtml = `<div class="post-content">${contentText}</div>`;
             }
 
-            let fullMetaLine = `${info.handleLine} · ${timeStr}`;
             let card = document.createElement('div');
             card.className = isPulse ? 'post-card pulse-card' : 'post-card';
             card.id = `reply-${ev.id}`;
-            
             let pulseBadgeHtml = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
             card.innerHTML = `
-                <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                 <div class="post-main">
                     <div class="post-header">
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line">${escapeHtml(fullMetaLine)}</span>
+                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
                     </div>
                     ${pulseBadgeHtml}
                     ${contentHtml}
@@ -656,55 +606,28 @@
                         <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                         <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                        <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
                     </div>
                     <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
-
             repliesContainer.appendChild(card);
             updateMetricsUI(ev.id);
         }
 
-        function escapeHtml(str) {
-            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
+        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
         sendReplyBtn.addEventListener('click', async function() {
             let replyText = replyContentInput.value.trim();
             if (!replyText) { alert('> ERROR: Message is empty!'); return; }
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
-            let rawEvent = {
-                kind: 1,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", articleId || parentEvent?.id || "", "", "root"],
-                    ["p", parentEvent ? parentEvent.pubkey : "", ""],
-                    ["client", "Phosphor"]
-                ],
-                content: replyText,
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", articleId || parentEvent?.id || "", "", "root"], ["p", parentEvent ? parentEvent.pubkey : "", ""], ["client", "Phosphor"]], content: replyText, pubkey: currentUserPubkey };
             try {
-                sendReplyBtn.textContent = '> SIGNING...';
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-                alert(`> SUCCESS: Sent to ${sentCount} relays!`);
-                replyContentInput.value = '';
-                sendReplyBtn.textContent = '> POST_REPLY';
-                eventsCache[signedEvent.id] = signedEvent;
-                renderReply(signedEvent);
-            } catch (err) {
-                alert('> ERROR: Failed to broadcast.');
-                sendReplyBtn.textContent = '> POST_REPLY';
-            }
+                sendReplyBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                alert(`> SUCCESS: Sent to ${sentCount} relays!`); replyContentInput.value = ''; sendReplyBtn.textContent = '> POST_REPLY'; eventsCache[signedEvent.id] = signedEvent; renderReply(signedEvent);
+            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendReplyBtn.textContent = '> POST_REPLY'; }
         });
 
         sendQuoteBtn.addEventListener('click', async function() {
@@ -712,41 +635,15 @@
             if (!quoteTargetEvent) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
-            let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
-            let rawEvent = {
-                kind: 1,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", quoteTargetEvent.id, "", "quote"],
-                    ["p", quoteTargetEvent.pubkey, ""],
-                    ["client", "Phosphor"]
-                ],
-                content: finalContent,
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
             try {
-                sendQuoteBtn.textContent = '> SIGNING...';
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
-                closeQuoteModal();
-                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-                eventsCache[signedEvent.id] = signedEvent;
-                renderReply(signedEvent);
-            } catch (err) {
-                alert('> ERROR: Failed to send quote.');
-                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            }
+                sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; eventsCache[signedEvent.id] = signedEvent; renderReply(signedEvent);
+            } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
-        initNotes();
+        window.addEventListener('DOMContentLoaded', loadConfig);
     </script>
 </body>
 </html>

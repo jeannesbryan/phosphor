@@ -9,7 +9,6 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    <!-- NostrTools for NIP-19 Encoding/Decoding -->
     <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
     
     <style>
@@ -61,14 +60,14 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #followingModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #followingModal, #rawModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
 
         .scrollable-list { max-height: 250px; overflow-y: auto; border: 1px dashed currentColor; padding: 10px; margin-bottom: 15px; }
 
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 400px; margin-top: 10px; flex-wrap: wrap; }
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 450px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
@@ -196,13 +195,19 @@
         </div>
     </div>
 
+    <div id="rawModal">
+        <div class="modal-content-box" style="width: 95%; max-width: 600px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
+            <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const RELAYS = [
-            'wss://strfry.jeannesbryan.my.id',
-            'wss://relay.damus.io',
-            'wss://nos.lol',
-            'wss://relay.primal.net'
-        ];
+        let RELAYS = [];
+        let BLOSSOM_SERVERS = [];
         
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let targetPubkey = new URLSearchParams(window.location.search).get('pubkey');
@@ -227,7 +232,6 @@
         let pendingMetricsIds = new Set();
         let metricsTimeout = null;
         
-        // Track interacted events to prevent spam clicking
         let likedEvents = new Set();
         let repostedEvents = new Set();
 
@@ -261,8 +265,23 @@
         const followingModal = document.getElementById('followingModal');
         const followingListContainer = document.getElementById('followingListContainer');
         const modalFollowingCount = document.getElementById('modalFollowingCount');
+        const rawModal = document.getElementById('rawModal');
+        const rawEventContent = document.getElementById('rawEventContent');
 
         let activeSockets = [];
+
+        async function loadConfig() {
+            try {
+                let res = await fetch('config.json');
+                let config = await res.json();
+                RELAYS = config.relays || [];
+                BLOSSOM_SERVERS = config.blossom_servers || [];
+                initProfile();
+            } catch (e) {
+                console.error("Failed to load config.json", e);
+                alert("> ERROR: Missing config.json");
+            }
+        }
 
         function updateAuthState() {
             if (currentUserPubkey) {
@@ -301,20 +320,11 @@
         function copyNaddr(kind, pubkey, identifier) {
             if (window.NostrTools && window.NostrTools.nip19) {
                 try {
-                    let naddr = window.NostrTools.nip19.naddrEncode({
-                        kind: parseInt(kind),
-                        pubkey: pubkey,
-                        identifier: identifier
-                    });
-                    let fullUrl = `nostr:${naddr}`;
-                    navigator.clipboard.writeText(fullUrl);
-                    alert(`> SUCCESS: Copied to clipboard!\n\n${fullUrl}`);
-                } catch (e) {
-                    alert('> ERROR: Failed to encode NIP-19 naddr.');
-                }
-            } else {
-                alert('> ERROR: NostrTools library not loaded. Cannot encode naddr.');
-            }
+                    let naddr = window.NostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
+                    navigator.clipboard.writeText(`nostr:${naddr}`);
+                    alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
+                } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
+            } else { alert('> ERROR: NostrTools library not loaded.'); }
         }
 
         function timeAgo(unixTimestamp) {
@@ -328,10 +338,16 @@
             return "Just now";
         }
 
-        function openLightbox(imgSrc) {
-            document.getElementById('lightboxImg').src = imgSrc;
-            document.getElementById('lightboxModal').style.display = 'flex';
+        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        
+        function openRawModal(eventId) {
+            let ev = userEventsList.find(e => e.id === eventId);
+            if (ev) {
+                rawEventContent.textContent = JSON.stringify(ev, null, 2);
+                rawModal.style.display = 'flex';
+            }
         }
+        function closeRawModal() { rawModal.style.display = 'none'; }
 
         function openQuoteModal(eventId) {
             let ev = userEventsList.find(e => e.id === eventId);
@@ -341,11 +357,7 @@
             quoteContentInput.value = "";
             quoteModal.style.display = 'flex';
         }
-
-        function closeQuoteModal() {
-            quoteModal.style.display = 'none';
-            quoteTargetEvent = null;
-        }
+        function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
         function openRelayModal() {
             let htmlContent = "";
@@ -357,8 +369,8 @@
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';
         }
-
         function closeRelayModal() { relayModal.style.display = 'none'; }
+        
         function openFollowingModal() { renderFollowingListUI(); followingModal.style.display = 'flex'; }
         function closeFollowingModal() { followingModal.style.display = 'none'; }
 
@@ -368,7 +380,6 @@
                 followingListContainer.innerHTML = '<p style="opacity: 0.5;">No following data found.</p>';
                 return;
             }
-
             let html = "";
             targetFollowingPubkeys.forEach(pk => {
                 let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
@@ -380,9 +391,7 @@
             followingListContainer.innerHTML = html;
         }
 
-        function initMetrics(id) {
-            if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() };
-        }
+        function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
 
         function updateMetricsUI(id) {
             let m = metricsCache[id];
@@ -401,9 +410,7 @@
                 let ids = Array.from(pendingMetricsIds);
                 if(ids.length === 0) return;
                 let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
-                });
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 pendingMetricsIds.clear();
             }, 1500);
         }
@@ -414,25 +421,11 @@
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
 
-            let rawEvent = {
-                kind: 7,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]],
-                content: "+",
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
-                });
-                
-                likedEvents.add(eventId);
-                initMetrics(eventId);
-                metricsCache[eventId].processed.add(signedEvent.id); // Prevent double count from echo
-                metricsCache[eventId].likes++;
-                updateMetricsUI(eventId);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId);
             } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
         }
 
@@ -443,35 +436,15 @@
             if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
             if (!confirm('> Repost this content to your timeline?')) return;
 
-            let rawEvent = {
-                kind: 6,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]],
-                content: JSON.stringify(ev),
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
             let dTag = ev.tags.find(t => t[0] === 'd');
-            if (ev.kind === 30023 && dTag) {
-                rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]);
-                rawEvent.kind = 16;
-            }
+            if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
 
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 let sentCount = 0;
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-                
-                repostedEvents.add(eventId);
-                initMetrics(eventId);
-                metricsCache[eventId].processed.add(signedEvent.id); // Prevent double count from echo
-                metricsCache[eventId].reposts++;
-                updateMetricsUI(eventId);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId);
                 alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
             } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
         }
@@ -488,19 +461,11 @@
             }
             
             let tags = newFollowing.map(pk => ["p", pk]);
-            let rawEvent = {
-                kind: 3,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: tags,
-                content: "",
-                pubkey: currentUserPubkey
-            };
+            let rawEvent = { kind: 3, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
             
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
-                });
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
                 myFollowingPubkeys = newFollowing;
                 followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
                 alert(`> SUCCESS: Follow list updated!`);
@@ -508,10 +473,7 @@
         }
 
         async function initProfile() {
-            if (!targetPubkey) {
-                targetPubkey = currentUserPubkey;
-            }
-
+            if (!targetPubkey) { targetPubkey = currentUserPubkey; }
             isMyProfile = (targetPubkey === currentUserPubkey);
             updateAuthState();
 
@@ -520,7 +482,6 @@
                 profilePubkeyDisplay.textContent = 'Data not found.';
                 return;
             }
-
             profilePubkeyDisplay.textContent = targetPubkey;
             profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`;
             connectMultiRelays();
@@ -563,9 +524,7 @@
                                     
                                     if (targetFollowingPubkeys.length > 0) {
                                         let subReq = JSON.stringify(["REQ", "following-profiles", { "kinds": [0], "authors": targetFollowingPubkeys }]);
-                                        activeSockets.forEach(sock => {
-                                            if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq);
-                                        });
+                                        activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
                                     }
                                 }
                                 if (ev.pubkey === currentUserPubkey) {
@@ -580,17 +539,15 @@
                                     let meta = JSON.parse(ev.content);
                                     let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0, 8)}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
                                     
                                     followingProfilesCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: handleLineStr
+                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName
                                     };
                                     renderFollowingListUI();
                                 } catch(e){}
                             }
                             
-                            // Metrics processing
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(tId => {
@@ -621,7 +578,6 @@
                                     }
                                     if (profileData.about && profileData.about.trim() !== "") {
                                         let bioText = profileData.about;
-                                        // Embed parsing for Bio
                                         let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
                                         bioText = escapeHtml(bioText).replace(nostrRegex, function(match, nip19Id) {
                                             let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
@@ -629,9 +585,8 @@
                                         });
                                         profileBio.innerHTML = bioText;
                                         profileBio.classList.remove('hidden');
-                                    } else {
-                                        profileBio.classList.add('hidden');
-                                    }
+                                    } else { profileBio.classList.add('hidden'); }
+                                    
                                     if (profileData.nip05) {
                                         profileNip05Txt = profileData.nip05;
                                         profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(profileNip05Txt)}`;
@@ -639,8 +594,10 @@
                                         profileNip05Txt = "";
                                         profileNip05Container.innerHTML = `<strong>NIP-05:</strong> -`;
                                     }
+                                    
                                     let lud = profileData.lud16 || profileData.lud06;
                                     if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); }
+                                    
                                     if (profileData.website) {
                                         webLink.href = profileData.website;
                                         webLink.textContent = profileData.website.replace(/^https?:\/\//, '');
@@ -676,9 +633,7 @@
 
         function triggerDebouncedRender() {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
-                renderChronologicalFeed();
-            }, 300);
+            debounceTimer = setTimeout(() => { renderChronologicalFeed(); }, 300);
         }
         
         function loadMorePosts() {
@@ -693,31 +648,18 @@
             let itemsToRender = userEventsList.slice(0, currentDisplayLimit);
 
             itemsToRender.forEach(ev => {
-                initMetrics(ev.id);
-                requestMetrics(ev.id);
+                initMetrics(ev.id); requestMetrics(ev.id);
 
                 let timeStr = timeAgo(ev.created_at);
-                let avatarHtml = profileAvatarUrl ? `<img src="${profileAvatarUrl}" alt="Avatar">` : `[${ev.pubkey.substring(0,4).toUpperCase()}]`;
+                let avatarHtml = profileAvatarUrl ? `<img src="${escapeHtml(profileAvatarUrl)}" alt="Avatar">` : `[${ev.pubkey.substring(0,4).toUpperCase()}]`;
                 
-                let clientName = "unknown";
-                let dTagValue = "";
-                let hasExpiration = false;
-                let expTimeStr = "EPHEMERAL_STORY";
-
+                let clientName = "unknown"; let dTagValue = ""; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY";
                 ev.tags.forEach(t => { 
                     if (t[0] === "client") clientName = t[1]; 
                     if (t[0] === "d") dTagValue = t[1];
                     if (t[0] === "expiration") {
-                        hasExpiration = true;
-                        let expUnix = parseInt(t[1]);
-                        let diff = expUnix - Math.floor(Date.now() / 1000);
-                        if (diff > 0) {
-                            let h = Math.floor(diff / 3600);
-                            let m = Math.floor((diff % 3600) / 60);
-                            expTimeStr = `Exp in ${h}h ${m}m`;
-                        } else {
-                            expTimeStr = "Expired";
-                        }
+                        hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
+                        expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
                     }
                 });
 
@@ -728,30 +670,17 @@
                 let card = document.createElement('div');
                 card.id = `post-${ev.id}`;
                 
-                let isJsonPayload = false;
-                let parsedJsonContent = "";
+                let isJsonPayload = false; let parsedJsonContent = "";
                 if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                    try {
-                        let parsed = JSON.parse(ev.content.trim());
-                        parsedJsonContent = JSON.stringify(parsed, null, 2);
-                        isJsonPayload = true;
-                    } catch (e) {}
+                    try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
                 }
 
-                // Determine if event is a Pulse/Story (Kind 20000-29999 OR Kind 1 with expiration tag)
                 let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
 
                 if (ev.kind === 30023) {
                     card.className = 'post-card article-card';
-                    let title = "Untitled Article";
-                    let summary = "";
-                    let coverImg = "";
-
-                    ev.tags.forEach(t => {
-                        if (t[0] === "title") title = t[1];
-                        if (t[0] === "summary") summary = t[1];
-                        if (t[0] === "image") coverImg = t[1];
-                    });
+                    let title = "Untitled Article"; let summary = ""; let coverImg = "";
+                    ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
                     let coverHtml = coverImg ? `<div class="post-media" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : "";
                     let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
@@ -772,6 +701,7 @@
                                 <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
                             </div>
                             <div class="post-footer-meta">> long_form / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -779,22 +709,14 @@
                 } 
                 else if (isPulse) {
                     card.className = 'post-card pulse-card';
-                    let contentText = ev.content;
-                    let mediaHtml = "";
-                    let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
-                    contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                    let contentText = ev.content; let mediaHtml = "";
+                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                            mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
-                        } else {
-                            mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
-                        }
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                        else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
                         return "";
                     });
-
-                    // Parse NIP-19 Embeds
-                    let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
-                    contentText = escapeHtml(contentText.trim()).replace(nostrRegex, function(match, nip19Id) {
+                    contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                         let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                     });
@@ -812,6 +734,7 @@
                             <div class="post-actions">
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
                             </div>
                             <div class="post-footer-meta">> pulse_event / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -819,33 +742,22 @@
                 } 
                 else {
                     card.className = 'post-card';
-                    let contentHtml = "";
-                    let mediaHtml = "";
+                    let contentHtml = ""; let mediaHtml = "";
                     
                     if (isJsonPayload) {
                         contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                     } else {
                         let contentText = ev.content;
-                        
-                        // Parse URLs to media
-                        let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
-                        contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                        contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                             let lowerExt = ext.toLowerCase();
-                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                                mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
-                            } else {
-                                mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
-                            }
+                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                            else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
                             return "";
                         });
-                        
-                        // Parse NIP-19 Embeds
-                        let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
-                        contentText = escapeHtml(contentText.trim()).replace(nostrRegex, function(match, nip19Id) {
+                        contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                             let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                             return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                         });
-
                         contentHtml = `<div class="post-content">${contentText}</div>`;
                     }
 
@@ -863,68 +775,39 @@
                                 <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
                             </div>
                             <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
                         </div>
                     `;
                 }
-
                 userPostsContainer.appendChild(card);
                 updateMetricsUI(ev.id);
             });
             
-            if (userEventsList.length > currentDisplayLimit) {
-                loadMoreBtn.classList.remove('hidden');
-            } else {
-                loadMoreBtn.classList.add('hidden');
-            }
+            if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden');
+            else loadMoreBtn.classList.add('hidden');
         }
 
-        function escapeHtml(str) {
-            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
+        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim();
             if (!quoteTargetEvent) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
-            let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
-
-            let rawEvent = {
-                kind: 1,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", quoteTargetEvent.id, "", "quote"],
-                    ["p", quoteTargetEvent.pubkey, ""],
-                    ["client", "Phosphor"]
-                ],
-                content: finalContent,
-                pubkey: currentUserPubkey
-            };
-
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
             try {
                 sendQuoteBtn.textContent = '> SIGNING...';
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-
                 let sentCount = 0;
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
                 alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
-                closeQuoteModal();
-                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            } catch (err) {
-                alert('> ERROR: Failed to send quote.');
-                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            }
+                closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
+            } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
-        initProfile();
+        window.addEventListener('DOMContentLoaded', loadConfig);
     </script>
 </body>
 </html>
