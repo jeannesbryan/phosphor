@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -56,6 +56,15 @@
             border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02);
         }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
+        
+        .post-video {
+            width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px;
+            border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02);
+        }
+        .json-payload {
+            font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); 
+            padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px;
+        }
 
         #lightboxModal, #quoteModal, #relayModal {
             display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
@@ -116,19 +125,19 @@
         </header>
 
         <div style="margin-bottom: 15px;">
-            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;">&lt;-- [ KEMBALI ]</a>
+            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;">&lt;-- [ BACK ]</a>
         </div>
 
         <div id="mainPostContainer">
-            <p style="opacity: 0.5;">[ Memuat postingan utama dari relay... ]</p>
+            <p style="opacity: 0.5;">[ Loading main post from relays... ]</p>
         </div>
 
         <hr class="terminal-hr">
 
         <div class="composer-card">
-            <div class="avatar-box" id="myReplyAvatar">[JB]</div>
+            <div class="avatar-box" id="myReplyAvatar">[ P ]</div>
             <div class="post-main">
-                <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Tulis balasan utas..."></textarea>
+                <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Write thread reply..."></textarea>
                 <div style="text-align: right;">
                     <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;">> POST_REPLY</button>
                 </div>
@@ -137,7 +146,7 @@
 
         <div style="margin-bottom: 15px; font-weight: bold; opacity: 0.8;">> THREAD_REPLIES</div>
         <div class="reply-container" id="repliesContainer">
-            <p style="opacity: 0.5;">[ Menunggu balasan... ]</p>
+            <p style="opacity: 0.5;">[ Waiting for replies... ]</p>
         </div>
     </div>
 
@@ -150,9 +159,9 @@
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
             <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
-            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
+            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
+                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[CANCEL]</button>
                 <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
             </div>
         </div>
@@ -162,10 +171,10 @@
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
             <div id="relayListContainer" style="margin-bottom: 15px;">
-                <p style="opacity: 0.5;">Memeriksa koneksi jaringan...</p>
+                <p style="opacity: 0.5;">Checking network connections...</p>
             </div>
             <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeRelayModal()">[TUTUP]</button>
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -216,7 +225,7 @@
             } else {
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
-                myReplyAvatar.innerHTML = "[JB]";
+                myReplyAvatar.innerHTML = "[ P ]";
             }
         }
 
@@ -228,8 +237,8 @@
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                     updateAuthState();
                     location.reload();
-                } catch (err) { alert('> ERROR.'); }
-            } else { alert('> PERINGATAN: NIP-07 tidak ada.'); }
+                } catch (err) { alert('> ERROR: Login failed.'); }
+            } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
         logoutBtn.addEventListener('click', function(e) {
@@ -237,19 +246,19 @@
             localStorage.removeItem('phosphor_pubkey');
             currentUserPubkey = null;
             updateAuthState();
-            alert('> SESI BERAKHIR.');
+            alert('> SESSION ENDED.');
             location.reload();
         });
 
         function timeAgo(unixTimestamp) {
             let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
-            let intervals = { tahun: 31536000, bulan: 2592000, hari: 86400, jam: 3600, menit: 60 };
-            if (seconds < 60) return "Baru saja";
+            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
+            if (seconds < 60) return "Just now";
             for (let i in intervals) {
                 let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i} yang lalu`;
+                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
             }
-            return "Baru saja";
+            return "Just now";
         }
 
         function openLightbox(imgSrc) {
@@ -315,7 +324,7 @@
         async function likeEvent(eventId) {
             let ev = eventsCache[eventId];
             if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let rawEvent = {
                 kind: 7,
@@ -333,14 +342,14 @@
                 initMetrics(eventId);
                 metricsCache[eventId].likes++;
                 updateMetricsUI(eventId);
-            } catch (err) { alert('> ERROR: Gagal mengirim like.'); }
+            } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
         }
 
         async function repostEvent(eventId) {
             let ev = eventsCache[eventId];
             if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
-            if (!confirm('> Repost postingan ini ke timeline?')) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            if (!confirm('> Repost this post to your timeline?')) return;
 
             let rawEvent = {
                 kind: 6,
@@ -362,14 +371,14 @@
                 initMetrics(eventId);
                 metricsCache[eventId].reposts++;
                 updateMetricsUI(eventId);
-                alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
-            } catch (err) { alert('> ERROR: Gagal mengirim repost.'); }
+                alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
+            } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
         }
 
         function initThread() {
             updateAuthState();
             if (!postId) {
-                mainPostContainer.innerHTML = '<p style="color:red;">[ ERROR: ID Postingan tidak ditemukan di URL ]</p>';
+                mainPostContainer.innerHTML = '<p style="color:red;">[ ERROR: Post ID not found in URL ]</p>';
                 return;
             }
 
@@ -422,7 +431,7 @@
                                 } catch(e){}
                             }
                             
-                            // Hitung Metrik
+                            // Process Metrics
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(targetId => {
@@ -469,16 +478,39 @@
 
             let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
-            let clientName = "Phosphor";
+            
+            let clientName = "unknown";
             ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });
 
-            let contentText = ev.content;
+            let isJsonPayload = false;
+            let parsedJsonContent = "";
+            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
+                try {
+                    let parsed = JSON.parse(ev.content.trim());
+                    parsedJsonContent = JSON.stringify(parsed, null, 2);
+                    isJsonPayload = true;
+                } catch (e) {}
+            }
+
+            let contentHtml = "";
             let mediaHtml = "";
-            let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?)/gi;
-            contentText = contentText.replace(urlRegex, function(url) {
-                mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Thumbnail"></div>`;
-                return "";
-            });
+
+            if (isJsonPayload) {
+                contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+            } else {
+                let contentText = ev.content || "";
+                let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
+                contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                    let lowerExt = ext.toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
+                        mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                    } else {
+                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                    }
+                    return "";
+                });
+                contentHtml = `<div class="main-post-content">${escapeHtml(contentText.trim())}</div>`;
+            }
 
             let fullMetaLine = `${info.handleLine} · ${timeStr}`;
 
@@ -490,7 +522,7 @@
                         <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(fullMetaLine)}</span>
                     </div>
                 </div>
-                <div class="main-post-content">${escapeHtml(contentText.trim())}</div>
+                ${contentHtml}
                 ${mediaHtml}
                 <div class="post-actions">
                     <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
@@ -498,7 +530,7 @@
                     <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                     <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                 </div>
-                <div class="post-footer-meta">> text_note / via ${escapeHtml(clientName)}</div>
+                <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
             `;
             updateMetricsUI(ev.id);
         }
@@ -519,16 +551,39 @@
 
             let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
-            let clientName = "Phosphor";
+            
+            let clientName = "unknown";
             ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });
 
-            let contentText = ev.content;
+            let isJsonPayload = false;
+            let parsedJsonContent = "";
+            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
+                try {
+                    let parsed = JSON.parse(ev.content.trim());
+                    parsedJsonContent = JSON.stringify(parsed, null, 2);
+                    isJsonPayload = true;
+                } catch (e) {}
+            }
+
+            let contentHtml = "";
             let mediaHtml = "";
-            let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?)/gi;
-            contentText = contentText.replace(urlRegex, function(url) {
-                mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Thumbnail"></div>`;
-                return "";
-            });
+
+            if (isJsonPayload) {
+                contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+            } else {
+                let contentText = ev.content || "";
+                let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
+                contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                    let lowerExt = ext.toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
+                        mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                    } else {
+                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                    }
+                    return "";
+                });
+                contentHtml = `<div class="post-content">${escapeHtml(contentText.trim())}</div>`;
+            }
 
             let fullMetaLine = `${info.handleLine} · ${timeStr}`;
             let card = document.createElement('div');
@@ -542,7 +597,7 @@
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                         <span class="dim-text meta-line">${escapeHtml(fullMetaLine)}</span>
                     </div>
-                    <div class="post-content">${escapeHtml(contentText.trim())}</div>
+                    ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
                         <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
@@ -550,7 +605,7 @@
                         <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     </div>
-                    <div class="post-footer-meta">> text_note / via ${escapeHtml(clientName)}</div>
+                    <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
 
@@ -564,8 +619,8 @@
 
         sendReplyBtn.addEventListener('click', async function() {
             let replyText = replyContentInput.value.trim();
-            if (!replyText) { alert('> ERROR: Kosong!'); return; }
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!replyText) { alert('> ERROR: Message is empty!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let rawEvent = {
                 kind: 1,
@@ -589,13 +644,13 @@
                         sentCount++;
                     }
                 });
-                alert(`> SUKSES: Terkirim ke ${sentCount} relay!`);
+                alert(`> SUCCESS: Sent to ${sentCount} relays!`);
                 replyContentInput.value = '';
                 sendReplyBtn.textContent = '> POST_REPLY';
                 eventsCache[signedEvent.id] = signedEvent;
                 renderReply(signedEvent);
             } catch (err) {
-                alert('> ERROR: Gagal.');
+                alert('> ERROR: Failed to broadcast.');
                 sendReplyBtn.textContent = '> POST_REPLY';
             }
         });
@@ -603,7 +658,7 @@
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim();
             if (!quoteTargetEvent) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
             let rawEvent = {
@@ -628,13 +683,13 @@
                         sentCount++;
                     }
                 });
-                alert(`> QUOTE SUKSES: Disebarkan ke ${sentCount} relay!`);
+                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
                 closeQuoteModal();
                 sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
                 eventsCache[signedEvent.id] = signedEvent;
                 renderReply(signedEvent);
             } catch (err) {
-                alert('> ERROR: Gagal mengirim quote.');
+                alert('> ERROR: Failed to send quote.');
                 sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
             }
         });

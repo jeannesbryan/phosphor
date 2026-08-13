@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -73,6 +73,16 @@
             border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02);
         }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
+        
+        .post-video {
+            width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px;
+            border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02);
+        }
+        
+        .json-payload {
+            font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); 
+            padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px;
+        }
 
         #lightboxModal, #quoteModal, #relayModal, #followingModal {
             display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
@@ -81,15 +91,11 @@
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box {
-            background: var(--bg-base, #030303);
-            border: 2px solid currentColor;
-            padding: 20px; width: 90%; max-width: 550px;
-            box-sizing: border-box;
+            background: var(--bg-base, #030303); border: 2px solid currentColor;
+            padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box;
         }
 
-        .scrollable-list {
-            max-height: 250px; overflow-y: auto; border: 1px dashed currentColor; padding: 10px; margin-bottom: 15px;
-        }
+        .scrollable-list { max-height: 250px; overflow-y: auto; border: 1px dashed currentColor; padding: 10px; margin-bottom: 15px; }
 
         .post-actions { display: flex; justify-content: space-between; max-width: 320px; margin-top: 10px; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
@@ -120,6 +126,13 @@
 
         .relay-item, .following-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
         .following-item:last-child { border-bottom: none; }
+
+        #loadMoreBtn {
+            width: 100%; text-align: center; margin-top: 15px; padding: 10px;
+            border: 1px dashed currentColor; background: transparent; color: inherit;
+            cursor: pointer; font-family: inherit;
+        }
+        #loadMoreBtn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
     </style>
 </head>
 <body class="terminal t-crt">
@@ -140,11 +153,11 @@
                 <span style="opacity: 0.3; font-size: 0.8em;">[ NO_BANNER ]</span>
             </div>
             <div class="profile-header">
-                <div class="profile-avatar" id="profileAvatarBox">[JB]</div>
+                <div class="profile-avatar" id="profileAvatarBox">[...]</div>
                 <div class="profile-meta">
                     <h2 id="profileName">User Name</h2>
                     <div class="dim-text" id="profileHandle">@handle</div>
-                    <div style="font-size: 0.75em; margin-top: 4px; opacity: 0.6;" id="profilePubkeyDisplay">Memuat pubkey...</div>
+                    <div style="font-size: 0.75em; margin-top: 4px; opacity: 0.6;" id="profilePubkeyDisplay">Loading pubkey...</div>
                 </div>
             </div>
             
@@ -163,7 +176,7 @@
                     <button class="interactive-stat" onclick="openFollowingModal()">Following: <strong id="followingCountText">0</strong></button>
                 </div>
                 <div>
-                    <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast profil">* BROADCAST_METADATA</button>
+                    <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast Profile">* BROADCAST_METADATA</button>
                     <button id="followBtn" class="sync-btn hidden" onclick="toggleFollow()">[FOLLOW]</button>
                 </div>
             </div>
@@ -173,8 +186,9 @@
 
         <section id="feed">
             <div id="user-posts-container">
-                <p style="opacity: 0.5;">[ Menunggu sinkronisasi dari relay... ]</p>
+                <p style="opacity: 0.5;">[ Waiting for relay synchronization... ]</p>
             </div>
+            <button id="loadMoreBtn" class="hidden" onclick="loadMorePosts()">[ LOAD MORE ]</button>
         </section>
     </div>
 
@@ -187,9 +201,9 @@
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
             <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
-            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
+            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
+                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[CANCEL]</button>
                 <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
             </div>
         </div>
@@ -199,10 +213,10 @@
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
             <div id="relayListContainer" style="margin-bottom: 15px;">
-                <p style="opacity: 0.5;">Memeriksa koneksi jaringan...</p>
+                <p style="opacity: 0.5;">Checking network connections...</p>
             </div>
             <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeRelayModal()">[TUTUP]</button>
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -211,10 +225,10 @@
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> FOLLOWING_LIST (<span id="modalFollowingCount">0</span>)</div>
             <div class="scrollable-list" id="followingListContainer">
-                <p style="opacity: 0.5;">Memuat daftar following...</p>
+                <p style="opacity: 0.5;">Loading following list...</p>
             </div>
             <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeFollowingModal()">[TUTUP]</button>
+                <button class="action-btn modal-btn" onclick="closeFollowingModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -239,6 +253,10 @@
         let userEventsList = [];
         let relayStatusMap = {};
         
+        // Pagination vars
+        let currentDisplayLimit = 10;
+        let debounceTimer = null;
+        
         let targetFollowingPubkeys = [];
         let myFollowingPubkeys = [];
         let followingProfilesCache = {};
@@ -262,6 +280,7 @@
         const webLink = document.getElementById('webLink');
         const profileNip05Container = document.getElementById('profileNip05Container');
         const userPostsContainer = document.getElementById('user-posts-container');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
         const broadcastProfileBtn = document.getElementById('broadcastProfileBtn');
         const followBtn = document.getElementById('followBtn');
         const relayCountText = document.getElementById('relayCountText');
@@ -301,8 +320,8 @@
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                     updateAuthState();
                     location.reload();
-                } catch (err) { alert('> ERROR.'); }
-            } else { alert('> PERINGATAN: NIP-07 tidak ada.'); }
+                } catch (err) { alert('> ERROR: Failed to get public key.'); }
+            } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
         logoutBtn.addEventListener('click', function(e) {
@@ -315,13 +334,13 @@
 
         function timeAgo(unixTimestamp) {
             let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
-            let intervals = { tahun: 31536000, bulan: 2592000, hari: 86400, jam: 3600, menit: 60 };
-            if (seconds < 60) return "Baru saja";
+            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
+            if (seconds < 60) return "Just now";
             for (let i in intervals) {
                 let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i} yang lalu`;
+                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
             }
-            return "Baru saja";
+            return "Just now";
         }
 
         function openLightbox(imgSrc) {
@@ -361,7 +380,7 @@
         function renderFollowingListUI() {
             modalFollowingCount.textContent = targetFollowingPubkeys.length;
             if (targetFollowingPubkeys.length === 0) {
-                followingListContainer.innerHTML = '<p style="opacity: 0.5;">Tidak ada data following ditemukan.</p>';
+                followingListContainer.innerHTML = '<p style="opacity: 0.5;">No following data found.</p>';
                 return;
             }
 
@@ -407,7 +426,7 @@
         async function likeEvent(eventId) {
             let ev = userEventsList.find(e => e.id === eventId);
             if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let rawEvent = {
                 kind: 7,
@@ -425,14 +444,14 @@
                 initMetrics(eventId);
                 metricsCache[eventId].likes++;
                 updateMetricsUI(eventId);
-            } catch (err) { alert('> ERROR: Gagal mengirim like.'); }
+            } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
         }
 
         async function repostEvent(eventId) {
             let ev = userEventsList.find(e => e.id === eventId);
             if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
-            if (!confirm('> Repost konten ini ke timeline?')) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            if (!confirm('> Repost this content to your timeline?')) return;
 
             let rawEvent = {
                 kind: 6,
@@ -460,8 +479,8 @@
                 initMetrics(eventId);
                 metricsCache[eventId].reposts++;
                 updateMetricsUI(eventId);
-                alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
-            } catch (err) { alert('> ERROR: Gagal mengirim repost.'); }
+                alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
+            } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
         }
 
         async function toggleFollow() {
@@ -491,17 +510,12 @@
                 });
                 myFollowingPubkeys = newFollowing;
                 followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
-                alert(`> SUKSES: Update Follow/Unfollow disiarkan!`);
-            } catch(e) { alert('> ERROR: Gagal update follow.'); }
+                alert(`> SUCCESS: Follow list updated!`);
+            } catch(e) { alert('> ERROR: Failed to update follow list.'); }
         }
 
         async function initProfile() {
-            if (!currentUserPubkey && window.nostr) {
-                try {
-                    currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                } catch (e) {}
-            }
+            // Blok pengecekan window.nostr dihapus agar tidak login otomatis
 
             if (!targetPubkey) {
                 targetPubkey = currentUserPubkey;
@@ -512,11 +526,12 @@
 
             if (!targetPubkey) {
                 relayStatusBtn.textContent = '[ RELAYS: DISCONNECTED ]';
-                profilePubkeyDisplay.textContent = 'Data tidak ditemukan.';
+                profilePubkeyDisplay.textContent = 'Data not found.';
                 return;
             }
 
             profilePubkeyDisplay.textContent = targetPubkey;
+            profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`;
             connectMultiRelays();
         }
 
@@ -533,7 +548,8 @@
                     
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [targetPubkey], "limit": 50 }]));
+                    // Increased limit to 100 to make 'Load More' useful
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
 
                     if (currentUserPubkey && !isMyProfile) {
                         socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
@@ -584,7 +600,7 @@
                                 } catch(e){}
                             }
                             
-                            // Hitung Metrik
+                            // Metrics processing
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(tId => {
@@ -646,7 +662,7 @@
                             if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!userEventsList.some(item => item.id === ev.id)) {
                                     userEventsList.push(ev);
-                                    renderChronologicalFeed();
+                                    triggerDebouncedRender();
                                 }
                             }
                         }
@@ -661,17 +677,33 @@
             relayCountText.textContent = onlineCount;
         }
 
+        function triggerDebouncedRender() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                renderChronologicalFeed();
+            }, 300);
+        }
+        
+        function loadMorePosts() {
+            currentDisplayLimit += 10;
+            renderChronologicalFeed();
+        }
+
         function renderChronologicalFeed() {
             userEventsList.sort((a, b) => b.created_at - a.created_at);
             userPostsContainer.innerHTML = '';
+            
+            let itemsToRender = userEventsList.slice(0, currentDisplayLimit);
 
-            userEventsList.forEach(ev => {
+            itemsToRender.forEach(ev => {
                 initMetrics(ev.id);
                 requestMetrics(ev.id);
 
                 let timeStr = timeAgo(ev.created_at);
-                let avatarHtml = profileAvatarUrl ? `<img src="${profileAvatarUrl}" alt="Avatar">` : `[${ev.pubkey.substring(0,4)}]`;
-                let clientName = "Phosphor";
+                let avatarHtml = profileAvatarUrl ? `<img src="${profileAvatarUrl}" alt="Avatar">` : `[${ev.pubkey.substring(0,4).toUpperCase()}]`;
+                
+                // Fallback client to 'unknown'
+                let clientName = "unknown";
                 let dTagValue = "";
                 ev.tags.forEach(t => { 
                     if (t[0] === "client") clientName = t[1]; 
@@ -684,10 +716,21 @@
 
                 let card = document.createElement('div');
                 card.id = `post-${ev.id}`;
+                
+                // Detect Machine/Bot JSON payloads for kind 1
+                let isJsonPayload = false;
+                let parsedJsonContent = "";
+                if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
+                    try {
+                        let parsed = JSON.parse(ev.content.trim());
+                        parsedJsonContent = JSON.stringify(parsed, null, 2);
+                        isJsonPayload = true;
+                    } catch (e) {}
+                }
 
                 if (ev.kind === 30023) {
                     card.className = 'post-card article-card';
-                    let title = "Artikel Tanpa Judul";
+                    let title = "Untitled Article";
                     let summary = "";
                     let coverImg = "";
 
@@ -711,7 +754,7 @@
                             ${coverHtml}
                             <div class="article-summary">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
                             <div class="post-actions">
-                                <a href="notes.html?${articleTargetParam}" class="action-btn" style="text-decoration:none;">[baca]</a>
+                                <a href="notes.html?${articleTargetParam}" class="action-btn" style="text-decoration:none;">[read]</a>
                                 <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                                 <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
@@ -724,9 +767,14 @@
                     card.className = 'post-card pulse-card';
                     let contentText = ev.content;
                     let mediaHtml = "";
-                    let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?)/gi;
-                    contentText = contentText.replace(urlRegex, function(url) {
-                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
+                    let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
+                    contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                        let lowerExt = ext.toLowerCase();
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
+                            mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                        } else {
+                            mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
+                        }
                         return "";
                     });
 
@@ -750,13 +798,25 @@
                 } 
                 else {
                     card.className = 'post-card';
-                    let contentText = ev.content;
+                    let contentHtml = "";
                     let mediaHtml = "";
-                    let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?)/gi;
-                    contentText = contentText.replace(urlRegex, function(url) {
-                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Thumbnail"></div>`;
-                        return "";
-                    });
+                    
+                    if (isJsonPayload) {
+                        contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+                    } else {
+                        let contentText = ev.content;
+                        let urlRegex = /(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi;
+                        contentText = contentText.replace(urlRegex, function(url, match1, ext) {
+                            let lowerExt = ext.toLowerCase();
+                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
+                                mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
+                            } else {
+                                mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                            }
+                            return "";
+                        });
+                        contentHtml = `<div class="post-content">${escapeHtml(contentText.trim())}</div>`;
+                    }
 
                     card.innerHTML = `
                         <div class="avatar-box">${avatarHtml}</div>
@@ -765,7 +825,7 @@
                                 <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
                                 <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
                             </div>
-                            <div class="post-content">${escapeHtml(contentText.trim())}</div>
+                            ${contentHtml}
                             ${mediaHtml}
                             <div class="post-actions">
                                 <a href="thread.html?id=${ev.id}" class="action-btn" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
@@ -773,7 +833,7 @@
                                 <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                             </div>
-                            <div class="post-footer-meta">> text_note / via ${escapeHtml(clientName)}</div>
+                            <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
                         </div>
                     `;
                 }
@@ -781,6 +841,13 @@
                 userPostsContainer.appendChild(card);
                 updateMetricsUI(ev.id);
             });
+            
+            // Show or Hide "Load More" button
+            if (userEventsList.length > currentDisplayLimit) {
+                loadMoreBtn.classList.remove('hidden');
+            } else {
+                loadMoreBtn.classList.add('hidden');
+            }
         }
 
         function escapeHtml(str) {
@@ -790,7 +857,7 @@
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim();
             if (!quoteTargetEvent) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
 
@@ -818,11 +885,11 @@
                     }
                 });
 
-                alert(`> QUOTE SUKSES: Disebarkan ke ${sentCount} relay!`);
+                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
                 closeQuoteModal();
                 sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
             } catch (err) {
-                alert('> ERROR: Gagal mengirim quote.');
+                alert('> ERROR: Failed to send quote.');
                 sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
             }
         });
