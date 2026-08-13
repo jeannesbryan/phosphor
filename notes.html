@@ -4,66 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Notes / Article</title>
-    <link rel="stylesheet" href="terminal.css">
+    <link rel="stylesheet" href="/assets/terminal.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="manifest" href="/assets/site.webmanifest">
+    <!-- NostrTools for NIP-19 Encoding/Decoding -->
+    <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
         .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
         .hidden { display: none !important; }
         
-        .main-post-card { 
-            border: 2px solid currentColor; 
-            padding: 20px; 
-            margin-bottom: 20px;
-            background: transparent;
-        }
-        
-        .article-main-title {
-            font-size: 1.5em;
-            font-weight: bold;
-            line-height: 1.3;
-            margin: 15px 0 10px 0;
-            word-wrap: break-word;
-        }
+        .main-post-card { border: 2px solid currentColor; padding: 20px; margin-bottom: 20px; background: transparent; }
+        .article-main-title { font-size: 1.5em; font-weight: bold; line-height: 1.3; margin: 15px 0 10px 0; word-wrap: break-word; }
+        .article-stats-info { font-size: 0.8em; opacity: 0.6; margin-bottom: 20px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; }
 
-        .article-stats-info {
-            font-size: 0.8em;
-            opacity: 0.6;
-            margin-bottom: 20px;
-            border-bottom: 1px dashed currentColor;
-            padding-bottom: 10px;
-        }
-
-        .main-post-content {
-            font-size: 1.05em;
-            line-height: 1.6;
-            margin: 15px 0;
-            word-wrap: break-word;
-        }
+        .main-post-content { font-size: 1.05em; line-height: 1.6; margin: 15px 0; word-wrap: break-word; }
         .main-post-content h1, .main-post-content h2, .main-post-content h3 { margin-top: 20px; margin-bottom: 10px; }
         .main-post-content p { margin-bottom: 12px; }
         .main-post-content pre { background: rgba(0,255,65,0.05); border: 1px dashed currentColor; padding: 10px; overflow-x: auto; }
         .main-post-content code { font-family: inherit; }
         .main-post-content blockquote { border-left: 2px solid currentColor; margin-left: 0; padding-left: 10px; opacity: 0.8; }
 
-        .reply-container {
-            margin-left: 20px;
-            border-left: 2px dashed currentColor;
-            padding-left: 15px;
-        }
-        .post-card { 
-            display: flex; 
-            border: 1px solid currentColor; 
-            padding: 15px; 
-            margin-bottom: 15px;
-            background: transparent;
-        }
+        .reply-container { margin-left: 20px; border-left: 2px dashed currentColor; padding-left: 15px; }
+        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; }
         
-        .avatar-box {
-            width: 48px; height: 48px; border: 1px dashed currentColor;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; font-weight: bold; font-size: 1.2em; overflow: hidden; background: var(--bg-base);
-        }
+        .avatar-box { width: 48px; height: 48px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 1.2em; overflow: hidden; background: var(--bg-base); }
         .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
         
         .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
@@ -74,55 +42,35 @@
         .post-header a:hover { color: var(--t-green, #00ff41); }
         .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
         
-        .post-media {
-            margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px;
-            border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02);
-        }
+        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed currentColor; padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
+        .nostr-embed-link:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
+        .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
+
+        .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
+        .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
+        
+        .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        .post-video {
-            width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px;
-            border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02);
-        }
-        .json-payload {
-            font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); 
-            padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px;
-        }
-
-        #lightboxModal, #quoteModal, #relayModal {
-            display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center;
-        }
+        #lightboxModal, #quoteModal, #relayModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
-        .modal-content-box {
-            background: var(--bg-base, #030303);
-            border: 2px solid currentColor;
-            padding: 20px; width: 90%; max-width: 550px;
-            box-sizing: border-box;
-        }
+        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
 
-        .post-actions { display: flex; justify-content: space-between; max-width: 320px; margin-top: 10px; }
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 400px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
         .post-footer-meta { text-align: right; font-style: italic; opacity: 0.5; font-size: 0.8em; margin-top: 5px; }
 
         .composer-card { border: 1px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; }
-        textarea.sys-input { 
-            width: 100%; box-sizing: border-box; background: transparent; 
-            color: inherit; border: none; border-bottom: 1px dashed currentColor; 
-            padding: 10px 0; font-family: inherit; margin-bottom: 10px; resize: vertical; outline: none;
-        }
+        textarea.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; resize: vertical; outline: none; }
         .reply-btn, .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
         .reply-btn:hover, .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
 
-        .terminal-hr {
-            border: none;
-            border-top: 1px dashed var(--t-green, #00ff41);
-            margin: 20px 0;
-            opacity: 0.6;
-        }
+        .terminal-hr { border: none; border-top: 1px dashed var(--t-green, #00ff41); margin: 20px 0; opacity: 0.6; }
 
         nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
         nav a { text-decoration: none !important; color: inherit; }
@@ -148,7 +96,7 @@
         </header>
 
         <div style="margin-bottom: 15px;">
-            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;">&lt;-- [ BACK ]</a>
+            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
         </div>
 
         <div id="mainPostContainer">
@@ -158,11 +106,11 @@
         <hr class="terminal-hr">
 
         <div class="composer-card">
-            <div class="avatar-box" id="myReplyAvatar">[ P ]</div>
+            <div class="avatar-box" id="myReplyAvatar">[P]</div>
             <div class="post-main">
                 <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Write article reply..."></textarea>
                 <div style="text-align: right;">
-                    <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;">> POST_REPLY</button>
+                    <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;" title="Broadcast Reply">> POST_REPLY</button>
                 </div>
             </div>
         </div>
@@ -226,6 +174,9 @@
         let metricsCache = {};
         let pendingMetricsIds = new Set();
         let metricsTimeout = null;
+        
+        let likedEvents = new Set();
+        let repostedEvents = new Set();
 
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const loginBtn = document.getElementById('loginBtn');
@@ -250,7 +201,7 @@
             } else {
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
-                myReplyAvatar.innerHTML = "[ P ]";
+                myReplyAvatar.innerHTML = "[P]";
             }
         }
 
@@ -274,6 +225,25 @@
             alert('> SESSION ENDED.');
             location.reload();
         });
+
+        function copyNaddr(kind, pubkey, identifier) {
+            if (window.NostrTools && window.NostrTools.nip19) {
+                try {
+                    let naddr = window.NostrTools.nip19.naddrEncode({
+                        kind: parseInt(kind),
+                        pubkey: pubkey,
+                        identifier: identifier
+                    });
+                    let fullUrl = `nostr:${naddr}`;
+                    navigator.clipboard.writeText(fullUrl);
+                    alert(`> SUCCESS: Copied to clipboard!\n\n${fullUrl}`);
+                } catch (e) {
+                    alert('> ERROR: Failed to encode NIP-19 naddr.');
+                }
+            } else {
+                alert('> ERROR: NostrTools library not loaded. Cannot encode naddr.');
+            }
+        }
 
         function timeAgo(unixTimestamp) {
             let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
@@ -356,6 +326,7 @@
             let ev = eventsCache[eventId];
             if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
 
             let rawEvent = {
                 kind: 7,
@@ -370,7 +341,10 @@
                 activeSockets.forEach(sock => {
                     if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
                 });
+                
+                likedEvents.add(eventId);
                 initMetrics(eventId);
+                metricsCache[eventId].processed.add(signedEvent.id);
                 metricsCache[eventId].likes++;
                 updateMetricsUI(eventId);
             } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
@@ -380,6 +354,7 @@
             let ev = eventsCache[eventId];
             if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
             if (!confirm('> Repost this content to your timeline?')) return;
 
             let rawEvent = {
@@ -407,7 +382,10 @@
                         sentCount++;
                     }
                 });
+                
+                repostedEvents.add(eventId);
                 initMetrics(eventId);
+                metricsCache[eventId].processed.add(signedEvent.id);
                 metricsCache[eventId].reposts++;
                 updateMetricsUI(eventId);
                 alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
@@ -500,9 +478,9 @@
                                 if (isMatch && !parentEvent) {
                                     parentEvent = ev;
                                     renderMainArticle(ev);
-                                    socket.send(JSON.stringify(["REQ", "article-replies", { "kinds": [1], "#e": [ev.id] }]));
+                                    socket.send(JSON.stringify(["REQ", "article-replies", { "kinds": [1, 20000, 20001, 20002], "#e": [ev.id] }]));
                                 }
-                            } else if (ev.kind === 1) {
+                            } else if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 renderReply(ev);
                             }
                         }
@@ -527,6 +505,7 @@
             let timeStr = timeAgo(ev.created_at);
             let clientName = "unknown";
             let title = "Untitled Article";
+            let dTagValue = "";
             let markdownLines = (ev.content || "").split('\n');
             let headingLine = markdownLines.find(line => line.startsWith('# '));
             if (headingLine) title = headingLine.replace('# ', '').trim();
@@ -535,6 +514,7 @@
             ev.tags.forEach(t => {
                 if (t[0] === "client") clientName = t[1];
                 if (t[0] === "title") title = t[1];
+                if (t[0] === "d") dTagValue = t[1];
                 if (t[0] === "published_at") {
                     let pubTimestamp = parseInt(t[1]);
                     if (!isNaN(pubTimestamp)) publishedAt = timeAgo(pubTimestamp);
@@ -567,10 +547,11 @@
                 <div class="main-post-content">${renderedHtml}</div>
 
                 <div class="post-actions" style="margin-top: 20px;">
-                    <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
-                    <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                    <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                    <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                    <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                    <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
+                    <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                    <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                    <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                 </div>
                 <div class="post-footer-meta">> long_form (NIP-23) / via ${escapeHtml(clientName)}</div>
             `;
@@ -594,7 +575,24 @@
             let timeStr = timeAgo(ev.created_at);
             
             let clientName = "unknown";
-            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });
+            let hasExpiration = false;
+            let expTimeStr = "EPHEMERAL_STORY";
+
+            ev.tags.forEach(t => { 
+                if (t[0] === "client") clientName = t[1]; 
+                if (t[0] === "expiration") {
+                    hasExpiration = true;
+                    let expUnix = parseInt(t[1]);
+                    let diff = expUnix - Math.floor(Date.now() / 1000);
+                    if (diff > 0) {
+                        let h = Math.floor(diff / 3600);
+                        let m = Math.floor((diff % 3600) / 60);
+                        expTimeStr = `Exp in ${h}h ${m}m`;
+                    } else {
+                        expTimeStr = "Expired";
+                    }
+                }
+            });
 
             let isJsonPayload = false;
             let parsedJsonContent = "";
@@ -605,6 +603,8 @@
                     isJsonPayload = true;
                 } catch (e) {}
             }
+            
+            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
 
             let contentHtml = "";
             let mediaHtml = "";
@@ -623,13 +623,23 @@
                     }
                     return "";
                 });
-                contentHtml = `<div class="post-content">${escapeHtml(contentText.trim())}</div>`;
+                
+                // Parse NIP-19 Embeds
+                let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
+                contentText = escapeHtml(contentText.trim()).replace(nostrRegex, function(match, nip19Id) {
+                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
+                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
+                });
+
+                contentHtml = `<div class="post-content">${contentText}</div>`;
             }
 
             let fullMetaLine = `${info.handleLine} · ${timeStr}`;
             let card = document.createElement('div');
-            card.className = 'post-card';
+            card.className = isPulse ? 'post-card pulse-card' : 'post-card';
             card.id = `reply-${ev.id}`;
+            
+            let pulseBadgeHtml = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
             card.innerHTML = `
                 <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -638,15 +648,16 @@
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                         <span class="dim-text meta-line">${escapeHtml(fullMetaLine)}</span>
                     </div>
+                    ${pulseBadgeHtml}
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
-                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                        <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                        <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                        <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                        <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                        <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     </div>
-                    <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
+                    <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
 
