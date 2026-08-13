@@ -29,14 +29,14 @@
         
         .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
         
-        /* Header Postingan ala Jumble */
         .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
         .author-line { font-size: 1.1em; font-weight: bold; }
         .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        .post-header a { text-decoration: none; color: inherit; }
+        .post-header a:hover { color: var(--t-green, #00ff41); }
         
         .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
         
-        /* Thumbnail Anti-Offside */
         .post-media {
             margin-top: 10px; margin-bottom: 12px;
             max-width: 250px; height: 160px;
@@ -50,7 +50,6 @@
         }
         .post-media:hover img { transform: scale(1.03); }
         
-        /* Modal & Lightbox */
         #lightboxModal, #quoteModal, #relayModal {
             display: none; position: fixed; z-index: 9999;
             left: 0; top: 0; width: 100%; height: 100%;
@@ -70,7 +69,7 @@
             box-sizing: border-box;
         }
 
-        .post-actions { display: flex; justify-content: space-between; max-width: 300px; margin-top: 10px; }
+        .post-actions { display: flex; justify-content: space-between; max-width: 320px; margin-top: 10px; }
         .action-btn { 
             background: transparent !important; border: none; color: inherit; 
             cursor: pointer; font-family: inherit; padding: 5px 8px; 
@@ -105,7 +104,6 @@
 </head>
 <body class="terminal t-crt">
     <div class="container">
-        
         <header>
             <h1>> Phosphor</h1>
             <nav>
@@ -142,7 +140,7 @@
     <div id="quoteModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
-            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px solid currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
+            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
             <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                 <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
@@ -177,6 +175,10 @@
         let eventsCache = {};
         let quoteTargetEvent = null;
         let relayStatusMap = {};
+        
+        let metricsCache = {};
+        let pendingMetricsIds = new Set();
+        let metricsTimeout = null;
 
         const loginBtn = document.getElementById('loginBtn');
         const logoutBtn = document.getElementById('logoutBtn');
@@ -190,7 +192,6 @@
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
 
@@ -288,6 +289,58 @@
 
         function closeRelayModal() { relayModal.style.display = 'none'; }
 
+        function initMetrics(id) {
+            if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() };
+        }
+
+        function updateMetricsUI(id) {
+            let m = metricsCache[id];
+            let er = document.getElementById(`metric-replies-${id}`);
+            let et = document.getElementById(`metric-reposts-${id}`);
+            let el = document.getElementById(`metric-likes-${id}`);
+            if(er) er.textContent = m.replies;
+            if(et) et.textContent = m.reposts;
+            if(el) el.textContent = m.likes;
+        }
+
+        function requestMetrics(eventId) {
+            pendingMetricsIds.add(eventId);
+            clearTimeout(metricsTimeout);
+            metricsTimeout = setTimeout(() => {
+                let ids = Array.from(pendingMetricsIds);
+                if(ids.length === 0) return;
+                let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
+                });
+                pendingMetricsIds.clear();
+            }, 1500);
+        }
+
+        async function likeEvent(eventId) {
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+
+            let rawEvent = {
+                kind: 7,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]],
+                content: "+",
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
+                });
+                initMetrics(eventId);
+                metricsCache[eventId].likes++;
+                updateMetricsUI(eventId);
+            } catch (err) { alert('> ERROR: Gagal mengirim like.'); }
+        }
+
         async function repostEvent(eventId) {
             let ev = eventsCache[eventId];
             if (!ev) return;
@@ -297,10 +350,7 @@
             let rawEvent = {
                 kind: 6,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", ev.id, "", "mention"],
-                    ["p", ev.pubkey, ""]
-                ],
+                tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]],
                 content: JSON.stringify(ev),
                 pubkey: currentUserPubkey
             };
@@ -314,10 +364,11 @@
                         sentCount++;
                     }
                 });
+                initMetrics(eventId);
+                metricsCache[eventId].reposts++;
+                updateMetricsUI(eventId);
                 alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
-            } catch (err) {
-                alert('> ERROR: Gagal mengirim repost.');
-            }
+            } catch (err) { alert('> ERROR: Gagal mengirim repost.'); }
         }
 
         function connectMultiRelays() {
@@ -342,6 +393,7 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
@@ -354,6 +406,22 @@
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
+                            
+                            // Hitung Metrik
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
+                                let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
+                                eTags.forEach(targetId => {
+                                    initMetrics(targetId);
+                                    if (!metricsCache[targetId].processed.has(ev.id)) {
+                                        metricsCache[targetId].processed.add(ev.id);
+                                        if (ev.kind === 1) metricsCache[targetId].replies++;
+                                        if (ev.kind === 6 || ev.kind === 16) metricsCache[targetId].reposts++;
+                                        if (ev.kind === 7) metricsCache[targetId].likes++;
+                                        updateMetricsUI(targetId);
+                                    }
+                                });
+                            }
+
                             if (ev.kind === 1) {
                                 eventsCache[ev.id] = ev; 
                                 renderPost(ev);
@@ -377,6 +445,8 @@
 
         function renderPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
+            initMetrics(ev.id);
+            requestMetrics(ev.id);
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
             let info = profileCache[ev.pubkey] || {
@@ -405,24 +475,26 @@
             card.id = `post-${ev.id}`;
 
             card.innerHTML = `
-                <div class="avatar-box avatar-${ev.pubkey}">${avatarHtml}</div>
+                <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                 <div class="post-main">
                     <div class="post-header">
-                        <span class="author-line"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></span>
+                        <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                         <span class="dim-text meta-line handle-${ev.pubkey}">${escapeHtml(info.handle)} ${info.nip05 ? '· ' + escapeHtml(info.nip05) : ''} · ${timeStr}</span>
                     </div>
                     <div class="post-content">${escapeHtml(contentText.trim())}</div>
                     ${mediaHtml}
                     <div class="post-actions">
-                        <a href="thread.html?id=${ev.id}" class="action-btn">[r] balasan</a>
-                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
-                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                        <a href="thread.html?id=${ev.id}" class="action-btn">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                        <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     </div>
                     <div class="client-tag">> via ${escapeHtml(clientName)}</div>
                 </div>
             `;
 
             postsContainer.prepend(card);
+            updateMetricsUI(ev.id);
         }
 
         function escapeHtml(str) {

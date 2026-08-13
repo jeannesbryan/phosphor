@@ -70,6 +70,8 @@
         .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
         .author-line { font-size: 1.1em; font-weight: bold; }
         .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        .post-header a { text-decoration: none; color: inherit; }
+        .post-header a:hover { color: var(--t-green, #00ff41); }
         .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
         
         .post-media {
@@ -92,7 +94,7 @@
         }
 
         .post-actions { display: flex; justify-content: space-between; max-width: 320px; margin-top: 10px; }
-        .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; }
+        .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
         .post-footer-meta { text-align: right; font-style: italic; opacity: 0.5; font-size: 0.8em; margin-top: 5px; }
@@ -114,10 +116,10 @@
         }
 
         nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: inherit; }
+        nav a { text-decoration: none !important; color: inherit; }
         nav a:hover { color: var(--t-green, #00ff41); }
 
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none; }
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
         .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
 
         .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
@@ -125,7 +127,6 @@
 </head>
 <body class="terminal t-crt">
     <div class="container">
-        
         <header>
             <h1>> Phosphor</h1>
             <nav>
@@ -141,15 +142,12 @@
             <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;">&lt;-- [ KEMBALI ]</a>
         </div>
 
-        <!-- ARTIKEL UTAMA (KIND 30023) -->
         <div id="mainPostContainer">
             <p style="opacity: 0.5;">[ Memuat artikel dari relay... ]</p>
         </div>
 
-        <!-- Garis Pemisah Hijau Tegas -->
         <hr class="terminal-hr">
 
-        <!-- FORM BALASAN / REPLY -->
         <div class="composer-card">
             <div class="avatar-box" id="myReplyAvatar">[JB]</div>
             <div class="post-main">
@@ -164,19 +162,17 @@
         <div class="reply-container" id="repliesContainer">
             <p style="opacity: 0.5;">[ Menunggu balasan... ]</p>
         </div>
-
     </div>
 
-    <!-- Lightbox Modal untuk Gambar -->
+    <!-- Lightbox & Modals -->
     <div id="lightboxModal" onclick="this.style.display='none'">
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
-    <!-- Modal Quote-Reply -->
     <div id="quoteModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
-            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px solid currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
+            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
             <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                 <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
@@ -185,7 +181,6 @@
         </div>
     </div>
 
-    <!-- Modal Status Relay -->
     <div id="relayModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
@@ -219,6 +214,10 @@
         let relayStatusMap = {};
         let eventsCache = {};
 
+        let metricsCache = {};
+        let pendingMetricsIds = new Set();
+        let metricsTimeout = null;
+
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const loginBtn = document.getElementById('loginBtn');
         const logoutBtn = document.getElementById('logoutBtn');
@@ -232,7 +231,6 @@
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
 
@@ -317,6 +315,58 @@
 
         function closeRelayModal() { relayModal.style.display = 'none'; }
 
+        function initMetrics(id) {
+            if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() };
+        }
+
+        function updateMetricsUI(id) {
+            let m = metricsCache[id];
+            let er = document.getElementById(`metric-replies-${id}`);
+            let et = document.getElementById(`metric-reposts-${id}`);
+            let el = document.getElementById(`metric-likes-${id}`);
+            if(er) er.textContent = m.replies;
+            if(et) et.textContent = m.reposts;
+            if(el) el.textContent = m.likes;
+        }
+
+        function requestMetrics(eventId) {
+            pendingMetricsIds.add(eventId);
+            clearTimeout(metricsTimeout);
+            metricsTimeout = setTimeout(() => {
+                let ids = Array.from(pendingMetricsIds);
+                if(ids.length === 0) return;
+                let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
+                });
+                pendingMetricsIds.clear();
+            }, 1500);
+        }
+
+        async function likeEvent(eventId) {
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+
+            let rawEvent = {
+                kind: 7,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]],
+                content: "+",
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
+                });
+                initMetrics(eventId);
+                metricsCache[eventId].likes++;
+                updateMetricsUI(eventId);
+            } catch (err) { alert('> ERROR: Gagal mengirim like.'); }
+        }
+
         async function repostEvent(eventId) {
             let ev = eventsCache[eventId];
             if (!ev) return;
@@ -326,10 +376,7 @@
             let rawEvent = {
                 kind: 6,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", ev.id, "", "mention"],
-                    ["p", ev.pubkey, ""]
-                ],
+                tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]],
                 content: JSON.stringify(ev),
                 pubkey: currentUserPubkey
             };
@@ -351,10 +398,11 @@
                         sentCount++;
                     }
                 });
+                initMetrics(eventId);
+                metricsCache[eventId].reposts++;
+                updateMetricsUI(eventId);
                 alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
-            } catch (err) {
-                alert('> ERROR: Gagal mengirim repost.');
-            }
+            } catch (err) { alert('> ERROR: Gagal mengirim repost.'); }
         }
 
         function initNotes() {
@@ -376,8 +424,6 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    // KUNCI PERBAIKAN: Kita HAPUS filter `"#d"` karena relay gagal memprosesnya.
-                    // Kita cukup minta artikel dari Author tersebut dengan limit besar, lalu saring secara lokal.
                     let filterObj = { "kinds": [30023], "limit": 50 };
                     if (authorParam) filterObj.authors = [authorParam];
                     if (articleId) filterObj.ids = [articleId];
@@ -398,18 +444,18 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-                            
                             eventsCache[ev.id] = ev;
 
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
                                     let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`;
-                                    let domainPart = meta.nip05 ? meta.nip05.split('@')[1] || 'jeannesbryan.my.id' : 'jeannesbryan.my.id';
+                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
                                     
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handleLine: `${rawName} ✓ ${domainPart}`,
+                                        handleLine: handleLineStr,
                                         picture: meta.picture || null
                                     };
                                     if (ev.pubkey === currentUserPubkey && meta.picture) {
@@ -418,12 +464,25 @@
                                     if (parentEvent) renderMainArticle(parentEvent);
                                 } catch(e){}
                             }
+                            
+                            // Hitung Metrik
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
+                                let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
+                                eTags.forEach(targetId => {
+                                    initMetrics(targetId);
+                                    if (!metricsCache[targetId].processed.has(ev.id)) {
+                                        metricsCache[targetId].processed.add(ev.id);
+                                        if (ev.kind === 1) metricsCache[targetId].replies++;
+                                        if (ev.kind === 6 || ev.kind === 16) metricsCache[targetId].reposts++;
+                                        if (ev.kind === 7) metricsCache[targetId].likes++;
+                                        updateMetricsUI(targetId);
+                                    }
+                                });
+                            }
 
                             if (ev.kind === 30023) {
                                 let evDTag = "";
                                 ev.tags.forEach(t => { if (t[0] === 'd') evDTag = t[1]; });
-
-                                // FILTER LOKAL: Cek apakah event ini adalah artikel yang kita tuju
                                 let isMatch = false;
                                 if (articleId && ev.id === articleId) isMatch = true;
                                 else if (targetD && evDTag === targetD) isMatch = true;
@@ -444,27 +503,24 @@
             });
         }
 
-        function updateNotesUI() {
-            if (parentEvent) renderMainArticle(parentEvent);
-        }
-
         function renderMainArticle(ev) {
+            initMetrics(ev.id);
+            requestMetrics(ev.id);
+            
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
             let info = profileCache[ev.pubkey] || {
                 name: `Node_${shortPub}`,
-                handleLine: `@${ev.pubkey.substring(0, 8)} ✓ jeannesbryan.my.id`,
+                handleLine: `@${ev.pubkey.substring(0, 8)}`,
                 picture: null
             };
 
             let avatarHtml = info.picture ? `<img src="${info.picture}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
             let clientName = "Phosphor";
-            
             let title = "Artikel Tanpa Judul";
             let markdownLines = (ev.content || "").split('\n');
             let headingLine = markdownLines.find(line => line.startsWith('# '));
             if (headingLine) title = headingLine.replace('# ', '').trim();
-
             let publishedAt = timeStr;
 
             ev.tags.forEach(t => {
@@ -489,9 +545,9 @@
 
             mainPostContainer.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                    <div class="avatar-box">${avatarHtml}</div>
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div>
-                        <strong style="font-size: 1.1em;">${escapeHtml(info.name)}</strong><br>
+                        <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
                         <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;">${escapeHtml(fullMetaLine)}</span>
                     </div>
                 </div>
@@ -502,24 +558,26 @@
                 <div class="main-post-content">${renderedHtml}</div>
 
                 <div class="post-actions" style="margin-top: 20px;">
-                    <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] balasan</button>
-                    <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
-                    <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                    <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                    <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                    <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                    <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                 </div>
                 <div class="post-footer-meta">> long_form (NIP-23) / via ${escapeHtml(clientName)}</div>
             `;
+            updateMetricsUI(ev.id);
         }
 
         function renderReply(ev) {
-            if (repliesContainer.querySelector('p')) {
-                repliesContainer.innerHTML = '';
-            }
+            if (repliesContainer.querySelector('p')) { repliesContainer.innerHTML = ''; }
             if (document.getElementById(`reply-${ev.id}`)) return;
+            initMetrics(ev.id);
+            requestMetrics(ev.id);
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
             let info = profileCache[ev.pubkey] || {
                 name: `Node_${shortPub}`,
-                handleLine: `@${ev.pubkey.substring(0, 8)} ✓ jeannesbryan.my.id`,
+                handleLine: `@${ev.pubkey.substring(0, 8)}`,
                 picture: null
             };
 
@@ -537,30 +595,31 @@
             });
 
             let fullMetaLine = `${info.handleLine} · ${timeStr}`;
-
             let card = document.createElement('div');
             card.className = 'post-card';
             card.id = `reply-${ev.id}`;
 
             card.innerHTML = `
-                <div class="avatar-box">${avatarHtml}</div>
+                <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                 <div class="post-main">
                     <div class="post-header">
-                        <span class="author-line"><strong>${escapeHtml(info.name)}</strong></span>
+                        <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                         <span class="dim-text meta-line">${escapeHtml(fullMetaLine)}</span>
                     </div>
                     <div class="post-content">${escapeHtml(contentText.trim())}</div>
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] balasan</button>
-                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
-                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                        <button class="action-btn" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                        <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                        <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                        <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     </div>
                     <div class="post-footer-meta">> text_note / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
 
             repliesContainer.appendChild(card);
+            updateMetricsUI(ev.id);
         }
 
         function escapeHtml(str) {
@@ -587,7 +646,6 @@
             try {
                 sendReplyBtn.textContent = '> SIGNING...';
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-
                 let sentCount = 0;
                 activeSockets.forEach(sock => {
                     if (sock && sock.readyState === WebSocket.OPEN) {
@@ -595,11 +653,9 @@
                         sentCount++;
                     }
                 });
-
                 alert(`> SUKSES: Terkirim ke ${sentCount} relay!`);
                 replyContentInput.value = '';
                 sendReplyBtn.textContent = '> POST_REPLY';
-                
                 eventsCache[signedEvent.id] = signedEvent;
                 renderReply(signedEvent);
             } catch (err) {
@@ -614,7 +670,6 @@
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
 
             let finalContent = `${quoteText}\n\nnostr:${quoteTargetEvent.id}`;
-
             let rawEvent = {
                 kind: 1,
                 created_at: Math.floor(Date.now() / 1000),
@@ -630,7 +685,6 @@
             try {
                 sendQuoteBtn.textContent = '> SIGNING...';
                 let signedEvent = await window.nostr.signEvent(rawEvent);
-
                 let sentCount = 0;
                 activeSockets.forEach(sock => {
                     if (sock && sock.readyState === WebSocket.OPEN) {
@@ -638,11 +692,9 @@
                         sentCount++;
                     }
                 });
-
                 alert(`> QUOTE SUKSES: Disebarkan ke ${sentCount} relay!`);
                 closeQuoteModal();
                 sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-                
                 eventsCache[signedEvent.id] = signedEvent;
                 renderReply(signedEvent);
             } catch (err) {

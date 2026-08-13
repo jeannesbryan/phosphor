@@ -57,6 +57,9 @@
         .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
         .author-line { font-size: 1.1em; font-weight: bold; }
         .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        .post-header a { text-decoration: none; color: inherit; }
+        .post-header a:hover { color: var(--t-green, #00ff41); }
+        
         .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
         
         .article-card { border: 2px solid currentColor; }
@@ -103,10 +106,10 @@
         .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
 
         nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: inherit; }
+        nav a { text-decoration: none !important; color: inherit; }
         nav a:hover { color: var(--t-green, #00ff41); }
         
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none; }
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
         .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
 
         .sync-btn { background: transparent; color: inherit; border: 1px dashed currentColor; padding: 4px 10px; cursor: pointer; font-family: inherit; font-size: 0.8em; text-decoration: none; }
@@ -121,7 +124,6 @@
 </head>
 <body class="terminal t-crt">
     <div class="container">
-        
         <header>
             <h1>> Phosphor</h1>
             <nav>
@@ -140,8 +142,8 @@
             <div class="profile-header">
                 <div class="profile-avatar" id="profileAvatarBox">[JB]</div>
                 <div class="profile-meta">
-                    <h2 id="profileName">Jeannes Bryan</h2>
-                    <div class="dim-text" id="profileHandle">@jeannesbryan ✓ jeannesbryan.my.id</div>
+                    <h2 id="profileName">User Name</h2>
+                    <div class="dim-text" id="profileHandle">@handle</div>
                     <div style="font-size: 0.75em; margin-top: 4px; opacity: 0.6;" id="profilePubkeyDisplay">Memuat pubkey...</div>
                 </div>
             </div>
@@ -160,11 +162,14 @@
                     <span style="margin: 0 8px; opacity: 0.4;">|</span>
                     <button class="interactive-stat" onclick="openFollowingModal()">Following: <strong id="followingCountText">0</strong></button>
                 </div>
-                <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast profil">* BROADCAST_METADATA</button>
+                <div>
+                    <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast profil">* BROADCAST_METADATA</button>
+                    <button id="followBtn" class="sync-btn hidden" onclick="toggleFollow()">[FOLLOW]</button>
+                </div>
             </div>
         </div>
 
-        <div style="margin-bottom: 15px; font-weight: bold; opacity: 0.8;">> USER_FEEDS (NOTES, ARTICLES & PULSE)</div>
+        <div style="margin-bottom: 15px; font-weight: bold; opacity: 0.8;">> USER_FEEDS</div>
 
         <section id="feed">
             <div id="user-posts-container">
@@ -173,16 +178,15 @@
         </section>
     </div>
 
-    <!-- Lightbox Modal -->
+    <!-- Modals -->
     <div id="lightboxModal" onclick="this.style.display='none'">
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
-    <!-- Modal Quote-Reply -->
     <div id="quoteModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
-            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px solid currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
+            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
             <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Tulis tanggapan quote..."></textarea>
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                 <button class="action-btn modal-btn" onclick="closeQuoteModal()">[BATAL]</button>
@@ -191,7 +195,6 @@
         </div>
     </div>
 
-    <!-- Modal Status Relay -->
     <div id="relayModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
@@ -204,7 +207,6 @@
         </div>
     </div>
 
-    <!-- Modal Following List -->
     <div id="followingModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> FOLLOWING_LIST (<span id="modalFollowingCount">0</span>)</div>
@@ -226,15 +228,24 @@
         ];
         
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
-        let myAvatarUrl = null;
-        let myName = "Jeannes Bryan";
-        let myHandle = "@jeannesbryan";
-        let myNip05 = "";
+        let targetPubkey = new URLSearchParams(window.location.search).get('pubkey');
+        let isMyProfile = false;
+
+        let profileAvatarUrl = null;
+        let profileNameTxt = "User Name";
+        let profileHandleTxt = "@handle";
+        let profileNip05Txt = "";
         let quoteTargetEvent = null;
         let userEventsList = [];
         let relayStatusMap = {};
-        let followingPubkeys = [];
+        
+        let targetFollowingPubkeys = [];
+        let myFollowingPubkeys = [];
         let followingProfilesCache = {};
+
+        let metricsCache = {};
+        let pendingMetricsIds = new Set();
+        let metricsTimeout = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const loginBtn = document.getElementById('loginBtn');
@@ -252,6 +263,7 @@
         const profileNip05Container = document.getElementById('profileNip05Container');
         const userPostsContainer = document.getElementById('user-posts-container');
         const broadcastProfileBtn = document.getElementById('broadcastProfileBtn');
+        const followBtn = document.getElementById('followBtn');
         const relayCountText = document.getElementById('relayCountText');
         const followingCountText = document.getElementById('followingCountText');
 
@@ -259,10 +271,8 @@
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
-
         const followingModal = document.getElementById('followingModal');
         const followingListContainer = document.getElementById('followingListContainer');
         const modalFollowingCount = document.getElementById('modalFollowingCount');
@@ -273,11 +283,13 @@
             if (currentUserPubkey) {
                 loginBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
-                broadcastProfileBtn.classList.remove('hidden');
+                if (isMyProfile) broadcastProfileBtn.classList.remove('hidden');
+                else followBtn.classList.remove('hidden');
             } else {
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
                 broadcastProfileBtn.classList.add('hidden');
+                followBtn.classList.add('hidden');
             }
         }
 
@@ -317,12 +329,11 @@
             document.getElementById('lightboxModal').style.display = 'flex';
         }
 
-        // PERBAIKAN: Menggunakan eventId agar HTML tidak break karena kutip
         function openQuoteModal(eventId) {
             let ev = userEventsList.find(e => e.id === eventId);
             if (!ev) return;
             quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content;
+            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
             quoteContentInput.value = "";
             quoteModal.style.display = 'flex';
         }
@@ -348,24 +359,75 @@
         function closeFollowingModal() { followingModal.style.display = 'none'; }
 
         function renderFollowingListUI() {
-            modalFollowingCount.textContent = followingPubkeys.length;
-            if (followingPubkeys.length === 0) {
+            modalFollowingCount.textContent = targetFollowingPubkeys.length;
+            if (targetFollowingPubkeys.length === 0) {
                 followingListContainer.innerHTML = '<p style="opacity: 0.5;">Tidak ada data following ditemukan.</p>';
                 return;
             }
 
             let html = "";
-            followingPubkeys.forEach(pk => {
+            targetFollowingPubkeys.forEach(pk => {
                 let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
                 html += `<div class="following-item">
-                    <strong>${escapeHtml(info.name)}</strong>
+                    <a href="profile.html?pubkey=${pk}" style="text-decoration:none; color:inherit;"><strong>${escapeHtml(info.name)}</strong></a>
                     <span style="opacity: 0.6; font-size: 0.85em;">${escapeHtml(info.handle)}</span>
                 </div>`;
             });
             followingListContainer.innerHTML = html;
         }
 
-        // FITUR BARU: Fungsi Repost Universal
+        function initMetrics(id) {
+            if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() };
+        }
+
+        function updateMetricsUI(id) {
+            let m = metricsCache[id];
+            let er = document.getElementById(`metric-replies-${id}`);
+            let et = document.getElementById(`metric-reposts-${id}`);
+            let el = document.getElementById(`metric-likes-${id}`);
+            if(er) er.textContent = m.replies;
+            if(et) et.textContent = m.reposts;
+            if(el) el.textContent = m.likes;
+        }
+
+        function requestMetrics(eventId) {
+            pendingMetricsIds.add(eventId);
+            clearTimeout(metricsTimeout);
+            metricsTimeout = setTimeout(() => {
+                let ids = Array.from(pendingMetricsIds);
+                if(ids.length === 0) return;
+                let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
+                });
+                pendingMetricsIds.clear();
+            }, 1500);
+        }
+
+        async function likeEvent(eventId) {
+            let ev = userEventsList.find(e => e.id === eventId);
+            if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Belum login!'); return; }
+
+            let rawEvent = {
+                kind: 7,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]],
+                content: "+",
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
+                });
+                initMetrics(eventId);
+                metricsCache[eventId].likes++;
+                updateMetricsUI(eventId);
+            } catch (err) { alert('> ERROR: Gagal mengirim like.'); }
+        }
+
         async function repostEvent(eventId) {
             let ev = userEventsList.find(e => e.id === eventId);
             if (!ev) return;
@@ -373,17 +435,13 @@
             if (!confirm('> Repost konten ini ke timeline?')) return;
 
             let rawEvent = {
-                kind: 6, // Default Repost NIP-18
+                kind: 6,
                 created_at: Math.floor(Date.now() / 1000),
-                tags: [
-                    ["e", ev.id, "", "mention"],
-                    ["p", ev.pubkey, ""]
-                ],
-                content: JSON.stringify(ev), // Embed JSON asli
+                tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]],
+                content: JSON.stringify(ev),
                 pubkey: currentUserPubkey
             };
 
-            // Jika artikel long-form, ubah ke Generic Repost (Kind 16) dengan A-tag
             let dTag = ev.tags.find(t => t[0] === 'd');
             if (ev.kind === 30023 && dTag) {
                 rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]);
@@ -399,10 +457,42 @@
                         sentCount++;
                     }
                 });
+                initMetrics(eventId);
+                metricsCache[eventId].reposts++;
+                updateMetricsUI(eventId);
                 alert(`> REPOST SUKSES: Disebarkan ke ${sentCount} relay!`);
-            } catch (err) {
-                alert('> ERROR: Gagal mengirim repost.');
+            } catch (err) { alert('> ERROR: Gagal mengirim repost.'); }
+        }
+
+        async function toggleFollow() {
+            if (!currentUserPubkey || !window.nostr) return;
+            let isFollowing = myFollowingPubkeys.includes(targetPubkey);
+            let newFollowing = [...myFollowingPubkeys];
+            
+            if (isFollowing) {
+                newFollowing = newFollowing.filter(pk => pk !== targetPubkey);
+            } else {
+                if (!newFollowing.includes(targetPubkey)) newFollowing.push(targetPubkey);
             }
+            
+            let tags = newFollowing.map(pk => ["p", pk]);
+            let rawEvent = {
+                kind: 3,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: "",
+                pubkey: currentUserPubkey
+            };
+            
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent]));
+                });
+                myFollowingPubkeys = newFollowing;
+                followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
+                alert(`> SUKSES: Update Follow/Unfollow disiarkan!`);
+            } catch(e) { alert('> ERROR: Gagal update follow.'); }
         }
 
         async function initProfile() {
@@ -413,14 +503,20 @@
                 } catch (e) {}
             }
 
+            if (!targetPubkey) {
+                targetPubkey = currentUserPubkey;
+            }
+
+            isMyProfile = (targetPubkey === currentUserPubkey);
             updateAuthState();
-            if (!currentUserPubkey) {
+
+            if (!targetPubkey) {
                 relayStatusBtn.textContent = '[ RELAYS: DISCONNECTED ]';
-                profilePubkeyDisplay.textContent = 'Belum login';
+                profilePubkeyDisplay.textContent = 'Data tidak ditemukan.';
                 return;
             }
 
-            profilePubkeyDisplay.textContent = currentUserPubkey;
+            profilePubkeyDisplay.textContent = targetPubkey;
             connectMultiRelays();
         }
 
@@ -435,9 +531,13 @@
                     relayStatusMap[url] = true;
                     updateRelayCounter(onlineCount);
                     
-                    socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [currentUserPubkey], "limit": 1 }]));
-                    socket.send(JSON.stringify(["REQ", "contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [currentUserPubkey], "limit": 50 }]));
+                    socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
+                    socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [targetPubkey], "limit": 50 }]));
+
+                    if (currentUserPubkey && !isMyProfile) {
+                        socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
+                    }
                 };
 
                 socket.onerror = function() { relayStatusMap[url] = false; };
@@ -449,43 +549,69 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
 
-                            if (ev.kind === 3 && ev.pubkey === currentUserPubkey) {
-                                followingPubkeys = [];
-                                ev.tags.forEach(t => { if (t[0] === "p") followingPubkeys.push(t[1]); });
-                                followingCountText.textContent = followingPubkeys.length;
-                                
-                                if (followingPubkeys.length > 0) {
-                                    let subReq = JSON.stringify(["REQ", "following-profiles", { "kinds": [0], "authors": followingPubkeys }]);
-                                    activeSockets.forEach(sock => {
-                                        if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq);
-                                    });
+                            if (ev.kind === 3) {
+                                if (ev.pubkey === targetPubkey) {
+                                    targetFollowingPubkeys = [];
+                                    ev.tags.forEach(t => { if (t[0] === "p") targetFollowingPubkeys.push(t[1]); });
+                                    followingCountText.textContent = targetFollowingPubkeys.length;
+                                    
+                                    if (targetFollowingPubkeys.length > 0) {
+                                        let subReq = JSON.stringify(["REQ", "following-profiles", { "kinds": [0], "authors": targetFollowingPubkeys }]);
+                                        activeSockets.forEach(sock => {
+                                            if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq);
+                                        });
+                                    }
+                                }
+                                if (ev.pubkey === currentUserPubkey) {
+                                    myFollowingPubkeys = [];
+                                    ev.tags.forEach(t => { if (t[0] === "p") myFollowingPubkeys.push(t[1]); });
+                                    followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
                                 }
                             }
 
-                            if (ev.kind === 0 && followingPubkeys.includes(ev.pubkey)) {
+                            if (ev.kind === 0 && targetFollowingPubkeys.includes(ev.pubkey)) {
                                 try {
                                     let meta = JSON.parse(ev.content);
+                                    let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0, 8)}`;
+                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
+                                    
                                     followingProfilesCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0, 8)}`
+                                        handle: handleLineStr
                                     };
                                     renderFollowingListUI();
                                 } catch(e){}
                             }
+                            
+                            // Hitung Metrik
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
+                                let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
+                                eTags.forEach(tId => {
+                                    initMetrics(tId);
+                                    if (!metricsCache[tId].processed.has(ev.id)) {
+                                        metricsCache[tId].processed.add(ev.id);
+                                        if (ev.kind === 1) metricsCache[tId].replies++;
+                                        if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++;
+                                        if (ev.kind === 7) metricsCache[tId].likes++;
+                                        updateMetricsUI(tId);
+                                    }
+                                });
+                            }
 
-                            if (ev.pubkey !== currentUserPubkey) return;
+                            if (ev.pubkey !== targetPubkey) return;
 
                             if (ev.kind === 0) {
                                 try {
                                     let profileData = JSON.parse(ev.content);
                                     if (profileData.name || profileData.display_name) {
-                                        myName = profileData.display_name || profileData.name;
-                                        profileName.textContent = myName;
+                                        profileNameTxt = profileData.display_name || profileData.name;
+                                        profileName.textContent = profileNameTxt;
                                     }
                                     if (profileData.name) {
-                                        myHandle = `@${profileData.name.toLowerCase().replace(/\s+/g, '')}`;
-                                        let domainPart = profileData.nip05 ? profileData.nip05.split('@')[1] || 'jeannesbryan.my.id' : 'jeannesbryan.my.id';
-                                        profileHandle.textContent = `${myHandle} ✓ ${domainPart}`;
+                                        profileHandleTxt = `@${profileData.name.toLowerCase().replace(/\s+/g, '')}`;
+                                        let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
+                                        profileHandle.textContent = domainPart ? `${profileHandleTxt} ✓ ${domainPart}` : profileHandleTxt;
                                     }
                                     if (profileData.about && profileData.about.trim() !== "") {
                                         profileBio.textContent = profileData.about;
@@ -494,8 +620,11 @@
                                         profileBio.classList.add('hidden');
                                     }
                                     if (profileData.nip05) {
-                                        myNip05 = profileData.nip05;
-                                        profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(myNip05)}`;
+                                        profileNip05Txt = profileData.nip05;
+                                        profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(profileNip05Txt)}`;
+                                    } else {
+                                        profileNip05Txt = "";
+                                        profileNip05Container.innerHTML = `<strong>NIP-05:</strong> -`;
                                     }
                                     let lud = profileData.lud16 || profileData.lud06;
                                     if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); }
@@ -505,7 +634,7 @@
                                         profileWebsite.classList.remove('hidden');
                                     }
                                     if (profileData.picture) {
-                                        myAvatarUrl = profileData.picture;
+                                        profileAvatarUrl = profileData.picture;
                                         profileAvatarBox.innerHTML = `<img src="${escapeHtml(profileData.picture)}" alt="Avatar">`;
                                     }
                                     if (profileData.banner) {
@@ -537,8 +666,11 @@
             userPostsContainer.innerHTML = '';
 
             userEventsList.forEach(ev => {
+                initMetrics(ev.id);
+                requestMetrics(ev.id);
+
                 let timeStr = timeAgo(ev.created_at);
-                let avatarHtml = myAvatarUrl ? `<img src="${myAvatarUrl}" alt="Avatar">` : "[JB]";
+                let avatarHtml = profileAvatarUrl ? `<img src="${profileAvatarUrl}" alt="Avatar">` : `[${ev.pubkey.substring(0,4)}]`;
                 let clientName = "Phosphor";
                 let dTagValue = "";
                 ev.tags.forEach(t => { 
@@ -546,9 +678,9 @@
                     if (t[0] === "d") dTagValue = t[1];
                 });
 
-                let lowerHandle = myHandle.toLowerCase().replace(/\s+/g, '');
-                let domainPart = myNip05 ? myNip05.split('@')[1] || 'jeannesbryan.my.id' : 'jeannesbryan.my.id';
-                let formattedMetaLine = `${lowerHandle} ✓ ${domainPart} · ${timeStr}`;
+                let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, '');
+                let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
+                let formattedMetaLine = domainPart ? `${lowerHandle} ✓ ${domainPart} · ${timeStr}` : `${lowerHandle} · ${timeStr}`;
 
                 let card = document.createElement('div');
                 card.id = `post-${ev.id}`;
@@ -566,23 +698,23 @@
                     });
 
                     let coverHtml = coverImg ? `<div class="post-media" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : "";
-                    
                     let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
 
                     card.innerHTML = `
                         <div class="avatar-box">${avatarHtml}</div>
                         <div class="post-main">
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(myName)}</strong></span>
+                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
                                 <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
                             </div>
                             <div class="article-title">${escapeHtml(title)}</div>
                             ${coverHtml}
                             <div class="article-summary">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
                             <div class="post-actions">
-                                <a href="notes.html?${articleTargetParam}" class="action-btn" style="text-decoration:none;">[baca artikel]</a>
-                                <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
-                                <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                                <a href="notes.html?${articleTargetParam}" class="action-btn" style="text-decoration:none;">[baca]</a>
+                                <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                                <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                                <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                             </div>
                             <div class="post-footer-meta">> long_form / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -602,13 +734,14 @@
                         <div class="avatar-box">${avatarHtml}</div>
                         <div class="post-main">
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(myName)}</strong></span>
+                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
                                 <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
                             </div>
                             <div style="font-size: 0.75em; opacity: 0.6; margin-bottom: 4px;">⚡ [ 24H_PULSE / STORY ]</div>
                             <div class="post-content">${escapeHtml(contentText.trim())}</div>
                             ${mediaHtml}
                             <div class="post-actions">
+                                <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
                             </div>
                             <div class="post-footer-meta">> 24h_pulse / via ${escapeHtml(clientName)}</div>
@@ -629,15 +762,16 @@
                         <div class="avatar-box">${avatarHtml}</div>
                         <div class="post-main">
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(myName)}</strong></span>
+                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
                                 <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
                             </div>
                             <div class="post-content">${escapeHtml(contentText.trim())}</div>
                             ${mediaHtml}
                             <div class="post-actions">
-                                <a href="thread.html?id=${ev.id}" class="action-btn" style="text-decoration:none;">[r] balasan</a>
-                                <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] repost</button>
-                                <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
+                                <a href="thread.html?id=${ev.id}" class="action-btn" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                                <button class="action-btn" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                                <button class="action-btn" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                                <button class="action-btn" onclick="openQuoteModal('${ev.id}')">[q]</button>
                             </div>
                             <div class="post-footer-meta">> text_note / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -645,6 +779,7 @@
                 }
 
                 userPostsContainer.appendChild(card);
+                updateMetricsUI(ev.id);
             });
         }
 
