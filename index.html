@@ -53,7 +53,7 @@
         .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
         
-        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal { cursor: zoom-out; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
@@ -66,7 +66,8 @@
         .client-tag { text-align: right; font-style: italic; opacity: 0.4; font-size: 0.8em; margin-top: 5px; }
 
         .composer-card { border: 2px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; }
-        textarea.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; resize: vertical; outline: none; }
+        textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
+        textarea.sys-input { resize: vertical; }
         
         .broadcast-btn, .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent !important; color: inherit; border: 1px dashed currentColor; font-family: inherit; }
         .broadcast-btn:hover, .modal-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
@@ -88,7 +89,8 @@
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
-                <a href="#" id="loginBtn">[ LOGIN ]</a>
+                <a href="#" id="navLoginBtn">[ LOGIN ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -114,6 +116,77 @@
     </div>
 
     <!-- Modals -->
+    <!-- AUTH/LOGIN MODAL -->
+    <div id="loginModal">
+        <div class="modal-content-box" style="max-width: 450px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
+                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            </div>
+
+            <!-- NIP-07 Login (Default) -->
+            <div id="viewExt">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+            </div>
+
+            <!-- NSEC Login -->
+            <div id="viewNsec" class="hidden">
+                <p style="color: #ff4141; font-size: 0.8em; margin-bottom: 10px; border: 1px dashed #ff4141; padding: 8px;">
+                    WARNING: Using private key login is insecure. It is recommended to use a browser extension. If you must use a private key, please set a password for encryption at minimum.
+                </p>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
+                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password (optional: encrypt nsec)</label>
+                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
+                </div>
+                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> LOGIN_NSEC</button>
+            </div>
+
+            <!-- NCRYPTSEC Login -->
+            <div id="viewNcryptsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
+                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
+                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
+                </div>
+                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT_AND_LOGIN</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 15px;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNLOCK MODAL -->
+    <div id="unlockModal">
+        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <div style="margin-bottom: 15px;">
+                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
+                <div>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="lightboxModal" onclick="this.style.display='none'">
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
@@ -181,7 +254,8 @@
         let likedEvents = new Set();
         let repostedEvents = new Set();
 
-        const loginBtn = document.getElementById('loginBtn');
+        const navLoginBtn = document.getElementById('navLoginBtn');
+        const navUnlockBtn = document.getElementById('navUnlockBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const broadcastBtn = document.getElementById('broadcastBtn');
@@ -212,6 +286,9 @@
                 let config = await res.json();
                 RELAYS = config.relays || [];
                 BLOSSOM_SERVERS = config.blossom_servers || [];
+                
+                await checkLocalSessions();
+                
                 updateAuthState();
                 fetchMyAvatar();
                 connectMultiRelays();
@@ -221,48 +298,248 @@
             }
         }
 
-        function updateAuthState() {
-            if (currentUserPubkey) {
-                loginBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                composerCard.classList.remove('hidden');
-                // Unhide all specific edit buttons belonging to current user
-                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
-            } else {
-                loginBtn.classList.remove('hidden');
-                logoutBtn.classList.add('hidden');
-                composerCard.classList.add('hidden');
-                userAvatarBox.innerHTML = "[P]";
-                // Hide all edit buttons
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+        // ================= AUTHENTICATION LOGIC =================
+
+        // Mock Nostr Object for Client-Side Signer
+        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
+            window.nostr = {
+                getPublicKey: async () => pubkeyHex,
+                signEvent: async (eventTemplate) => {
+                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
+                }
+            };
+        }
+
+        async function checkLocalSessions() {
+            // Cek kunci mentah di Session Storage (bertahan saat F5) atau Local Storage (jika tanpa password)
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
+            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
+            if (rawHex && currentUserPubkey) {
+                // Auto-login jika raw hex ada (Memory/No Password)
+                try {
+                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
+                } catch(e) { console.error("Failed to restore local session", e); }
+            }
+            // Jika ada ncryptsec tapi belum di-decrypt (window.nostr == null), biarkan saja.
+            // UI akan menanganinya via fungsi updateAuthState() dengan memunculkan tombol Unlock.
+        }
+
+        function switchLoginTab(tab) {
+            document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewNsec').classList.add('hidden');
+            document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabNsec').style.border = "none";
+            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            if (tab === 'ext') {
+                document.getElementById('viewExt').classList.remove('hidden');
+                document.getElementById('tabExt').style.border = "1px solid currentColor";
+            } else if (tab === 'nsec') {
+                document.getElementById('viewNsec').classList.remove('hidden');
+                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+            } else if (tab === 'ncryptsec') {
+                document.getElementById('viewNcryptsec').classList.remove('hidden');
+                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
             }
         }
 
-        loginBtn.addEventListener('click', async function(e) {
+        navLoginBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            document.getElementById('loginModal').style.display = 'flex';
+        });
+
+        navUnlockBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('unlockModal').style.display = 'flex';
+        });
+
+        // 1. EXT Login
+        document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
                 try {
                     currentUserPubkey = await window.nostr.getPublicKey();
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    
+                    localStorage.removeItem('phosphor_privkey');
+                    localStorage.removeItem('phosphor_ncryptsec');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
+                    
                     updateAuthState();
                     fetchMyAvatar();
+                    document.getElementById('loginModal').style.display = 'none';
                     alert('> CONNECTION SUCCESSFUL.');
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            localStorage.removeItem('phosphor_pubkey');
-            currentUserPubkey = null;
-            updateAuthState();
-            alert('> SESSION ENDED.');
-            location.reload();
+        // 2. NSEC Login
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('nsecInput').value.trim();
+            let pass = document.getElementById('nsecPassword').value;
+            if(!input) return alert('> ERROR: Key is required.');
+            
+            let btn = document.getElementById('nsecLoginBtn');
+            try {
+                btn.textContent = '> PROCESSING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                
+                let skBytes;
+                if (input.startsWith('nsec1')) {
+                    let decoded = nostrTools.nip19.decode(input);
+                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
+                    skBytes = decoded.data;
+                } else {
+                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                }
+                
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+
+                if (pass) {
+                    let ncryptsec = nostrTools.nip49.encrypt(skBytes, pass);
+                    localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                    localStorage.removeItem('phosphor_privkey');
+                    sessionStorage.setItem('phosphor_privkey_temp', hexKey); // Simpan di RAM agar tahan F5
+                } else {
+                    localStorage.setItem('phosphor_privkey', hexKey);
+                    localStorage.removeItem('phosphor_ncryptsec');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
+                }
+                
+                updateAuthState();
+                fetchMyAvatar();
+                document.getElementById('loginModal').style.display = 'none';
+                alert('> LOCAL SIGNER INITIALIZED.');
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Invalid key format or processing failed.');
+            } finally {
+                btn.textContent = '> LOGIN_NSEC';
+            }
         });
+
+        // 3. NCRYPTSEC Login
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('ncryptsecInput').value.trim();
+            let pass = document.getElementById('ncryptsecPassword').value;
+            if(!input || !pass) return alert('> ERROR: Key and password required.');
+            
+            let btn = document.getElementById('ncryptsecLoginBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                
+                let skBytes = nostrTools.nip49.decrypt(input, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                localStorage.setItem('phosphor_ncryptsec', input);
+                localStorage.removeItem('phosphor_privkey');
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                updateAuthState();
+                fetchMyAvatar();
+                document.getElementById('loginModal').style.display = 'none';
+                alert('> SECURE DECRYPTION SUCCESSFUL.');
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Decryption failed. Incorrect password?');
+            } finally {
+                btn.textContent = '> DECRYPT_AND_LOGIN';
+            }
+        });
+
+        // 4. UNLOCK Modal (Dipakai setelah reload halaman / buka browser)
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
+            let pass = document.getElementById('unlockPassword').value;
+            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            if(!pass) return alert('> ERROR: Password required.');
+
+            let btn = document.getElementById('unlockBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                
+                let skBytes = nostrTools.nip49.decrypt(ncryptsec, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                document.getElementById('unlockModal').style.display = 'none';
+                updateAuthState();
+                fetchMyAvatar();
+                alert('> SESSION UNLOCKED.');
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Decryption failed. Incorrect password?');
+            } finally {
+                btn.textContent = '> DECRYPT';
+            }
+        });
+
+        function logoutFully() {
+            localStorage.removeItem('phosphor_pubkey');
+            localStorage.removeItem('phosphor_privkey');
+            localStorage.removeItem('phosphor_ncryptsec');
+            sessionStorage.removeItem('phosphor_privkey_temp');
+            location.reload();
+        }
+
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logoutFully();
+        });
+
+        // ================= END AUTH LOGIC =================
+
+        function updateAuthState() {
+            // Cek apakah ada encrypted key tapi belum di-unlock (signer belum aktif)
+            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !window.nostr;
+
+            if (isLocked) {
+                navLoginBtn.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                navUnlockBtn.classList.remove('hidden');
+                composerCard.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+            } else if (currentUserPubkey) {
+                navLoginBtn.classList.add('hidden');
+                navUnlockBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                composerCard.classList.remove('hidden');
+                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
+            } else {
+                navLoginBtn.classList.remove('hidden');
+                navUnlockBtn.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                composerCard.classList.add('hidden');
+                userAvatarBox.innerHTML = "[P]";
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+            }
+        }
 
         async function copyNaddr(kind, pubkey, identifier) {
             try {
-                // Trik Dynamic Import ESM (Versi 2.24.1)
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 
                 let naddr = nostrTools.nip19.naddrEncode({ 
@@ -587,13 +864,26 @@
             else if (isPulse) {
                 card.className = 'post-card pulse-card';
                 let contentText = ev.content; let mediaHtml = "";
+                
+                // 1. Tangkap Media (Gambar/Video)
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                     let lowerExt = ext.toLowerCase();
                     if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
                     else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
                     return "";
                 });
-                contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
+                
+                // 2. Escape HTML
+                contentText = escapeHtml(contentText.trim());
+
+                // 3. Auto-linker untuk Sisa URL standar
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
+                    let href = url.replace(/&amp;/g, '&');
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                });
+
+                // 4. Parser NIP-19 Embeds
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
@@ -625,16 +915,30 @@
                     contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
                     let contentText = ev.content;
+                    
+                    // 1. Tangkap Media (Gambar/Video)
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
                         else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
                         return "";
                     });
-                    contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
+                    
+                    // 2. Escape HTML
+                    contentText = escapeHtml(contentText.trim());
+
+                    // 3. Auto-linker untuk Sisa URL standar
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
+                        let href = url.replace(/&amp;/g, '&');
+                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                    });
+
+                    // 4. Parser NIP-19 Embeds
+                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                         let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                     });
+
                     contentHtml = `<div class="post-content">${contentText}</div>`;
                 }
 

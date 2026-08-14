@@ -6,6 +6,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 
 ## 🚀 Key Features
 *   **Minimalist Timeline:** Fetch Text Note feeds (NIP-01) in real-time without lag.
+*   **Versatile Authentication:** Supports NIP-07 browser extensions (nos2x, Alby), Secure Encrypted Keys (NIP-49 / ncryptsec), and Raw Private Keys (nsec/hex) using an internal client-side signer powered by `nostr-tools`.
 *   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.
 *   **Dynamic Configuration:** Multi-relay lists and Blossom servers are easily managed externally via a `config.json` file.
 *   **Event Deletion & Editing:** Full support for replacing Long-form content (NIP-33) and editing regular Notes via Event Deletion signals (NIP-09).
@@ -17,7 +18,6 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Universal Repost (NIP-18):** Supports reposting standard notes (Kind 6) and Generic Repost (Kind 16) for articles.
 *   **Quote & Threading:** Quote messages and open discussion threads easily using a clean modal interface.
 *   **Multi-Relay Connection:** Pull and broadcast data across multiple relays independently and simultaneously.
-*   **NIP-07 Login:** Seamlessly integrates with Nostr signer extensions (nos2x, Alby, etc.).
 
 ## 🛠️ Installation & Usage
 Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.
