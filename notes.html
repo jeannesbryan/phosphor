@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Notes / Article</title>
+    
+    <meta name="description" content="Phosphor - Read decentralized long-form articles on the Nostr network.">
+    
     <link rel="stylesheet" href="/assets/terminal.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
     <style>
@@ -53,12 +55,12 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #rawModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
 
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 450px; margin-top: 10px; flex-wrap: wrap; }
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
@@ -104,7 +106,7 @@
 
         <hr class="terminal-hr">
 
-        <div class="composer-card">
+        <div class="composer-card hidden" id="replyComposer">
             <div class="avatar-box" id="myReplyAvatar">[P]</div>
             <div class="post-main">
                 <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Write article reply..."></textarea>
@@ -133,6 +135,17 @@
             <div style="display: flex; justify-content: space-between; margin-top: 10px;">
                 <button class="action-btn modal-btn" onclick="closeQuoteModal()">[CANCEL]</button>
                 <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="editModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 10px;">> EDIT_TRANSMISSION</div>
+            <textarea id="editContentInput" class="sys-input" rows="4" placeholder="Update your note..."></textarea>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeEditModal()">[CANCEL]</button>
+                <button id="sendEditBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> UPDATE_EVENT</button>
             </div>
         </div>
     </div>
@@ -174,6 +187,7 @@
         let activeSockets = [];
         let parentEvent = null;
         let quoteTargetEvent = null;
+        let editTargetEvent = null;
         let relayStatusMap = {};
         let eventsCache = {};
 
@@ -192,11 +206,17 @@
         const replyContentInput = document.getElementById('replyContentInput');
         const sendReplyBtn = document.getElementById('sendReplyBtn');
         const myReplyAvatar = document.getElementById('myReplyAvatar');
+        const replyComposer = document.getElementById('replyComposer');
         
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
+        
+        const editModal = document.getElementById('editModal');
+        const editContentInput = document.getElementById('editContentInput');
+        const sendEditBtn = document.getElementById('sendEditBtn');
+
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
 
@@ -220,10 +240,14 @@
             if (currentUserPubkey) {
                 loginBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
+                replyComposer.classList.remove('hidden');
+                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
             } else {
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
+                replyComposer.classList.add('hidden');
                 myReplyAvatar.innerHTML = "[P]";
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
 
@@ -248,14 +272,23 @@
             location.reload();
         });
 
-        function copyNaddr(kind, pubkey, identifier) {
-            if (window.NostrTools && window.NostrTools.nip19) {
-                try {
-                    let naddr = window.NostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
-                    navigator.clipboard.writeText(`nostr:${naddr}`);
-                    alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
-                } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
-            } else { alert('> ERROR: NostrTools library not loaded.'); }
+        async function copyNaddr(kind, pubkey, identifier) {
+            try {
+                // Trik Dynamic Import ESM (Versi 2.24.1)
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                
+                let naddr = nostrTools.nip19.naddrEncode({ 
+                    kind: parseInt(kind), 
+                    pubkey: pubkey, 
+                    identifier: identifier 
+                });
+                
+                navigator.clipboard.writeText(`nostr:${naddr}`);
+                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
+            } catch (e) { 
+                console.error(e);
+                alert('> ERROR: Failed to encode NIP-19 naddr.'); 
+            }
         }
 
         function timeAgo(unixTimestamp) {
@@ -287,6 +320,10 @@
         function closeRawModal() { rawModal.style.display = 'none'; }
 
         function openQuoteModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) {
+                alert('> ERROR: Not logged in! Login to quote.');
+                return;
+            }
             let ev = eventsCache[eventId];
             if (!ev) return;
             quoteTargetEvent = ev;
@@ -295,6 +332,16 @@
             quoteModal.style.display = 'flex';
         }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
+
+        function openEditModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) return;
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            editTargetEvent = ev;
+            editContentInput.value = ev.content;
+            editModal.style.display = 'flex';
+        }
+        function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
 
         function openRelayModal() {
             let htmlContent = "";
@@ -380,7 +427,6 @@
         }
 
         function initNotes() {
-            updateAuthState();
             if (!articleId && !dTagParam && !authorParam) {
                 mainPostContainer.innerHTML = '<p style="color:red;">[ ERROR: Article parameters not found in URL ]</p>';
                 return;
@@ -417,6 +463,19 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+                            
+                            // NIP-09 Delete Handling
+                            if (ev.kind === 5) {
+                                ev.tags.forEach(t => {
+                                    if (t[0] === 'e') {
+                                        let oldCard = document.getElementById(`reply-${t[1]}`);
+                                        if (oldCard) oldCard.remove();
+                                        if (eventsCache[t[1]]) delete eventsCache[t[1]];
+                                    }
+                                });
+                                return;
+                            }
+
                             eventsCache[ev.id] = ev;
 
                             if (ev.kind === 0) {
@@ -481,6 +540,7 @@
                 };
                 activeSockets.push(socket);
             });
+            updateAuthState();
         }
 
         function renderMainArticle(ev) {
@@ -505,6 +565,9 @@
                 if (t[0] === "d") dTagValue = t[1];
                 if (t[0] === "published_at") { let pubTimestamp = parseInt(t[1]); if (!isNaN(pubTimestamp)) publishedAt = timeAgo(pubTimestamp); }
             });
+            
+            let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
+            let editBtnVisibility = isMine ? '' : 'hidden';
 
             let readTimeStr = calculateReadTime(ev.content || "");
             let renderedHtml;
@@ -531,6 +594,7 @@
                     <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                     <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                    <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
                 </div>
                 <div class="post-footer-meta">> long_form (NIP-23) / via ${escapeHtml(clientName)}</div>
             `;
@@ -559,6 +623,9 @@
                     expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
                 }
             });
+            
+            let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
+            let editBtnVisibility = isMine ? '' : 'hidden';
 
             let isJsonPayload = false; let parsedJsonContent = "";
             if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
@@ -607,6 +674,7 @@
                         <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                         <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                        <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                     </div>
                     <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
                 </div>
@@ -641,6 +709,46 @@
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
                 alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; eventsCache[signedEvent.id] = signedEvent; renderReply(signedEvent);
             } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+        });
+
+        sendEditBtn.addEventListener('click', async function() {
+            let newText = editContentInput.value.trim();
+            if (!newText) { alert('> ERROR: Message is empty!'); return; }
+            if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
+
+            try {
+                sendEditBtn.textContent = '> SIGNING...';
+                
+                let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
+                let signedDelEvent = await window.nostr.signEvent(delEvent);
+                
+                let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
+                let signedNewEvent = await window.nostr.signEvent(newEvent);
+                
+                let sentCount = 0;
+                activeSockets.forEach(sock => { 
+                    if (sock && sock.readyState === WebSocket.OPEN) { 
+                        sock.send(JSON.stringify(["EVENT", signedDelEvent]));
+                        sock.send(JSON.stringify(["EVENT", signedNewEvent]));
+                        sentCount++; 
+                    } 
+                });
+                
+                alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
+                
+                let oldCard = document.getElementById(`reply-${editTargetEvent.id}`);
+                if (oldCard) oldCard.remove();
+                if (eventsCache[editTargetEvent.id]) delete eventsCache[editTargetEvent.id];
+                
+                eventsCache[signedNewEvent.id] = signedNewEvent;
+                
+                closeEditModal(); 
+                sendEditBtn.textContent = '> UPDATE_EVENT';
+                renderReply(signedNewEvent);
+            } catch (err) { 
+                alert('> ERROR: Failed to update event.'); 
+                sendEditBtn.textContent = '> UPDATE_EVENT'; 
+            }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);

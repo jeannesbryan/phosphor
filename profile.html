@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Profile</title>
+    
+    <meta name="description" content="Phosphor Profile - Decentralized identity on the Nostr network.">
+    
     <link rel="stylesheet" href="/assets/terminal.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
     
     <style>
         .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
@@ -60,14 +62,14 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #followingModal, #rawModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #followingModal, #rawModal, #editModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
 
         .scrollable-list { max-height: 250px; overflow-y: auto; border: 1px dashed currentColor; padding: 10px; margin-bottom: 15px; }
 
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 450px; margin-top: 10px; flex-wrap: wrap; }
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
         .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
         
@@ -170,6 +172,17 @@
             </div>
         </div>
     </div>
+    
+    <div id="editModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 10px;">> EDIT_TRANSMISSION</div>
+            <textarea id="editContentInput" class="sys-input" rows="4" placeholder="Update your note..."></textarea>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeEditModal()">[CANCEL]</button>
+                <button id="sendEditBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> UPDATE_EVENT</button>
+            </div>
+        </div>
+    </div>
 
     <div id="relayModal">
         <div class="modal-content-box">
@@ -217,7 +230,10 @@
         let profileNameTxt = "User Name";
         let profileHandleTxt = "@handle";
         let profileNip05Txt = "";
+        
         let quoteTargetEvent = null;
+        let editTargetEvent = null;
+        
         let userEventsList = [];
         let relayStatusMap = {};
         
@@ -260,6 +276,11 @@
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
+        
+        const editModal = document.getElementById('editModal');
+        const editContentInput = document.getElementById('editContentInput');
+        const sendEditBtn = document.getElementById('sendEditBtn');
+
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
         const followingModal = document.getElementById('followingModal');
@@ -289,11 +310,13 @@
                 logoutBtn.classList.remove('hidden');
                 if (isMyProfile) broadcastProfileBtn.classList.remove('hidden');
                 else followBtn.classList.remove('hidden');
+                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
             } else {
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
                 broadcastProfileBtn.classList.add('hidden');
                 followBtn.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
 
@@ -303,6 +326,7 @@
                 try {
                     currentUserPubkey = await window.nostr.getPublicKey();
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    isMyProfile = (targetPubkey === currentUserPubkey);
                     updateAuthState();
                     location.reload();
                 } catch (err) { alert('> ERROR: Failed to get public key.'); }
@@ -313,18 +337,28 @@
             e.preventDefault();
             localStorage.removeItem('phosphor_pubkey');
             currentUserPubkey = null;
+            isMyProfile = false;
             updateAuthState();
             location.reload();
         });
 
-        function copyNaddr(kind, pubkey, identifier) {
-            if (window.NostrTools && window.NostrTools.nip19) {
-                try {
-                    let naddr = window.NostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
-                    navigator.clipboard.writeText(`nostr:${naddr}`);
-                    alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
-                } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
-            } else { alert('> ERROR: NostrTools library not loaded.'); }
+        async function copyNaddr(kind, pubkey, identifier) {
+            try {
+                // Trik Dynamic Import ESM (Versi 2.24.1)
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                
+                let naddr = nostrTools.nip19.naddrEncode({ 
+                    kind: parseInt(kind), 
+                    pubkey: pubkey, 
+                    identifier: identifier 
+                });
+                
+                navigator.clipboard.writeText(`nostr:${naddr}`);
+                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
+            } catch (e) { 
+                console.error(e);
+                alert('> ERROR: Failed to encode NIP-19 naddr.'); 
+            }
         }
 
         function timeAgo(unixTimestamp) {
@@ -350,6 +384,10 @@
         function closeRawModal() { rawModal.style.display = 'none'; }
 
         function openQuoteModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) {
+                alert('> ERROR: Not logged in! Login to quote.');
+                return;
+            }
             let ev = userEventsList.find(e => e.id === eventId);
             if (!ev) return;
             quoteTargetEvent = ev;
@@ -358,6 +396,16 @@
             quoteModal.style.display = 'flex';
         }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
+
+        function openEditModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) return;
+            let ev = userEventsList.find(e => e.id === eventId);
+            if (!ev) return;
+            editTargetEvent = ev;
+            editContentInput.value = ev.content;
+            editModal.style.display = 'flex';
+        }
+        function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
 
         function openRelayModal() {
             let htmlContent = "";
@@ -516,6 +564,18 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
 
+                            // NIP-09 Delete Event processing
+                            if (ev.kind === 5) {
+                                ev.tags.forEach(t => {
+                                    if (t[0] === 'e') {
+                                        let oldCard = document.getElementById(`post-${t[1]}`);
+                                        if (oldCard) oldCard.remove();
+                                        userEventsList = userEventsList.filter(item => item.id !== t[1]);
+                                    }
+                                });
+                                return;
+                            }
+
                             if (ev.kind === 3) {
                                 if (ev.pubkey === targetPubkey) {
                                     targetFollowingPubkeys = [];
@@ -537,7 +597,8 @@
                             if (ev.kind === 0 && targetFollowingPubkeys.includes(ev.pubkey)) {
                                 try {
                                     let meta = JSON.parse(ev.content);
-                                    let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0, 8)}`;
+                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
+                                    let rawName = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
                                     
                                     followingProfilesCache[ev.pubkey] = {
@@ -571,11 +632,13 @@
                                         profileNameTxt = profileData.display_name || profileData.name;
                                         profileName.textContent = profileNameTxt;
                                     }
-                                    if (profileData.name) {
-                                        profileHandleTxt = `@${profileData.name.toLowerCase().replace(/\s+/g, '')}`;
-                                        let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
-                                        profileHandle.textContent = domainPart ? `${profileHandleTxt} ✓ ${domainPart}` : profileHandleTxt;
-                                    }
+                                    
+                                    // FIXED: Robust handle parsing fallback
+                                    let rawNameStr = profileData.name || profileData.display_name || targetPubkey.substring(0, 8);
+                                    profileHandleTxt = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
+                                    let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
+                                    profileHandle.textContent = domainPart ? `${profileHandleTxt} ✓ ${domainPart}` : profileHandleTxt;
+                                    
                                     if (profileData.about && profileData.about.trim() !== "") {
                                         let bioText = profileData.about;
                                         let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
@@ -667,6 +730,9 @@
                 let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
                 let formattedMetaLine = domainPart ? `${lowerHandle} ✓ ${domainPart} · ${timeStr}` : `${lowerHandle} · ${timeStr}`;
 
+                let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
+                let editBtnVisibility = isMine ? '' : 'hidden';
+
                 let card = document.createElement('div');
                 card.id = `post-${ev.id}`;
                 
@@ -702,6 +768,7 @@
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                                <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
                             </div>
                             <div class="post-footer-meta">> long_form / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -776,6 +843,7 @@
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                                <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                             </div>
                             <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -805,6 +873,45 @@
                 alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
                 closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
             } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+        });
+
+        sendEditBtn.addEventListener('click', async function() {
+            let newText = editContentInput.value.trim();
+            if (!newText) { alert('> ERROR: Message is empty!'); return; }
+            if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
+
+            try {
+                sendEditBtn.textContent = '> SIGNING...';
+                
+                let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
+                let signedDelEvent = await window.nostr.signEvent(delEvent);
+                
+                let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
+                let signedNewEvent = await window.nostr.signEvent(newEvent);
+                
+                let sentCount = 0;
+                activeSockets.forEach(sock => { 
+                    if (sock && sock.readyState === WebSocket.OPEN) { 
+                        sock.send(JSON.stringify(["EVENT", signedDelEvent]));
+                        sock.send(JSON.stringify(["EVENT", signedNewEvent]));
+                        sentCount++; 
+                    } 
+                });
+                
+                alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
+                
+                let oldCard = document.getElementById(`post-${editTargetEvent.id}`);
+                if (oldCard) oldCard.remove();
+                userEventsList = userEventsList.filter(item => item.id !== editTargetEvent.id);
+                userEventsList.push(signedNewEvent);
+                
+                closeEditModal(); 
+                sendEditBtn.textContent = '> UPDATE_EVENT';
+                triggerDebouncedRender();
+            } catch (err) { 
+                alert('> ERROR: Failed to update event.'); 
+                sendEditBtn.textContent = '> UPDATE_EVENT'; 
+            }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);

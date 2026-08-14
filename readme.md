@@ -6,7 +6,9 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 
 ## 🚀 Key Features
 *   **Minimalist Timeline:** Fetch Text Note feeds (NIP-01) in real-time without lag.
-*   **Long Form Article (NIP-23):** Read Markdown articles directly from the Nostr network.
+*   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.
+*   **Dynamic Configuration:** Multi-relay lists and Blossom servers are easily managed externally via a `config.json` file.
+*   **Event Deletion & Editing:** Full support for replacing Long-form content (NIP-33) and editing regular Notes via Event Deletion signals (NIP-09).
 *   **Rich Media Support:** Automatically detects and renders inline image URLs and video formats (mp4, webm, ogg).
 *   **NIP-19 Entity Support:** Automatically parses Nostr links (naddr, npub, note, nevent) into interactive embeds.
 *   **Ephemeral Events (NIP-40):** Supports 24-hour expiring Pulse stories with live expiration timers.
@@ -21,7 +23,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.
 
 1. Clone or download this repository.
-2. Ensure the `terminal.css` file is in the same directory.
+2. Ensure the `config.json` files are in the same directory. *(Edit `config.json` to customize your default relays).*
 3. You can run a local web server within the folder (e.g., `python -m http.server 5500`) or simply host it on static hosting providers like **Cloudflare Pages** or GitHub Pages.
 4. Open your browser and navigate to the address.
 

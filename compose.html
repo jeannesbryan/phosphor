@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phosphor - Compose Article</title>
+    <link rel="stylesheet" href="/assets/terminal.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="manifest" href="/assets/site.webmanifest">
+    <script src="https://cdn.jsdelivr.net/npm/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
+    
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        
+        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        nav a { text-decoration: none !important; color: inherit; }
+        nav a:hover { color: var(--t-green, #00ff41); }
+        
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
+        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .editor-section { border: 2px dashed currentColor; padding: 20px; margin-bottom: 20px; }
+        .editor-title { font-weight: bold; margin-bottom: 20px; font-size: 1.2em; text-transform: uppercase; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; margin-bottom: 5px; font-weight: bold; opacity: 0.9; font-size: 0.9em; }
+        .form-hint { font-size: 0.75em; opacity: 0.6; margin-left: 5px; font-weight: normal; }
+        
+        .sys-input, .sys-textarea { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: 1px solid currentColor; padding: 10px; font-family: inherit; outline: none; }
+        .sys-input:focus, .sys-textarea:focus { border-color: var(--t-green, #00ff41); box-shadow: 0 0 5px rgba(0,255,65,0.2); }
+        .sys-input { border-style: dashed; border-top: none; border-left: none; border-right: none; }
+        
+        .toolbar { display: flex; gap: 5px; border: 1px dashed currentColor; border-bottom: none; padding: 5px; background: rgba(0,255,65,0.02); flex-wrap: wrap; }
+        .toolbar-btn { background: transparent; color: inherit; border: 1px solid transparent; cursor: pointer; font-family: inherit; padding: 4px 8px; font-size: 0.9em; font-weight: bold; }
+        .toolbar-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); border: 1px solid currentColor; }
+        
+        #articleContent { min-height: 400px; resize: vertical; border-top: none; line-height: 1.5; font-size: 1.05em; }
+        
+        .action-row { display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px; }
+        .action-btn { background: transparent; color: inherit; border: 1px solid currentColor; cursor: pointer; font-family: inherit; padding: 8px 15px; text-decoration: none; font-weight: bold; font-size: 1em; text-transform: uppercase; }
+        .action-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        #relayModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
+        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
+        .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
+    </style>
+</head>
+<body class="terminal t-crt">
+    <div class="container">
+        <header>
+            <h1>> Phosphor</h1>
+            <nav>
+                <a href="index.html">[ TIMELINE ]</a>
+                <a href="profile.html">[ PROFILE ]</a>
+                <a href="compose.html" style="color: var(--t-green, #00ff41);">[ COMPOSE ]</a>
+                <a href="#" id="loginBtn">[ LOGIN ]</a>
+                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
+                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+            </nav>
+        </header>
+
+        <div style="margin-bottom: 15px;">
+            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
+        </div>
+
+        <div class="editor-section">
+            <div class="editor-title">> LONG_FORM_EDITOR <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(NIP-23)</span></div>
+
+            <div class="form-group">
+                <label class="form-label" for="articleTitle">TITLE <span style="color: red;">*</span></label>
+                <input type="text" id="articleTitle" class="sys-input" placeholder="Enter an eye-catching title...">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="articleSlug">IDENTIFIER (d tag) <span style="color: red;">*</span> <span class="form-hint">Auto-generated from title, unique slug for updates.</span></label>
+                <input type="text" id="articleSlug" class="sys-input" placeholder="e.g., my-awesome-article">
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label class="form-label" for="articleCover">COVER IMAGE URL <span class="form-hint">Optional</span></label>
+                    <input type="url" id="articleCover" class="sys-input" placeholder="https://...">
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <label class="form-label" for="articleTags">TOPICS / TAGS <span class="form-hint">Comma separated (e.g., linux, nostr)</span></label>
+                    <input type="text" id="articleTags" class="sys-input" placeholder="technology, cyberpunk, guide">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="articleSummary">SUMMARY <span class="form-hint">Optional short description for timeline card.</span></label>
+                <input type="text" id="articleSummary" class="sys-input" placeholder="A brief summary of what this article is about...">
+            </div>
+
+            <div class="form-group" style="margin-top: 25px;">
+                <label class="form-label">CONTENT <span style="color: red;">*</span> <span class="form-hint">Markdown supported.</span></label>
+                <div class="toolbar">
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="Bold">[B]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="Italic">[I]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('~~', '~~')" title="Strikethrough">[S]</button>
+                    <span style="opacity: 0.3;">|</span>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('[', '](https://)')" title="Link">[LINK]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n> ', '')" title="Quote">[QUOTE]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="Inline Code">[`]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n```\n', '\n```\n')" title="Code Block">[CODE]</button>
+                    <span style="opacity: 0.3;">|</span>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n- ', '')" title="Unordered List">[UL]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n1. ', '')" title="Ordered List">[OL]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n## ', '')" title="Heading 2">[H2]</button>
+                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n### ', '')" title="Heading 3">[H3]</button>
+                </div>
+                <textarea id="articleContent" class="sys-textarea" placeholder="Start typing your transmission here..."></textarea>
+            </div>
+
+            <div class="action-row">
+                <button type="button" class="action-btn" style="border-style: dashed; opacity: 0.7;" onclick="history.back()">[ CANCEL ]</button>
+                <button type="button" id="publishBtn" class="action-btn">> BROADCAST_ARTICLE</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Relay Modal -->
+    <div id="relayModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" style="margin-bottom: 15px;">
+                <p style="opacity: 0.5;">Checking network connections...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let RELAYS = [];
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
+        let relayStatusMap = {};
+        let activeSockets = [];
+
+        // DOM Elements
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const relayStatusBtn = document.getElementById('relayStatusBtn');
+        const relayModal = document.getElementById('relayModal');
+        const relayListContainer = document.getElementById('relayListContainer');
+        
+        const titleInput = document.getElementById('articleTitle');
+        const slugInput = document.getElementById('articleSlug');
+        const coverInput = document.getElementById('articleCover');
+        const tagsInput = document.getElementById('articleTags');
+        const summaryInput = document.getElementById('articleSummary');
+        const contentTextarea = document.getElementById('articleContent');
+        const publishBtn = document.getElementById('publishBtn');
+
+        // Check if we are in Edit Mode (has parameters in URL)
+        const urlParams = new URLSearchParams(window.location.search);
+        const editIdentifier = urlParams.get('d');
+        const editAuthor = urlParams.get('author');
+
+        async function loadConfig() {
+            try {
+                let res = await fetch('config.json');
+                let config = await res.json();
+                RELAYS = config.relays || [];
+                updateAuthState();
+                connectMultiRelays();
+                
+                if (editIdentifier && editAuthor) {
+                    loadArticleForEditing(editIdentifier, editAuthor);
+                }
+            } catch (e) {
+                console.error("Failed to load config.json", e);
+                alert("> ERROR: Missing config.json");
+            }
+        }
+
+        function updateAuthState() {
+            if (currentUserPubkey) {
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        loginBtn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+                try {
+                    currentUserPubkey = await window.nostr.getPublicKey();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    updateAuthState();
+                    alert('> CONNECTION SUCCESSFUL.');
+                } catch (err) { alert('> ERROR: Login failed.'); }
+            } else { alert('> WARNING: NIP-07 extension not found.'); }
+        });
+
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            localStorage.removeItem('phosphor_pubkey');
+            currentUserPubkey = null;
+            updateAuthState();
+            alert('> SESSION ENDED.');
+            window.location.href = 'index.html';
+        });
+
+        function openRelayModal() {
+            let htmlContent = "";
+            RELAYS.forEach(url => {
+                let isOnline = relayStatusMap[url] === true;
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: #ff4141;">[OFFLINE]</span>';
+                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
+            });
+            relayListContainer.innerHTML = htmlContent;
+            relayModal.style.display = 'flex';
+        }
+        function closeRelayModal() { relayModal.style.display = 'none'; }
+        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+
+        function connectMultiRelays() {
+            let onlineCount = 0;
+            RELAYS.forEach(url => {
+                relayStatusMap[url] = false;
+                let socket = new WebSocket(url);
+
+                socket.onopen = function() {
+                    onlineCount++;
+                    relayStatusMap[url] = true;
+                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                };
+
+                socket.onerror = function() { relayStatusMap[url] = false; };
+                socket.onclose = function() { relayStatusMap[url] = false; };
+                
+                // If editing, listen for the event response
+                socket.onmessage = function(event) {
+                    try {
+                        let data = JSON.parse(event.data);
+                        if (data[0] === "EVENT" && data[2] && data[2].kind === 30023) {
+                            let ev = data[2];
+                            let dTag = ev.tags.find(t => t[0] === 'd');
+                            if (dTag && dTag[1] === editIdentifier && ev.pubkey === editAuthor) {
+                                populateForm(ev);
+                            }
+                        }
+                    } catch (e) {}
+                };
+
+                activeSockets.push(socket);
+            });
+        }
+
+        // Auto-generate slug from title (only if not currently editing an existing slug)
+        titleInput.addEventListener('input', function(e) {
+            if (editIdentifier) return; // Prevent overwriting slug if editing
+            let rawText = e.target.value.toLowerCase();
+            let slug = rawText.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            slugInput.value = slug;
+        });
+
+        // Markdown Toolbar Logic
+        function insertMarkdown(prefix, suffix) {
+            const start = contentTextarea.selectionStart;
+            const end = contentTextarea.selectionEnd;
+            const selectedText = contentTextarea.value.substring(start, end);
+            const replacement = prefix + selectedText + suffix;
+            
+            contentTextarea.value = contentTextarea.value.substring(0, start) + replacement + contentTextarea.value.substring(end);
+            
+            // Set cursor position appropriately
+            contentTextarea.focus();
+            if (selectedText.length === 0) {
+                contentTextarea.selectionStart = contentTextarea.selectionEnd = start + prefix.length;
+            } else {
+                contentTextarea.selectionStart = start;
+                contentTextarea.selectionEnd = start + replacement.length;
+            }
+        }
+
+        function loadArticleForEditing(identifier, author) {
+            publishBtn.textContent = '> UPDATE_ARTICLE';
+            slugInput.readOnly = true; // Lock slug to prevent accidental ID changes during edit
+            slugInput.style.opacity = '0.5';
+            
+            // Request the specific event from relays
+            let req = JSON.stringify(["REQ", "edit-fetch", { "kinds": [30023], "authors": [author], "#d": [identifier], "limit": 1 }]);
+            
+            // Send request once sockets open (or immediately if already open)
+            setTimeout(() => {
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
+                });
+            }, 1000); // Small delay to ensure connections
+        }
+
+        function populateForm(ev) {
+            // Prevent overwriting if user already started typing before fetch completed
+            if (titleInput.value !== "" && !editIdentifier) return; 
+
+            contentTextarea.value = ev.content;
+            
+            let tagsArr = [];
+            ev.tags.forEach(t => {
+                if (t[0] === 'title') titleInput.value = t[1];
+                if (t[0] === 'd') slugInput.value = t[1];
+                if (t[0] === 'image') coverInput.value = t[1];
+                if (t[0] === 'summary') summaryInput.value = t[1];
+                if (t[0] === 't') tagsArr.push(t[1]);
+            });
+            tagsInput.value = tagsArr.join(', ');
+        }
+
+        publishBtn.addEventListener('click', async function() {
+            if (!currentUserPubkey || !window.nostr) {
+                alert('> ERROR: Not logged in. Please login first.');
+                return;
+            }
+
+            const title = titleInput.value.trim();
+            const slug = slugInput.value.trim();
+            const content = contentTextarea.value.trim();
+            const cover = coverInput.value.trim();
+            const summary = summaryInput.value.trim();
+            const tagsRaw = tagsInput.value;
+
+            if (!title || !slug || !content) {
+                alert('> ERROR: Title, Identifier (d tag), and Content are required fields.');
+                return;
+            }
+
+            // Build Tags Array
+            let tags = [
+                ["d", slug],
+                ["title", title],
+                ["client", "Phosphor"]
+            ];
+
+            if (summary) tags.push(["summary", summary]);
+            if (cover) tags.push(["image", cover]);
+            
+            if (tagsRaw) {
+                let parsedTags = tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== "");
+                parsedTags.forEach(t => tags.push(["t", t]));
+            }
+
+            let rawEvent = {
+                kind: 30023,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: content,
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                publishBtn.textContent = '> SIGNING...';
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                
+                let sentCount = 0;
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+
+                if (sentCount > 0) {
+                    alert(`> SUCCESS: Broadcasted Long-Form Article to ${sentCount} relays!`);
+                    window.location.href = `profile.html?pubkey=${currentUserPubkey}`;
+                } else {
+                    alert('> ERROR: No relays connected to broadcast.');
+                    publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('> ERROR: Failed to sign/broadcast event.');
+                publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE';
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>
