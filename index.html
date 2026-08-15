@@ -30,7 +30,7 @@
         .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
         .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
         .author-line { font-size: 1.1em; font-weight: bold; }
-        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; word-break: break-all; }
         .post-header a { text-decoration: none; color: inherit; }
         .post-header a:hover { color: var(--t-green, #00ff41); }
         
@@ -135,18 +135,16 @@
 
             <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="color: #ff4141; font-size: 0.8em; margin-bottom: 10px; border: 1px dashed #ff4141; padding: 8px;">
-                    WARNING: Using private key login is insecure. It is recommended to use a browser extension. If you must use a private key, please set a password for encryption at minimum.
-                </p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password (optional: encrypt nsec)</label>
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
                     <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
                 </div>
-                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> LOGIN_NSEC</button>
+                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
             </div>
 
             <!-- NCRYPTSEC Login -->
@@ -160,7 +158,7 @@
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
                     <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
                 </div>
-                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT_AND_LOGIN</button>
+                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
             </div>
 
             <div style="text-align: right; margin-top: 15px;">
@@ -300,7 +298,6 @@
 
         // ================= AUTHENTICATION LOGIC =================
 
-        // Mock Nostr Object for Client-Side Signer
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
             window.nostr = {
                 getPublicKey: async () => pubkeyHex,
@@ -311,20 +308,16 @@
         }
 
         async function checkLocalSessions() {
-            // Cek kunci mentah di Session Storage (bertahan saat F5) atau Local Storage (jika tanpa password)
             let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
             let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
             
             if (rawHex && currentUserPubkey) {
-                // Auto-login jika raw hex ada (Memory/No Password)
                 try {
                     const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                     let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
                     setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
                 } catch(e) { console.error("Failed to restore local session", e); }
             }
-            // Jika ada ncryptsec tapi belum di-decrypt (window.nostr == null), biarkan saja.
-            // UI akan menanganinya via fungsi updateAuthState() dengan memunculkan tombol Unlock.
         }
 
         function switchLoginTab(tab) {
@@ -357,7 +350,6 @@
             document.getElementById('unlockModal').style.display = 'flex';
         });
 
-        // 1. EXT Login
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
                 try {
@@ -376,16 +368,17 @@
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
-        // 2. NSEC Login
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
             let input = document.getElementById('nsecInput').value.trim();
             let pass = document.getElementById('nsecPassword').value;
-            if(!input) return alert('> ERROR: Key is required.');
+            
+            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
             
             let btn = document.getElementById('nsecLoginBtn');
             try {
                 btn.textContent = '> PROCESSING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 
                 let skBytes;
                 if (input.startsWith('nsec1')) {
@@ -403,42 +396,37 @@
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-
-                if (pass) {
-                    let ncryptsec = nostrTools.nip49.encrypt(skBytes, pass);
-                    localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                    localStorage.removeItem('phosphor_privkey');
-                    sessionStorage.setItem('phosphor_privkey_temp', hexKey); // Simpan di RAM agar tahan F5
-                } else {
-                    localStorage.setItem('phosphor_privkey', hexKey);
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                }
+                let ncryptsec = nip49.encrypt(skBytes, pass);
+                
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                localStorage.removeItem('phosphor_privkey');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 updateAuthState();
                 fetchMyAvatar();
                 document.getElementById('loginModal').style.display = 'none';
-                alert('> LOCAL SIGNER INITIALIZED.');
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
             } catch(e) {
                 console.error(e);
                 alert('> ERROR: Invalid key format or processing failed.');
             } finally {
-                btn.textContent = '> LOGIN_NSEC';
+                btn.textContent = '> ENCRYPT & LOGIN';
             }
         });
 
-        // 3. NCRYPTSEC Login
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
             let input = document.getElementById('ncryptsecInput').value.trim();
             let pass = document.getElementById('ncryptsecPassword').value;
+            
             if(!input || !pass) return alert('> ERROR: Key and password required.');
             
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 
-                let skBytes = nostrTools.nip49.decrypt(input, pass);
+                let skBytes = nip49.decrypt(input, pass);
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
@@ -459,22 +447,23 @@
                 console.error(e);
                 alert('> ERROR: Decryption failed. Incorrect password?');
             } finally {
-                btn.textContent = '> DECRYPT_AND_LOGIN';
+                btn.textContent = '> DECRYPT & LOGIN';
             }
         });
 
-        // 4. UNLOCK Modal (Dipakai setelah reload halaman / buka browser)
         document.getElementById('unlockBtn').addEventListener('click', async () => {
             let pass = document.getElementById('unlockPassword').value;
             let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
             if(!pass) return alert('> ERROR: Password required.');
 
             let btn = document.getElementById('unlockBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 
-                let skBytes = nostrTools.nip49.decrypt(ncryptsec, pass);
+                let skBytes = nip49.decrypt(ncryptsec, pass);
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
@@ -510,11 +499,10 @@
             logoutFully();
         });
 
-        // ================= END AUTH LOGIC =================
-
         function updateAuthState() {
-            // Cek apakah ada encrypted key tapi belum di-unlock (signer belum aktif)
-            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !window.nostr;
+            // FIX: Gunakan laci mandiri sessionStorage untuk mendeteksi status lock
+            // agar tidak tertipu oleh window.nostr hasil suntikan ekstensi pihak ketiga.
+            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
 
             if (isLocked) {
                 navLoginBtn.classList.add('hidden');
@@ -522,12 +510,16 @@
                 navUnlockBtn.classList.remove('hidden');
                 composerCard.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+                
+                // Auto-show modal unlock saat halaman dimuat jika sesi terkunci
+                document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
                 navLoginBtn.classList.add('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 composerCard.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
+                document.getElementById('unlockModal').style.display = 'none';
             } else {
                 navLoginBtn.classList.remove('hidden');
                 navUnlockBtn.classList.add('hidden');
@@ -537,6 +529,8 @@
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
+
+        // ================= END AUTH LOGIC =================
 
         async function copyNaddr(kind, pubkey, identifier) {
             try {
