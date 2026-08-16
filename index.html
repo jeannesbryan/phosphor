@@ -91,6 +91,7 @@
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
                 <a href="#" id="navLoginBtn">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
@@ -103,10 +104,19 @@
             <div class="avatar-box" id="userAvatarBox">[P]</div>
             <div class="post-main">
                 <textarea id="postContentInput" class="sys-input" rows="3" placeholder="What's happening on the network?"></textarea>
-                <div style="text-align: right; display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 5px;">
-                    <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
-                    <span style="opacity: 0.5;">|</span>
-                    <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="file" id="mediaUploadInput" accept="image/*,video/*" style="display: none;">
+                        <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video">[ MEDIA ]</button>
+                        <label style="font-size: 0.8em; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Auto-delete post from timeline after 24 Hours">
+                            <input type="checkbox" id="pulseToggle"> 24H_PULSE
+                        </label>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
+                        <span style="opacity: 0.5;">|</span>
+                        <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -254,8 +264,12 @@
         let likedEvents = new Set();
         let repostedEvents = new Set();
 
+        let myBookmarks = new Set();
+        let myBookmarkEvent = null;
+
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
+        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const broadcastBtn = document.getElementById('broadcastBtn');
@@ -263,6 +277,10 @@
         const postsContainer = document.getElementById('posts-container');
         const userAvatarBox = document.getElementById('userAvatarBox');
         const composerCard = document.getElementById('composerCard');
+        
+        const uploadMediaBtn = document.getElementById('uploadMediaBtn');
+        const mediaUploadInput = document.getElementById('mediaUploadInput');
+        const pulseToggle = document.getElementById('pulseToggle');
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -290,7 +308,7 @@
                 await checkLocalSessions();
                 
                 updateAuthState();
-                fetchMyAvatar();
+                fetchMyAvatarAndBookmarks();
                 connectMultiRelays();
             } catch (e) {
                 console.error("Failed to load config.json", e);
@@ -363,7 +381,7 @@
                     sessionStorage.removeItem('phosphor_privkey_temp');
                     
                     updateAuthState();
-                    fetchMyAvatar();
+                    fetchMyAvatarAndBookmarks();
                     document.getElementById('loginModal').style.display = 'none';
                     alert('> CONNECTION SUCCESSFUL.');
                 } catch (err) { alert('> ERROR: Login failed.'); }
@@ -405,7 +423,7 @@
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 updateAuthState();
-                fetchMyAvatar();
+                fetchMyAvatarAndBookmarks();
                 document.getElementById('loginModal').style.display = 'none';
                 alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
             } catch(e) {
@@ -442,7 +460,7 @@
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 updateAuthState();
-                fetchMyAvatar();
+                fetchMyAvatarAndBookmarks();
                 document.getElementById('loginModal').style.display = 'none';
                 alert('> SECURE DECRYPTION SUCCESSFUL.');
             } catch(e) {
@@ -478,7 +496,7 @@
                 
                 document.getElementById('unlockModal').style.display = 'none';
                 updateAuthState();
-                fetchMyAvatar();
+                fetchMyAvatarAndBookmarks();
                 alert('> SESSION UNLOCKED.');
             } catch(e) {
                 console.error(e);
@@ -508,6 +526,7 @@
                 navLoginBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 composerCard.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 
@@ -516,6 +535,7 @@
                 navLoginBtn.classList.add('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.remove('hidden');
                 composerCard.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
                 document.getElementById('unlockModal').style.display = 'none';
@@ -523,6 +543,7 @@
                 navLoginBtn.classList.remove('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 composerCard.classList.add('hidden');
                 userAvatarBox.innerHTML = "[P]";
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
@@ -530,6 +551,68 @@
         }
 
         // ================= END AUTH LOGIC =================
+
+        // ================= MEDIA UPLOAD LOGIC =================
+        uploadMediaBtn.addEventListener('click', () => mediaUploadInput.click());
+        
+        mediaUploadInput.addEventListener('change', async (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            uploadMediaBtn.textContent = '[ UPLOADING... ]';
+            
+            try {
+                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
+                let uploadEndpoint = blossomUrl + '/upload';
+                
+                let authEvent = {
+                    kind: 27235,
+                    created_at: Math.floor(Date.now() / 1000),
+                    tags: [ ["u", uploadEndpoint], ["method", "PUT"] ],
+                    content: "Phosphor Blossom Auth",
+                    pubkey: currentUserPubkey
+                };
+                
+                let signedAuth = await window.nostr.signEvent(authEvent);
+                let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                
+                let response = await fetch(uploadEndpoint, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Nostr ' + authBase64 },
+                    body: file
+                });
+                
+                if (response.ok) {
+                    let data = await response.json();
+                    postContentInput.value += (postContentInput.value ? '\n' : '') + data.url;
+                } else { alert('> ERROR: Media server rejected the upload.'); }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server.'); } 
+            finally { uploadMediaBtn.textContent = '[ MEDIA ]'; mediaUploadInput.value = ''; }
+        });
+
+        // ================= BOOKMARK LOGIC =================
+        async function toggleBookmark(eventId) {
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            let isBookmarked = myBookmarks.has(eventId);
+            
+            let tags = [["d", "bookmark"]];
+            if (myBookmarkEvent) {
+                myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
+            }
+            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } 
+            else { myBookmarks.delete(eventId); }
+            
+            let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
+            
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                myBookmarkEvent = signedEvent;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                
+                let btn = document.getElementById(`bm-btn-${eventId}`);
+                if (btn) btn.textContent = !isBookmarked ? '[b] saved' : '[b] save';
+            } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
+        }
 
         async function copyNaddr(kind, pubkey, identifier) {
             try {
@@ -549,29 +632,42 @@
             }
         }
 
-        function fetchMyAvatar() {
+        function fetchMyAvatarAndBookmarks() {
             if (!currentUserPubkey) return;
             RELAYS.forEach(url => {
                 let sock = new WebSocket(url);
-                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-av", {kinds:[0], authors:[currentUserPubkey], limit:1}]));
+                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-data", {kinds:[0, 30003], authors:[currentUserPubkey]}]));
                 sock.onmessage = (e) => {
                     let d = JSON.parse(e.data);
-                    if (d[0] === "EVENT" && d[2] && d[2].kind === 0) {
-                        try {
-                            let meta = JSON.parse(d[2].content);
-                            let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${currentUserPubkey.substring(0,8)}`;
-                            let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                            
-                            profileCache[currentUserPubkey] = {
-                                name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6),
-                                handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                nip05: meta.nip05 || "",
-                                picture: meta.picture || null
-                            };
-                            
-                            if (meta.picture) userAvatarBox.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
-                            updatePostUI(currentUserPubkey);
-                        } catch(err){}
+                    if (d[0] === "EVENT" && d[2]) {
+                        if (d[2].kind === 0) {
+                            try {
+                                let meta = JSON.parse(d[2].content);
+                                let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${currentUserPubkey.substring(0,8)}`;
+                                let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                
+                                profileCache[currentUserPubkey] = {
+                                    name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6),
+                                    handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
+                                    nip05: meta.nip05 || "",
+                                    picture: meta.picture || null
+                                };
+                                
+                                if (meta.picture) userAvatarBox.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
+                                updatePostUI(currentUserPubkey);
+                            } catch(err){}
+                        }
+                        if (d[2].kind === 30003) {
+                            if (!myBookmarkEvent || d[2].created_at > myBookmarkEvent.created_at) {
+                                myBookmarkEvent = d[2];
+                                myBookmarks.clear();
+                                d[2].tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
+                                document.querySelectorAll('.bookmark-btn').forEach(btn => {
+                                    let id = btn.getAttribute('data-id');
+                                    btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save';
+                                });
+                            }
+                        }
                     }
                 };
             });
@@ -784,6 +880,16 @@
 
         function renderPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
+            
+            // EXPIRE FILTER LOGIC
+            let hasExpiration = false;
+            for(let t of ev.tags) {
+                if(t[0] === "expiration") {
+                    hasExpiration = true;
+                    if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) return; // SWEEPER: Drop expired pulse completely
+                }
+            }
+
             initMetrics(ev.id);
             requestMetrics(ev.id);
 
@@ -799,14 +905,13 @@
             
             let clientName = "unknown";
             let dTagValue = "";
-            let hasExpiration = false;
             let expTimeStr = "EPHEMERAL_STORY";
 
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
                 if (t[0] === "d") dTagValue = t[1];
                 if (t[0] === "expiration") {
-                    hasExpiration = true; let expUnix = parseInt(t[1]); let diff = expUnix - Math.floor(Date.now() / 1000);
+                    let expUnix = parseInt(t[1]); let diff = expUnix - Math.floor(Date.now() / 1000);
                     expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
                 }
             });
@@ -819,6 +924,7 @@
             let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
+            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
 
             let card = document.createElement('div');
             card.id = `post-${ev.id}`;
@@ -843,6 +949,7 @@
                         <div class="article-summary">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
                         <div class="post-actions">
                             <a href="notes.html?${articleTargetParam}" class="action-btn" title="Read Article" style="text-decoration:none;">[read]</a>
+                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
                             <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                             <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
@@ -946,6 +1053,7 @@
                         ${mediaHtml}
                         <div class="post-actions">
                             <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                             <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                             <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
@@ -968,15 +1076,23 @@
             if (!contentText) { alert('> ERROR: Message is empty!'); return; }
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
-            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["client", "Phosphor"]], content: contentText, pubkey: currentUserPubkey };
+            let tags = [["client", "Phosphor"]];
+            if (pulseToggle.checked) {
+                tags.push(["expiration", String(Math.floor(Date.now() / 1000) + 86400)]);
+            }
+
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: tags, content: contentText, pubkey: currentUserPubkey };
             try {
                 broadcastBtn.textContent = '> SIGNING...';
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 let sentCount = 0;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
                 alert(`> SUCCESS: Broadcasted to ${sentCount} relays!`);
-                postContentInput.value = ''; broadcastBtn.textContent = '> BROADCAST_EVENT';
-                eventsCache[signedEvent.id] = signedEvent; renderPost(signedEvent);
+                postContentInput.value = ''; 
+                broadcastBtn.textContent = '> BROADCAST_EVENT';
+                pulseToggle.checked = false;
+                eventsCache[signedEvent.id] = signedEvent; 
+                renderPost(signedEvent);
             } catch (err) { alert('> ERROR: Failed to broadcast.'); broadcastBtn.textContent = '> BROADCAST_EVENT'; }
         });
 
