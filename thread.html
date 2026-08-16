@@ -18,7 +18,7 @@
         .hidden { display: none !important; }
         
         .main-post-card { border: 2px solid currentColor; padding: 20px; margin-bottom: 20px; background: transparent; }
-        .main-post-content { font-size: 1.15em; line-height: 1.5; margin: 15px 0; word-wrap: break-word; }
+        .main-post-content { font-size: 1.15em; line-height: 1.5; margin: 15px 0; word-wrap: break-word; overflow-wrap: anywhere; }
 
         .reply-container { margin-left: 20px; border-left: 2px dashed currentColor; padding-left: 15px; }
         .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; }
@@ -29,10 +29,10 @@
         .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
         .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
         .author-line { font-size: 1.1em; font-weight: bold; }
-        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; }
+        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; word-break: break-all; }
         .post-header a { text-decoration: none; color: inherit; }
         .post-header a:hover { color: var(--t-green, #00ff41); }
-        .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; }
+        .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; overflow-wrap: anywhere; }
         
         .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed currentColor; padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
         .nostr-embed-link:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
@@ -45,7 +45,7 @@
         .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
@@ -83,6 +83,7 @@
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -134,18 +135,16 @@
 
             <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="color: #ff4141; font-size: 0.8em; margin-bottom: 10px; border: 1px dashed #ff4141; padding: 8px;">
-                    WARNING: Using private key login is insecure. It is recommended to use a browser extension. If you must use a private key, please set a password for encryption at minimum.
-                </p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
                 </div>
                 <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password (optional: encrypt nsec)</label>
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
                     <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
                 </div>
-                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> LOGIN_NSEC</button>
+                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
             </div>
 
             <!-- NCRYPTSEC Login -->
@@ -159,11 +158,29 @@
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
                     <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
                 </div>
-                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT_AND_LOGIN</button>
+                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
             </div>
 
             <div style="text-align: right; margin-top: 15px;">
                 <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNLOCK MODAL -->
+    <div id="unlockModal">
+        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <div style="margin-bottom: 15px;">
+                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
+                <div>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+                </div>
             </div>
         </div>
     </div>
@@ -243,6 +260,7 @@
 
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const navLoginBtn = document.getElementById('navLoginBtn');
+        const navUnlockBtn = document.getElementById('navUnlockBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const mainPostContainer = document.getElementById('mainPostContainer');
         const repliesContainer = document.getElementById('repliesContainer');
@@ -294,7 +312,7 @@
         }
 
         async function checkLocalSessions() {
-            let rawHex = localStorage.getItem('phosphor_privkey');
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
             let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
             
             if (rawHex && currentUserPubkey) {
@@ -340,6 +358,11 @@
             }
         });
 
+        navUnlockBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('unlockModal').style.display = 'flex';
+        });
+
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
                 try {
@@ -347,6 +370,7 @@
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                     localStorage.removeItem('phosphor_privkey');
                     localStorage.removeItem('phosphor_ncryptsec');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
                     location.reload();
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
@@ -355,12 +379,14 @@
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
             let input = document.getElementById('nsecInput').value.trim();
             let pass = document.getElementById('nsecPassword').value;
-            if(!input) return alert('> ERROR: Key is required.');
+            
+            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
             
             let btn = document.getElementById('nsecLoginBtn');
             try {
                 btn.textContent = '> PROCESSING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 
                 let skBytes;
                 if (input.startsWith('nsec1')) {
@@ -372,70 +398,130 @@
                 }
                 
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
                 
+                currentUserPubkey = pubkeyHex;
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                if (pass) {
-                    let ncryptsec = nostrTools.nip49.encrypt(skBytes, pass);
-                    localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                    localStorage.removeItem('phosphor_privkey');
-                } else {
-                    let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                    localStorage.setItem('phosphor_privkey', hexKey);
-                    localStorage.removeItem('phosphor_ncryptsec');
-                }
                 
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                let ncryptsec = nip49.encrypt(skBytes, pass);
+                
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                localStorage.removeItem('phosphor_privkey');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
                 location.reload();
             } catch(e) {
                 console.error(e);
                 alert('> ERROR: Invalid key format or processing failed.');
-            } finally {
-                btn.textContent = '> LOGIN_NSEC';
+                btn.textContent = '> ENCRYPT & LOGIN';
             }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
             let input = document.getElementById('ncryptsecInput').value.trim();
             let pass = document.getElementById('ncryptsecPassword').value;
+            
             if(!input || !pass) return alert('> ERROR: Key and password required.');
             
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 
-                let skBytes = nostrTools.nip49.decrypt(input, pass);
+                let skBytes = nip49.decrypt(input, pass);
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                currentUserPubkey = pubkeyHex;
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 localStorage.setItem('phosphor_ncryptsec', input);
                 localStorage.removeItem('phosphor_privkey');
+
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
+                alert('> SECURE DECRYPTION SUCCESSFUL.');
                 location.reload();
             } catch(e) {
                 console.error(e);
                 alert('> ERROR: Decryption failed. Incorrect password?');
-            } finally {
-                btn.textContent = '> DECRYPT_AND_LOGIN';
+                btn.textContent = '> DECRYPT & LOGIN';
             }
         });
 
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
+            let pass = document.getElementById('unlockPassword').value;
+            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
+            if(!pass) return alert('> ERROR: Password required.');
+
+            let btn = document.getElementById('unlockBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes = nip49.decrypt(ncryptsec, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                document.getElementById('unlockModal').style.display = 'none';
+                alert('> SESSION UNLOCKED.');
+                location.reload();
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Decryption failed. Incorrect password?');
+                btn.textContent = '> DECRYPT';
+            }
+        });
+
+        function logoutFully() {
             localStorage.removeItem('phosphor_pubkey');
             localStorage.removeItem('phosphor_privkey');
+            localStorage.removeItem('phosphor_ncryptsec');
+            sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
+        }
+
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logoutFully();
         });
 
         // ================= END AUTH LOGIC =================
 
         function updateAuthState() {
-            if (currentUserPubkey) {
+            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
+
+            if (isLocked) {
                 navLoginBtn.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                navUnlockBtn.classList.remove('hidden');
+                replyComposer.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+                
+                document.getElementById('unlockModal').style.display = 'flex';
+            } else if (currentUserPubkey) {
+                navLoginBtn.classList.add('hidden');
+                navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 replyComposer.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
+                document.getElementById('unlockModal').style.display = 'none';
             } else {
                 navLoginBtn.classList.remove('hidden');
+                navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 replyComposer.classList.add('hidden');
                 myReplyAvatar.innerHTML = "[P]";
@@ -754,7 +840,14 @@
                     return "";
                 });
                 
-                contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
+                contentText = escapeHtml(contentText.trim());
+
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
+                    let href = url.replace(/&amp;/g, '&');
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                });
+
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
@@ -766,7 +859,7 @@
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div>
                         <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong class="author-${ev.pubkey}" style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
-                        <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
+                        <span class="dim-text meta-line" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
                     </div>
                 </div>
                 ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : ""}
@@ -834,7 +927,14 @@
                     return "";
                 });
                 
-                contentText = escapeHtml(contentText.trim()).replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
+                contentText = escapeHtml(contentText.trim());
+
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
+                    let href = url.replace(/&amp;/g, '&');
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                });
+
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
