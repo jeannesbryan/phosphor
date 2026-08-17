@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Bookmarks</title>
+    
     <meta name="description" content="Phosphor Bookmarks - Saved decentralized events and archives on the Nostr network.">
     <link rel="stylesheet" href="/assets/terminal.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
+    
     <style>
         .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
         .hidden { display: none !important; }
@@ -72,7 +74,7 @@
 <body class="terminal t-crt">
     <div class="container">
         <header>
-            <h1>> Phosphor</h1>
+            <h1>> Phosphor_Archives</h1>
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
@@ -94,7 +96,7 @@
         </div>
 
         <section id="bookmarkFeed">
-            <div style="margin-bottom: 20px; opacity: 0.7; font-weight: bold;">> SYNCING_NIP-51_DATA...</div>
+            <div id="syncIndicator" style="margin-bottom: 20px; opacity: 0.7; font-weight: bold;">> SYNCING_NIP-51_DATA...</div>
             <div id="posts-container"></div>
             <p id="statusText" style="text-align: center; opacity: 0.5;">[ Searching relays for saved events... ]</p>
         </section>
@@ -534,6 +536,9 @@
                 
                 let btn = document.getElementById(`bm-btn-${eventId}`);
                 if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
+                
+                let card = document.getElementById(`post-${eventId}`);
+                if (!myBookmarks.has(eventId) && card) card.remove();
             } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
         }
 
@@ -694,18 +699,33 @@
                             }
 
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
-                                if (!myBookmarkEvent || ev.created_at > myBookmarkEvent.created_at) {
-                                    myBookmarkEvent = ev;
-                                    bookmarkIds.clear();
-                                    myBookmarks.clear();
-                                    ev.tags.forEach(t => { if (t[0] === 'e') { bookmarkIds.add(t[1]); myBookmarks.add(t[1]); } });
+                                if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
+                                    let isNewer = (!myBookmarkEvent || ev.created_at > myBookmarkEvent.created_at);
                                     
-                                    if (bookmarkIds.size > 0) {
-                                        statusText.style.display = 'none';
-                                        let subReq = JSON.stringify(["REQ", "bookmark-contents", { "ids": Array.from(bookmarkIds) }]);
-                                        socket.send(subReq);
-                                    } else {
-                                        statusText.textContent = "[ Bookmark list is empty. ]";
+                                    if (isNewer) {
+                                        myBookmarkEvent = ev;
+                                        bookmarkIds.clear();
+                                        myBookmarks.clear();
+                                        ev.tags.forEach(t => { if (t[0] === 'e') { bookmarkIds.add(t[1]); myBookmarks.add(t[1]); } });
+                                        
+                                        let syncInd = document.getElementById('syncIndicator');
+                                        if (syncInd) syncInd.style.display = 'none';
+
+                                        if (bookmarkIds.size > 0) {
+                                            if (statusText) statusText.style.display = 'none';
+                                            let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]);
+                                            activeSockets.forEach(sock => {
+                                                if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq);
+                                            });
+                                        } else {
+                                            if (statusText) statusText.textContent = "[ Bookmark list is empty. ]";
+                                        }
+                                    } 
+                                    else if (ev.created_at === myBookmarkEvent.created_at) {
+                                        if (bookmarkIds.size > 0) {
+                                            let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]);
+                                            socket.send(subReq);
+                                        }
                                     }
                                 }
                             }
@@ -768,6 +788,10 @@
 
         function renderSavedPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
+            
+            let syncInd = document.getElementById('syncIndicator');
+            if (syncInd) syncInd.style.display = 'none';
+            if (statusText) statusText.style.display = 'none';
             
             let hasExpiration = false;
             for(let t of ev.tags) {

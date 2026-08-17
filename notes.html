@@ -92,6 +92,7 @@
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
@@ -269,10 +270,14 @@
         
         let likedEvents = new Set();
         let repostedEvents = new Set();
+        
+        let myBookmarks = new Set();
+        let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
+        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const mainPostContainer = document.getElementById('mainPostContainer');
         const repliesContainer = document.getElementById('repliesContainer');
@@ -512,6 +517,30 @@
 
         // ================= END AUTH LOGIC =================
 
+        // ================= BOOKMARK LOGIC =================
+        async function toggleBookmark(eventId) {
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            let isBookmarked = myBookmarks.has(eventId);
+            
+            let tags = [["d", "bookmark"]];
+            if (myBookmarkEvent) {
+                myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
+            }
+            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } 
+            else { myBookmarks.delete(eventId); }
+            
+            let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
+            
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                myBookmarkEvent = signedEvent;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                
+                let btn = document.getElementById(`bm-btn-${eventId}`);
+                if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
+            } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
+        }
+
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
 
@@ -519,6 +548,7 @@
                 navLoginBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 replyComposer.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 
@@ -527,6 +557,7 @@
                 navLoginBtn.classList.add('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.remove('hidden');
                 replyComposer.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
                 document.getElementById('unlockModal').style.display = 'none';
@@ -534,6 +565,7 @@
                 navLoginBtn.classList.remove('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 replyComposer.classList.add('hidden');
                 myReplyAvatar.innerHTML = "[P]";
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
@@ -719,6 +751,7 @@
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-av-notes", { "kinds": [0], "authors": [currentUserPubkey], "limit": 1 }]));
+                        socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random().toString(36).substring(2,8), { "kinds": [30003], "authors": [currentUserPubkey] }]));
                     }
                 };
 
@@ -741,6 +774,19 @@
                                     }
                                 });
                                 return;
+                            }
+                            
+                            // Parse Bookmarks
+                            if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
+                                if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
+                                    myBookmarkEvent = ev;
+                                    myBookmarks.clear();
+                                    ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
+                                    document.querySelectorAll('.bookmark-btn').forEach(btn => {
+                                        let id = btn.getAttribute('data-id');
+                                        btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save';
+                                    });
+                                }
                             }
 
                             eventsCache[ev.id] = ev;
@@ -835,6 +881,7 @@
             
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
+            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
 
             let readTimeStr = calculateReadTime(ev.content || "");
             let renderedHtml;
@@ -856,6 +903,7 @@
 
                 <div class="post-actions" style="margin-top: 20px;">
                     <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                    <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                     <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
                     <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                     <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
@@ -893,6 +941,7 @@
             
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
+            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
 
             let isJsonPayload = false; let parsedJsonContent = "";
             if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
@@ -944,6 +993,7 @@
                     ${mediaHtml}
                     <div class="post-actions">
                         <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                        <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                         <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                         <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
