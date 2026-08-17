@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phosphor - Notifications</title>
+    
+    <meta name="description" content="Phosphor - Nostr Notifications">
+    
+    <link rel="stylesheet" href="/assets/terminal.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="manifest" href="/assets/site.webmanifest">
+    
+    <style>
+        .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        
+        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; flex-direction: column; }
+        .notif-badge { font-weight: bold; font-size: 0.85em; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed currentColor; word-break: break-all; }
+        
+        .notif-body { display: flex; width: 100%; }
+        
+        .avatar-box { width: 48px; height: 48px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 1.1em; overflow: hidden; background: var(--bg-base); }
+        .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
+        
+        .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
+        .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
+        .author-line { font-size: 1.1em; font-weight: bold; }
+        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; word-break: break-all; }
+        .post-header a { text-decoration: none; color: inherit; }
+        .post-header a:hover { color: var(--t-green, #00ff41); }
+        
+        .post-content { margin-bottom: 12px; word-wrap: break-word; line-height: 1.4; overflow-wrap: anywhere; }
+        
+        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed currentColor; padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
+        .nostr-embed-link:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
+        .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; transition: transform 0.2s; }
+        .post-media:hover img { transform: scale(1.03); }
+        .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
+        
+        #lightboxModal, #quoteModal, #relayModal, #rawModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
+        
+        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
+
+        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
+        .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none !important; display: inline-block; }
+        .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
+        
+        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent !important; color: inherit; border: 1px dashed currentColor; font-family: inherit; }
+        .modal-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
+        
+        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;}
+        nav a { text-decoration: none !important; color: inherit; }
+        nav a:hover { color: var(--t-green, #00ff41); text-decoration: none !important; }
+        
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
+        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+
+        .sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; resize: vertical; }
+    </style>
+</head>
+<body class="terminal t-crt">
+    <div class="container">
+        <header>
+            <h1>> Phosphor</h1>
+            <nav>
+                <a href="index.html">[ TIMELINE ]</a>
+                <a href="profile.html">[ PROFILE ]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden" style="color: var(--t-green, #00ff41);">[ NOTIFICATIONS ]</a>
+                <a href="compose.html" id="navComposeBtn" class="hidden">[ COMPOSE ]</a>
+                <a href="#" id="navLoginBtn">[ LOGIN ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
+                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+            </nav>
+        </header>
+
+        <div style="margin-bottom: 20px; font-weight: bold; font-size: 1.2em; border-bottom: 2px dashed currentColor; padding-bottom: 10px;">
+            > NETWORK_NOTIFICATIONS
+        </div>
+
+        <section id="notifications-feed">
+            <div id="unauthMessage" style="text-align: center; opacity: 0.5;">[ Authentication required to view notifications ]</div>
+            <div id="notifs-container"></div>
+            <p id="loadingText" class="hidden" style="text-align: center; opacity: 0.5;">[ Intercepting signals aimed at your node... ]</p>
+        </section>
+    </div>
+
+    <!-- Modals (Login, Unlock, Relay, Quote, Raw) -->
+    <!-- AUTH/LOGIN MODAL -->
+    <div id="loginModal">
+        <div class="modal-content-box" style="max-width: 450px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
+                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            </div>
+
+            <div id="viewExt">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension.</p>
+                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+            </div>
+
+            <div id="viewNsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is required to encrypt it.</p>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
+                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
+                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
+                </div>
+                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
+            </div>
+
+            <div id="viewNcryptsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
+                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
+                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
+                </div>
+                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 15px;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNLOCK MODAL -->
+    <div id="unlockModal">
+        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <div style="margin-bottom: 15px;">
+                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
+                <div>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightboxModal" onclick="this.style.display='none'">
+        <img id="lightboxImg" src="" alt="Zoomed Image">
+    </div>
+
+    <div id="quoteModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
+            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
+            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[CANCEL]</button>
+                <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="relayModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" style="margin-bottom: 15px;">
+                <p style="opacity: 0.5;">Checking network connections...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="rawModal">
+        <div class="modal-content-box" style="width: 95%; max-width: 600px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
+            <pre id="rawEventContent" style="font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let RELAYS = [];
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
+        let profileCache = {};
+        let eventsCache = {};
+        let quoteTargetEvent = null;
+        let relayStatusMap = {};
+        let activeSockets = [];
+
+        const navLoginBtn = document.getElementById('navLoginBtn');
+        const navUnlockBtn = document.getElementById('navUnlockBtn');
+        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
+        const navComposeBtn = document.getElementById('navComposeBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const relayStatusBtn = document.getElementById('relayStatusBtn');
+        
+        const unauthMessage = document.getElementById('unauthMessage');
+        const loadingText = document.getElementById('loadingText');
+        const notifsContainer = document.getElementById('notifs-container');
+
+        const quoteModal = document.getElementById('quoteModal');
+        const quoteTargetPreview = document.getElementById('quoteTargetPreview');
+        const quoteContentInput = document.getElementById('quoteContentInput');
+        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
+
+        const relayModal = document.getElementById('relayModal');
+        const relayListContainer = document.getElementById('relayListContainer');
+        const rawModal = document.getElementById('rawModal');
+        const rawEventContent = document.getElementById('rawEventContent');
+
+        async function loadConfig() {
+            try {
+                let res = await fetch('config.json');
+                let config = await res.json();
+                RELAYS = config.relays || [];
+                
+                await checkLocalSessions();
+                updateAuthState();
+
+                if (currentUserPubkey) {
+                    unauthMessage.classList.add('hidden');
+                    loadingText.classList.remove('hidden');
+                    connectMultiRelays();
+                }
+            } catch (e) {
+                console.error("Failed to load config.json", e);
+                alert("> ERROR: Missing config.json");
+            }
+        }
+
+        // ================= AUTHENTICATION LOGIC =================
+        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
+            window.nostr = {
+                getPublicKey: async () => pubkeyHex,
+                signEvent: async (eventTemplate) => { return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes); }
+            };
+        }
+
+        async function checkLocalSessions() {
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
+            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
+            if (rawHex && currentUserPubkey) {
+                try {
+                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
+                } catch(e) { console.error("Failed to restore local session", e); }
+            }
+        }
+
+        function switchLoginTab(tab) {
+            document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewNsec').classList.add('hidden');
+            document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabNsec').style.border = "none";
+            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            if (tab === 'ext') {
+                document.getElementById('viewExt').classList.remove('hidden');
+                document.getElementById('tabExt').style.border = "1px solid currentColor";
+            } else if (tab === 'nsec') {
+                document.getElementById('viewNsec').classList.remove('hidden');
+                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+            } else if (tab === 'ncryptsec') {
+                document.getElementById('viewNcryptsec').classList.remove('hidden');
+                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
+            }
+        }
+
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+
+        document.getElementById('extLoginBtn').addEventListener('click', async () => {
+            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+                try {
+                    currentUserPubkey = await window.nostr.getPublicKey();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    localStorage.removeItem('phosphor_privkey');
+                    localStorage.removeItem('phosphor_ncryptsec');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
+                    location.reload();
+                } catch (err) { alert('> ERROR: Login failed.'); }
+            } else { alert('> WARNING: NIP-07 extension not found.'); }
+        });
+
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('nsecInput').value.trim();
+            let pass = document.getElementById('nsecPassword').value;
+            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
+            let btn = document.getElementById('nsecLoginBtn');
+            try {
+                btn.textContent = '> PROCESSING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes;
+                if (input.startsWith('nsec1')) {
+                    let decoded = nostrTools.nip19.decode(input);
+                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
+                    skBytes = decoded.data;
+                } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
+                
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                let ncryptsec = nip49.encrypt(skBytes, pass);
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                location.reload();
+            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; }
+        });
+
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('ncryptsecInput').value.trim();
+            let pass = document.getElementById('ncryptsecPassword').value;
+            if(!input || !pass) return alert('> ERROR: Key and password required.');
+            let btn = document.getElementById('ncryptsecLoginBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes = nip49.decrypt(input, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                localStorage.setItem('phosphor_ncryptsec', input);
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; }
+        });
+
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
+            let pass = document.getElementById('unlockPassword').value;
+            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            if(!pass) return alert('> ERROR: Password required.');
+            let btn = document.getElementById('unlockBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes = nip49.decrypt(ncryptsec, pass);
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; }
+        });
+
+        function logoutFully() {
+            localStorage.removeItem('phosphor_pubkey');
+            localStorage.removeItem('phosphor_privkey');
+            localStorage.removeItem('phosphor_ncryptsec');
+            sessionStorage.removeItem('phosphor_privkey_temp');
+            location.reload();
+        }
+
+        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
+
+        function updateAuthState() {
+            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
+            if (isLocked) {
+                navLoginBtn.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                navUnlockBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
+                navComposeBtn.classList.add('hidden');
+                document.getElementById('unlockModal').style.display = 'flex';
+            } else if (currentUserPubkey) {
+                navLoginBtn.classList.add('hidden');
+                navUnlockBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.remove('hidden');
+                navNotifBtn.classList.remove('hidden');
+                navComposeBtn.classList.remove('hidden');
+            }
+        }
+
+        // ================= NOTIFICATION LOGIC =================
+
+        function connectMultiRelays() {
+            let onlineCount = 0;
+            RELAYS.forEach(url => {
+                relayStatusMap[url] = false;
+                let socket = new WebSocket(url);
+
+                socket.onopen = function() {
+                    onlineCount++;
+                    relayStatusMap[url] = true;
+                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    
+                    // Fetch events that mention my pubkey (#p)
+                    let subId = "notifs-" + Math.random().toString(36).substring(2);
+                    socket.send(JSON.stringify([
+                        "REQ", 
+                        subId, 
+                        { "#p": [currentUserPubkey], "kinds": [1, 6, 7, 16], "limit": 50 }
+                    ]));
+                };
+
+                socket.onerror = function() { relayStatusMap[url] = false; };
+                socket.onclose = function() { relayStatusMap[url] = false; };
+
+                socket.onmessage = function(event) {
+                    try {
+                        let data = JSON.parse(event.data);
+                        if (data[0] === "EVENT" && data[2]) {
+                            let ev = data[2];
+
+                            // Ask profile cache
+                            if (!profileCache[ev.pubkey]) {
+                                profileCache[ev.pubkey] = { pending: true };
+                                socket.send(JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0,8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]));
+                            }
+
+                            if (ev.kind === 0) {
+                                try {
+                                    let meta = JSON.parse(ev.content);
+                                    let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`;
+                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    profileCache[ev.pubkey] = {
+                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
+                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
+                                        picture: meta.picture || null
+                                    };
+                                    updatePostUI(ev.pubkey);
+                                } catch(e){}
+                            }
+                            
+                            // Render notification
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
+                                eventsCache[ev.id] = ev;
+                                renderNotification(ev);
+                            }
+                        }
+                    } catch (err) {}
+                };
+                activeSockets.push(socket);
+            });
+        }
+
+        function updatePostUI(pubkey) {
+            let info = profileCache[pubkey];
+            if (!info || info.pending) return;
+            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handle; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
+                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
+            });
+        }
+
+        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+
+        function timeAgo(unixTimestamp) {
+            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
+            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
+            if (seconds < 60) return "Just now";
+            for (let i in intervals) {
+                let count = Math.floor(seconds / intervals[i]);
+                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
+            }
+            return "Just now";
+        }
+
+        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function openRawModal(eventId) {
+            let ev = eventsCache[eventId];
+            if (ev) { document.getElementById('rawEventContent').textContent = JSON.stringify(ev, null, 2); document.getElementById('rawModal').style.display = 'flex'; }
+        }
+        function closeRawModal() { document.getElementById('rawModal').style.display = 'none'; }
+        function openRelayModal() { document.getElementById('relayModal').style.display = 'flex'; }
+        function closeRelayModal() { document.getElementById('relayModal').style.display = 'none'; }
+
+        function openQuoteModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            let ev = eventsCache[eventId];
+            if (!ev) return;
+            quoteTargetEvent = ev;
+            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
+            quoteContentInput.value = "";
+            quoteModal.style.display = 'flex';
+        }
+        function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
+
+        sendQuoteBtn.addEventListener('click', async function() {
+            let quoteText = quoteContentInput.value.trim();
+            if (!quoteTargetEvent || !currentUserPubkey || !window.nostr) return;
+
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
+            try {
+                sendQuoteBtn.textContent = '> SIGNING...';
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                alert(`> SUCCESS: Reply/Quote broadcasted!`);
+                closeQuoteModal();
+                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
+            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+        });
+
+        function renderNotification(ev) {
+            if (document.getElementById(`notif-${ev.id}`)) return;
+            
+            // Filter out my own actions unless testing
+            if (ev.pubkey === currentUserPubkey) return;
+
+            let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
+            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
+            let timeStr = timeAgo(ev.created_at);
+
+            let badgeText = "";
+            let badgeColor = "currentColor";
+            let contentHtml = "";
+            let actionButtonsHtml = "";
+
+            if (ev.kind === 1) {
+                badgeText = "> INCOMING_TRANSMISSION [ 💬 REPLY / MENTION ]";
+                badgeColor = "var(--t-green, #00ff41)";
+                
+                let contentText = ev.content || "";
+                let mediaHtml = "";
+                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
+                    let lowerExt = ext.toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}"></video>`;
+                    else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                    return "";
+                });
+                
+                contentText = escapeHtml(contentText.trim());
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, url => `<a href="${url.replace(/&amp;/g, '&')}" target="_blank" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`);
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
+                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
+                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`;
+                });
+
+                contentHtml = `<div class="post-content">${contentText}</div>${mediaHtml}`;
+                actionButtonsHtml = `
+                    <a href="thread.html?id=${ev.id}" class="action-btn" title="View Thread" style="text-decoration:none;">[view_thread]</a>
+                    <button class="action-btn" title="Quote/Reply" onclick="openQuoteModal('${ev.id}')">[reply]</button>
+                    <button class="action-btn" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>
+                `;
+            } 
+            else if (ev.kind === 7) {
+                badgeText = "> TELEMETRY_ACK [ ❤️ REACTION ]";
+                badgeColor = "#ffff00";
+                
+                let targetEventId = "";
+                ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
+                let reactionTxt = (ev.content === '+' || !ev.content) ? '👍' : escapeHtml(ev.content);
+                
+                contentHtml = `<div class="post-content" style="font-size: 1.5em; opacity: 0.9;">${reactionTxt} <span style="font-size: 0.5em; opacity: 0.5;">on event: ${targetEventId.substring(0,8)}...</span></div>`;
+                actionButtonsHtml = `<button class="action-btn" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
+            }
+            else if (ev.kind === 6 || ev.kind === 16) {
+                badgeText = "> SIGNAL_AMPLIFIED [ ♻️ REPOST ]";
+                badgeColor = "#00ffff";
+                
+                let targetEventId = "";
+                ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
+                
+                contentHtml = `<div class="post-content" style="opacity: 0.7;"><i>Broadcasted your event (${targetEventId.substring(0,8)}...) to their network.</i></div>`;
+                actionButtonsHtml = `<button class="action-btn" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
+            }
+
+            let card = document.createElement('div');
+            card.className = 'post-card';
+            card.id = `notif-${ev.id}`;
+            card.innerHTML = `
+                <div class="notif-badge" style="color: ${badgeColor};">${badgeText}</div>
+                <div class="notif-body">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                    <div class="post-main">
+                        <div class="post-header">
+                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
+                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        </div>
+                        ${contentHtml}
+                        <div class="post-actions" style="margin-top: 5px;">${actionButtonsHtml}</div>
+                    </div>
+                </div>
+            `;
+            
+            notifsContainer.prepend(card);
+            loadingText.classList.add('hidden');
+        }
+
+        window.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>

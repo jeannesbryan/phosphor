@@ -59,6 +59,7 @@
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
                 <a href="compose.html" style="color: var(--t-green, #00ff41);">[ COMPOSE ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
@@ -219,6 +220,7 @@
         // DOM Elements
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
+        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const relayModal = document.getElementById('relayModal');
@@ -463,18 +465,21 @@
                 navLoginBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 editorContainer.classList.add('hidden'); // Hide editor to prompt unlock
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
                 navLoginBtn.classList.add('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
+                navBookmarkBtn.classList.remove('hidden');
                 editorContainer.classList.remove('hidden');
                 document.getElementById('unlockModal').style.display = 'none';
             } else {
                 navLoginBtn.classList.remove('hidden');
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
+                navBookmarkBtn.classList.add('hidden');
                 editorContainer.classList.add('hidden'); // Cannot write without login
             }
         }

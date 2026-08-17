@@ -107,13 +107,13 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <input type="file" id="mediaUploadInput" accept="image/*,video/*" style="display: none;">
-                        <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video">[ MEDIA ]</button>
+                        <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video">[MEDIA]</button>
                         <label style="font-size: 0.8em; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Auto-delete post from timeline after 24 Hours">
                             <input type="checkbox" id="pulseToggle"> 24H_PULSE
                         </label>
                     </div>
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
+                        <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[COMPOSE]</a>
                         <span style="opacity: 0.5;">|</span>
                         <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
                     </div>
@@ -563,12 +563,23 @@
             
             try {
                 let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
+                blossomUrl = blossomUrl.replace(/\/$/, ''); // Hapus trailing slash jika ada
                 let uploadEndpoint = blossomUrl + '/upload';
+                
+                // [FIX]: Hasilkan SHA-256 Hash dari isi file untuk dikirim pada tag NIP-98 'payload'
+                let arrayBuffer = await file.arrayBuffer();
+                let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                let hashArray = Array.from(new Uint8Array(hashBuffer));
+                let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                 
                 let authEvent = {
                     kind: 27235,
                     created_at: Math.floor(Date.now() / 1000),
-                    tags: [ ["u", uploadEndpoint], ["method", "PUT"] ],
+                    tags: [ 
+                        ["u", uploadEndpoint], 
+                        ["method", "PUT"],
+                        ["payload", hashHex] 
+                    ],
                     content: "Phosphor Blossom Auth",
                     pubkey: currentUserPubkey
                 };
@@ -585,9 +596,16 @@
                 if (response.ok) {
                     let data = await response.json();
                     postContentInput.value += (postContentInput.value ? '\n' : '') + data.url;
-                } else { alert('> ERROR: Media server rejected the upload.'); }
-            } catch (err) { alert('> ERROR: Failed to reach Blossom server.'); } 
-            finally { uploadMediaBtn.textContent = '[ MEDIA ]'; mediaUploadInput.value = ''; }
+                } else { 
+                    let errText = await response.text();
+                    console.error("Upload rejected:", errText);
+                    alert('> ERROR: Media server rejected the upload. ' + errText); 
+                }
+            } catch (err) { 
+                console.error(err);
+                alert('> ERROR: Failed to reach Blossom server.'); 
+            } 
+            finally { uploadMediaBtn.textContent = '[MEDIA]'; mediaUploadInput.value = ''; }
         });
 
         // ================= BOOKMARK LOGIC =================
