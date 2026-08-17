@@ -6,6 +6,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 
 ## 🚀 Key Features
 *   **Minimalist Timeline:** Fetch Text Note feeds (NIP-01) in real-time without lag.
+*   **Notifications & Mentions:** Dedicated hub to monitor network signals, replies, mentions, reposts, and telemetry reactions targeting your node.
 *   **Secure Bookmarks (NIP-51):** Save and organize your favorite posts, articles, and threads locally via decentralized lists synced securely across your relays.
 *   **Versatile Authentication:** Supports NIP-07 browser extensions (nos2x, Alby), Secure Encrypted Keys (NIP-49 / ncryptsec), and Raw Private Keys (nsec/hex) using an internal client-side signer powered by `nostr-tools`.
 *   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.

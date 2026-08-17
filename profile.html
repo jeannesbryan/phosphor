@@ -110,8 +110,9 @@
             <h1>> Phosphor</h1>
             <nav>
                 <a href="index.html">[ TIMELINE ]</a>
-                <a href="profile.html">[ PROFILE ]</a>
+                <a href="profile.html" style="color: var(--t-green, #00ff41);">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
@@ -331,6 +332,7 @@
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const profileName = document.getElementById('profileName');
         const profileHandle = document.getElementById('profileHandle');
@@ -617,6 +619,7 @@
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 broadcastProfileBtn.classList.add('hidden');
                 
@@ -626,6 +629,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
+                navNotifBtn.classList.remove('hidden');
                 if (isMyProfile) broadcastProfileBtn.classList.remove('hidden');
                 else followBtn.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
@@ -635,6 +639,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 broadcastProfileBtn.classList.add('hidden');
                 followBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
@@ -1121,6 +1126,7 @@
                             <div class="post-content">${contentText}</div>
                             ${mediaHtml}
                             <div class="post-actions">
+                                <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
                                 <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
