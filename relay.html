@@ -687,7 +687,8 @@
 
                             // Render feed only if it came from our target subscription
                             if (data[1] === "target-relay-feed") {
-                                if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                // Buka gerbang untuk Kind 6 (Repost Notes) dan 16 (Repost Articles)
+                                if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                     renderEvent(ev);
                                 }
                             }
@@ -704,18 +705,30 @@
             if (document.getElementById(`reply-${ev.id}`)) return;
             initMetrics(ev.id); requestMetrics(ev.id);
 
-            let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            let isRepost = (ev.kind === 6 || ev.kind === 16);
+            let targetEv = ev;
+            let repostHeader = "";
+
+            if (isRepost) {
+                try {
+                    targetEv = JSON.parse(ev.content); // Ekstrak postingan asli dari dalam Repost
+                    let reposterInfo = profileCache[ev.pubkey] || { name: ev.pubkey.substring(0, 8) };
+                    repostHeader = `<div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px; border-bottom: 1px dashed currentColor; padding-bottom: 4px;">> ♻️ REPOSTED BY: ${escapeHtml(reposterInfo.name)}</div>`;
+                } catch(e) { return; } // Abaikan jika JSON repost rusak
+            }
+
+            let shortPub = targetEv.pubkey.substring(0, 4).toUpperCase();
+            let info = profileCache[targetEv.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${targetEv.pubkey.substring(0, 8)}`, picture: null };
 
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
-            let timeStr = timeAgo(ev.created_at);
+            let timeStr = timeAgo(targetEv.created_at);
             
             let clientName = "unknown";
             let hasExpiration = false;
             let expTimeStr = "EPHEMERAL_STORY";
             let dTagValue = "";
 
-            ev.tags.forEach(t => { 
+            targetEv.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
                 if (t[0] === "d") dTagValue = t[1];
                 if (t[0] === "expiration") {
@@ -724,39 +737,39 @@
                 }
             });
             
-            let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
+            let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
-            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
+            let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
 
             let isJsonPayload = false; let parsedJsonContent = "";
-            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
+            if (targetEv.kind === 1 && targetEv.content.trim().startsWith('{') && targetEv.content.trim().endsWith('}')) {
+                try { parsedJsonContent = JSON.stringify(JSON.parse(targetEv.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
             }
             
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
-            let isArticle = (ev.kind === 30023);
+            let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
+            let isArticle = (targetEv.kind === 30023);
             let contentHtml = ""; let mediaHtml = "";
 
             if (isArticle) {
                 let articleTitle = "Untitled Article";
-                let headingLine = (ev.content || "").split('\n').find(line => line.startsWith('# '));
+                let headingLine = (targetEv.content || "").split('\n').find(line => line.startsWith('# '));
                 if (headingLine) articleTitle = headingLine.replace('# ', '').trim();
-                ev.tags.forEach(t => { if (t[0] === "title") articleTitle = t[1]; });
+                targetEv.tags.forEach(t => { if (t[0] === "title") articleTitle = t[1]; });
                 
-                let words = (ev.content || "").trim().split(/\s+/).length;
+                let words = (targetEv.content || "").trim().split(/\s+/).length;
                 let minutes = Math.ceil(words / 200);
 
                 contentHtml = `
                     <div style="margin-top:10px; border-left: 2px solid var(--t-green, #00ff41); padding-left: 10px;">
                         <div style="font-weight:bold; font-size:1.2em;">${escapeHtml(articleTitle)}</div>
                         <div style="font-size:0.85em; opacity:0.7; margin-bottom:10px;">${minutes} min read · NIP-23 Long Form</div>
-                        <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}" class="action-btn" style="border: 1px solid currentColor; display:inline-block;">> READ_ARTICLE</a>
+                        <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="action-btn" style="border: 1px solid currentColor; display:inline-block;">> READ_ARTICLE</a>
                     </div>
                 `;
             } else if (isJsonPayload) {
                 contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
             } else {
-                let contentText = ev.content || "";
+                let contentText = targetEv.content || "";
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                     let lowerExt = ext.toLowerCase();
                     if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`;
@@ -780,35 +793,35 @@
 
             let card = document.createElement('div');
             card.className = isPulse ? 'post-card pulse-card' : 'post-card';
-            card.id = `reply-${ev.id}`;
+            card.id = `reply-${ev.id}`; // Harus menggunakan ID dari ev asli (pembungkus repost)
             let pulseBadgeHtml = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
             let eventTypeStr = isArticle ? 'long_form_article' : (isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note'));
 
             card.innerHTML = `
-                <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                <a href="profile.html?pubkey=${targetEv.pubkey}" class="avatar-box avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                 <div class="post-main">
+                    ${repostHeader}
                     <div class="post-header">
-                        <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${info.handleLine}</span> · ${timeStr}</span>
+                        <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(info.name)}</strong></a></span>
+                        <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${info.handleLine}</span> · ${timeStr}</span>
                     </div>
                     ${pulseBadgeHtml}
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" title="Reply" onclick="window.location.href='notes.html?id=${ev.id}'">[r] <span id="metric-replies-${ev.id}">0</span></button>
-                        <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                        <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                        <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                        <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                        <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                        <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="${isArticle ? `window.location.href='compose.html?d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}'` : `openEditModal('${ev.id}')`} ">[edit]</button>
+                        <button class="action-btn" title="Reply" onclick="window.location.href='notes.html?id=${targetEv.id}'">[r] <span id="metric-replies-${targetEv.id}">0</span></button>
+                        <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
+                        <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
+                        <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                        <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
+                        <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                        <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="${isArticle ? `window.location.href='compose.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}'` : `openEditModal('${targetEv.id}')`} ">[edit]</button>
                     </div>
                     <div class="post-footer-meta">> ${eventTypeStr} / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
             
-            // Insert sorting (newest first)
             let inserted = false;
             for (let i = 0; i < feedContainer.children.length; i++) {
                 let child = feedContainer.children[i];
@@ -822,7 +835,7 @@
             }
             if (!inserted) feedContainer.appendChild(card);
             
-            updateMetricsUI(ev.id);
+            updateMetricsUI(targetEv.id);
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }

@@ -980,7 +980,7 @@
                                 }
                             }
 
-                            if (ev.kind === 0 && (targetFollowingPubkeys.includes(ev.pubkey) || targetFollowersPubkeys.includes(ev.pubkey))) {
+                            if (ev.kind === 0 && ev.pubkey !== targetPubkey) {
                                 try {
                                     let meta = JSON.parse(ev.content);
                                     let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
@@ -989,11 +989,13 @@
                                     
                                     followingProfilesCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName
+                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
+                                        picture: meta.picture || null
                                     };
                                     
                                     if (followingModal.style.display === 'flex') renderFollowingListUI();
                                     if (followersModal.style.display === 'flex') renderFollowersListUI();
+                                    triggerDebouncedRender();
                                 } catch(e){}
                             }
                             
@@ -1067,10 +1069,22 @@
                                 } catch(e){}
                             }
 
-                            if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!userEventsList.some(item => item.id === ev.id)) {
                                     userEventsList.push(ev);
                                     triggerDebouncedRender();
+                                }
+                                
+                                // Auto-fetch profil penulis asli jika ini adalah repost
+                                if (ev.kind === 6 || ev.kind === 16) {
+                                    try {
+                                        let innerEv = JSON.parse(ev.content);
+                                        if (innerEv.pubkey !== targetPubkey && !followingProfilesCache[innerEv.pubkey]) {
+                                            followingProfilesCache[innerEv.pubkey] = { pending: true };
+                                            let req = JSON.stringify(["REQ", "prof-repost-" + innerEv.pubkey.substring(0, 8), { "kinds": [0], "authors": [innerEv.pubkey], "limit": 1 }]);
+                                            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                        }
+                                    } catch(e){}
                                 }
                             }
                         }
@@ -1104,11 +1118,46 @@
             itemsToRender.forEach(ev => {
                 initMetrics(ev.id); requestMetrics(ev.id);
 
-                let timeStr = timeAgo(ev.created_at);
-                let avatarHtml = profileAvatarUrl ? `<img src="${escapeHtml(profileAvatarUrl)}" alt="Avatar">` : `[${ev.pubkey.substring(0,4).toUpperCase()}]`;
+                let isRepost = (ev.kind === 6 || ev.kind === 16);
+                let targetEv = ev;
+                let repostHeader = "";
+
+                if (isRepost) {
+                    try {
+                        targetEv = JSON.parse(ev.content);
+                        repostHeader = `<div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px; border-bottom: 1px dashed currentColor; padding-bottom: 4px;">> ♻️ REPOSTED BY: ${escapeHtml(profileNameTxt)}</div>`;
+                    } catch(e) { return; }
+                }
+
+                let timeStr = timeAgo(targetEv.created_at);
+                
+                // Ambil info penulis asli (bisa pemilik profil atau user lain jika repost)
+                let authorName = profileNameTxt;
+                let authorHandleLine = profileHandleTxt;
+                let avatarHtml = profileAvatarUrl ? `<img src="${escapeHtml(profileAvatarUrl)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
+                
+                if (targetEv.pubkey !== targetPubkey) {
+                    let cache = followingProfilesCache[targetEv.pubkey];
+                    if (cache && !cache.pending) {
+                        authorName = cache.name;
+                        authorHandleLine = cache.handle;
+                        avatarHtml = cache.picture ? `<img src="${escapeHtml(cache.picture)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
+                    } else {
+                        authorName = `Node_${targetEv.pubkey.substring(0, 6)}`;
+                        authorHandleLine = `@${targetEv.pubkey.substring(0, 8)}`;
+                        avatarHtml = `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
+                    }
+                } else {
+                    // Re-format metadata pemilik profil khusus untuk timeline
+                    let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, '');
+                    let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
+                    authorHandleLine = domainPart ? `${lowerHandle} ✓ ${domainPart}` : lowerHandle;
+                }
+
+                let formattedMetaLine = `${authorHandleLine} · ${timeStr}`;
                 
                 let clientName = "unknown"; let dTagValue = ""; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY";
-                ev.tags.forEach(t => { 
+                targetEv.tags.forEach(t => { 
                     if (t[0] === "client") clientName = t[1]; 
                     if (t[0] === "d") dTagValue = t[1];
                     if (t[0] === "expiration") {
@@ -1117,51 +1166,48 @@
                     }
                 });
 
-                let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, '');
-                let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
-                let formattedMetaLine = domainPart ? `${lowerHandle} ✓ ${domainPart} · ${timeStr}` : `${lowerHandle} · ${timeStr}`;
-
-                let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
+                let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey);
                 let editBtnVisibility = isMine ? '' : 'hidden';
-                let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
+                let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
 
                 let card = document.createElement('div');
-                card.id = `post-${ev.id}`;
+                card.id = `post-${ev.id}`; // Harus menggunakan ID dari ev asli pembungkus agar NIP-09 deletion bekerja
                 
                 let isJsonPayload = false; let parsedJsonContent = "";
-                if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                    try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
+                if (targetEv.kind === 1 && targetEv.content.trim().startsWith('{') && targetEv.content.trim().endsWith('}')) {
+                    try { parsedJsonContent = JSON.stringify(JSON.parse(targetEv.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
                 }
 
-                let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
+                let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
 
-                if (ev.kind === 30023) {
+                if (targetEv.kind === 30023) {
                     card.className = 'post-card article-card';
                     let title = "Untitled Article"; let summary = ""; let coverImg = "";
-                    ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
+                    targetEv.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
                     let coverHtml = coverImg ? `<div class="post-media" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : "";
-                    let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
+                    let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}` : `id=${targetEv.id}`;
 
                     card.innerHTML = `
-                        <div class="avatar-box">${avatarHtml}</div>
+                        <a href="profile.html?pubkey=${targetEv.pubkey}" class="avatar-box avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                         <div class="post-main">
+                            ${repostHeader}
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
-                                <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
+                                <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(authorName)}</strong></a></span>
+                                <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
                             </div>
                             <div class="article-title">${escapeHtml(title)}</div>
                             ${coverHtml}
-                            <div class="article-summary">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
+                            <div class="article-summary">${escapeHtml(summary || targetEv.content.substring(0, 180) + '...')}</div>
                             <div class="post-actions">
                                 <a href="notes.html?${articleTargetParam}" class="action-btn" title="Read Article" style="text-decoration:none;">[read]</a>
-                                <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                                <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
-                                <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                                <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                                <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
+                                <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
+                                <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${targetEv.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
+                                <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
+                                <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${targetEv.pubkey}" class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
                             </div>
                             <div class="post-footer-meta">> long_form / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -1169,7 +1215,7 @@
                 } 
                 else if (isPulse) {
                     card.className = 'post-card pulse-card';
-                    let contentText = ev.content; let mediaHtml = "";
+                    let contentText = targetEv.content; let mediaHtml = "";
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
@@ -1178,32 +1224,31 @@
                     });
                     
                     contentText = escapeHtml(contentText.trim());
-
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                         let href = url.replace(/&amp;/g, '&');
                         return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
                     });
-
                     contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                         let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                     });
 
                     card.innerHTML = `
-                        <div class="avatar-box">${avatarHtml}</div>
+                        <a href="profile.html?pubkey=${targetEv.pubkey}" class="avatar-box avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                         <div class="post-main">
+                            ${repostHeader}
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
-                                <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
+                                <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(authorName)}</strong></a></span>
+                                <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
                             </div>
                             <div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>
                             <div class="post-content">${contentText}</div>
                             ${mediaHtml}
                             <div class="post-actions">
-                                <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
-                                <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
-                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                                <a href="thread.html?id=${targetEv.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
+                                <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q] quote</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
                             </div>
                             <div class="post-footer-meta">> pulse_event / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -1216,7 +1261,7 @@
                     if (isJsonPayload) {
                         contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                     } else {
-                        let contentText = ev.content;
+                        let contentText = targetEv.content;
                         contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                             let lowerExt = ext.toLowerCase();
                             if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
@@ -1225,12 +1270,10 @@
                         });
 
                         contentText = escapeHtml(contentText.trim());
-
                         contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                             let href = url.replace(/&amp;/g, '&');
                             return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
                         });
-
                         contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                             let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                             return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
@@ -1240,29 +1283,30 @@
                     }
 
                     card.innerHTML = `
-                        <div class="avatar-box">${avatarHtml}</div>
+                        <a href="profile.html?pubkey=${targetEv.pubkey}" class="avatar-box avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                         <div class="post-main">
+                            ${repostHeader}
                             <div class="post-header">
-                                <span class="author-line"><strong>${escapeHtml(profileNameTxt)}</strong></span>
-                                <span class="dim-text meta-line">${escapeHtml(formattedMetaLine)}</span>
+                                <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(authorName)}</strong></a></span>
+                                <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
                             </div>
                             ${contentHtml}
                             ${mediaHtml}
                             <div class="post-actions">
-                                <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
-                                <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                                <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                                <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                                <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
+                                <a href="thread.html?id=${targetEv.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
+                                <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
+                                <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
+                                <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                                <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
+                                <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${targetEv.id}')">[edit]</button>
                             </div>
                             <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
                         </div>
                     `;
                 }
                 userPostsContainer.appendChild(card);
-                updateMetricsUI(ev.id);
+                updateMetricsUI(targetEv.id);
             });
             
             if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden');
