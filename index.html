@@ -581,7 +581,7 @@
                 
                 let nowTimestamp = Math.floor(Date.now() / 1000);
                 
-                // [FIXED]: Tambahkan tag expiration sesuai standar NIP-98 (opsi 60 detik)
+                // [FIXED]: Tambahkan tag "t" dengan nilai "upload"
                 let authEvent = {
                     kind: 24242,
                     created_at: nowTimestamp,
@@ -589,7 +589,8 @@
                         ["u", uploadEndpoint], 
                         ["method", "PUT"],
                         ["payload", hashHex],
-                        ["expiration", String(nowTimestamp + 60)] 
+                        ["expiration", String(nowTimestamp + 60)],
+                        ["t", "upload"]
                     ],
                     content: "Phosphor Blossom Auth",
                     pubkey: currentUserPubkey
