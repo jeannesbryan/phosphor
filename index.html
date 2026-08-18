@@ -579,14 +579,17 @@
                 let hashArray = Array.from(new Uint8Array(hashBuffer));
                 let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                 
-                // [FIXED]: Gunakan Kind 24242 untuk NIP-98 HTTP Auth
+                let nowTimestamp = Math.floor(Date.now() / 1000);
+                
+                // [FIXED]: Tambahkan tag expiration sesuai standar NIP-98 (opsi 60 detik)
                 let authEvent = {
                     kind: 24242,
-                    created_at: Math.floor(Date.now() / 1000),
+                    created_at: nowTimestamp,
                     tags: [ 
                         ["u", uploadEndpoint], 
                         ["method", "PUT"],
-                        ["payload", hashHex] 
+                        ["payload", hashHex],
+                        ["expiration", String(nowTimestamp + 60)] 
                     ],
                     content: "Phosphor Blossom Auth",
                     pubkey: currentUserPubkey
@@ -594,8 +597,7 @@
                 
                 let signedAuth = await window.nostr.signEvent(authEvent);
                 
-                // [FIXED]: Konversi Base64 yang aman untuk UTF-8 guna menghindari crash
-                // saat menggunakan NSEC/NCRYPTSEC atau Extension tertentu
+                // Konversi Base64 yang aman untuk UTF-8
                 let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
                 
                 let response = await fetch(uploadEndpoint, {
