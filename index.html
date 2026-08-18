@@ -568,18 +568,20 @@
             
             try {
                 let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
-                // [FIX]: Pastikan tidak ada trailing slash yang tidak wajar
+                
+                // Pastikan tidak ada trailing slash yang tidak wajar
                 blossomUrl = blossomUrl.replace(/\/$/, '');
                 let uploadEndpoint = blossomUrl + '/upload';
                 
-                // [FIX]: Hasilkan SHA-256 Hash dari isi file untuk dikirim pada tag NIP-98 'payload'
+                // Hasilkan SHA-256 Hash dari isi file untuk dikirim pada tag NIP-98 'payload'
                 let arrayBuffer = await file.arrayBuffer();
                 let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
                 let hashArray = Array.from(new Uint8Array(hashBuffer));
                 let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                 
+                // [FIXED]: Gunakan Kind 24242 untuk NIP-98 HTTP Auth
                 let authEvent = {
-                    kind: 27235,
+                    kind: 24242,
                     created_at: Math.floor(Date.now() / 1000),
                     tags: [ 
                         ["u", uploadEndpoint], 
@@ -591,8 +593,10 @@
                 };
                 
                 let signedAuth = await window.nostr.signEvent(authEvent);
-                // [FIX]: Sederhanakan base64 encode karena `unescape(encodeURIComponent())` kadang bermasalah pada browser tertentu
-                let authBase64 = btoa(JSON.stringify(signedAuth));
+                
+                // [FIXED]: Konversi Base64 yang aman untuk UTF-8 guna menghindari crash
+                // saat menggunakan NSEC/NCRYPTSEC atau Extension tertentu
+                let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
                 
                 let response = await fetch(uploadEndpoint, {
                     method: 'PUT',
@@ -612,7 +616,10 @@
                 console.error(err);
                 alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); 
             } 
-            finally { uploadMediaBtn.textContent = '[ MEDIA ]'; mediaUploadInput.value = ''; }
+            finally { 
+                uploadMediaBtn.textContent = '[ MEDIA ]'; 
+                mediaUploadInput.value = ''; 
+            }
         });
 
         // ================= BOOKMARK LOGIC =================
