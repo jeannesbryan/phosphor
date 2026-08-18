@@ -100,16 +100,6 @@
             <div class="relay-subtitle" id="displayWsUrl">Establishing persistent link...</div>
         </div>
 
-        <div class="composer-card hidden" id="replyComposer">
-            <div class="avatar-box" id="myReplyAvatar">[P]</div>
-            <div class="post-main">
-                <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Broadcast to this relay & network..."></textarea>
-                <div style="text-align: right;">
-                    <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;" title="Broadcast Note">> TRANSMIT</button>
-                </div>
-            </div>
-        </div>
-
         <div class="feed-container" id="feedContainer">
             <p style="opacity: 0.5;">[ Waiting for relay transmission... ]</p>
         </div>
@@ -267,11 +257,6 @@
         const feedContainer = document.getElementById('feedContainer');
         const displayDomain = document.getElementById('displayDomain');
         const displayWsUrl = document.getElementById('displayWsUrl');
-        
-        const replyContentInput = document.getElementById('replyContentInput');
-        const sendReplyBtn = document.getElementById('sendReplyBtn');
-        const myReplyAvatar = document.getElementById('myReplyAvatar');
-        const replyComposer = document.getElementById('replyComposer');
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -475,14 +460,14 @@
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
             if (isLocked) {
-                navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); replyComposer.classList.add('hidden');
+                navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden'); replyComposer.classList.remove('hidden');
+                navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden')); document.getElementById('unlockModal').style.display = 'none';
             } else {
-                navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); replyComposer.classList.add('hidden');
-                myReplyAvatar.innerHTML = "[P]"; document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+                navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
 
@@ -657,7 +642,6 @@
                                         picture: meta.picture || null,
                                         pending: false
                                     };
-                                    if (ev.pubkey === currentUserPubkey && meta.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`; }
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
@@ -810,7 +794,7 @@
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" title="Reply" onclick="window.location.href='notes.html?id=${targetEv.id}'">[r] <span id="metric-replies-${targetEv.id}">0</span></button>
+                        <button class="action-btn" title="Reply" onclick="window.location.href='thread.html?id=${targetEv.id}'">[r] <span id="metric-replies-${targetEv.id}">0</span></button>
                         <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
                         <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
                         <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
@@ -839,19 +823,6 @@
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
-
-        sendReplyBtn.addEventListener('click', async function() {
-            let text = replyContentInput.value.trim();
-            if (!text) return alert('> ERROR: Message is empty!');
-            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-
-            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["client", "Phosphor"]], content: text, pubkey: currentUserPubkey };
-            try {
-                sendReplyBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                alert(`> SUCCESS: Sent to ${sentCount} relays!`); replyContentInput.value = ''; sendReplyBtn.textContent = '> TRANSMIT'; eventsCache[signedEvent.id] = signedEvent; renderEvent(signedEvent);
-            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendReplyBtn.textContent = '> TRANSMIT'; }
-        });
 
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return;
