@@ -295,20 +295,70 @@
                 return;
             }
 
-            // Normalize domain into wss:// URL
             targetDomain = targetDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            targetWsUrl = targetDomain.startsWith('ws') ? targetDomain : `wss://${targetDomain}`;
-            
             displayDomain.textContent = targetDomain;
-            displayWsUrl.textContent = `[ ${targetWsUrl} ]`;
 
+            // Jika user mengirimkan URL ws:// atau wss:// secara langsung
+            if (targetDomain.startsWith('ws')) {
+                targetWsUrl = targetDomain;
+                displayWsUrl.textContent = `[ ${targetWsUrl} ]`;
+                startRelayConnection();
+            } else {
+                // Auto-Discovery: Probing subdomain umum Nostr
+                let subdomainsToTry = [
+                    `wss://${targetDomain}`,             // Root domain
+                    `wss://strfry.${targetDomain}`,      // Strfry node
+                    `wss://relay.${targetDomain}`,       // Common relay
+                    `wss://nostr.${targetDomain}`,       // Common nostr
+                    `wss://ns.${targetDomain}`           // Name server/node
+                ];
+                
+                displayWsUrl.textContent = `[ PROBING NODE ADDRESSES... ]`;
+                probeRelays(subdomainsToTry, 0);
+            }
+        }
+
+        // Fungsi Probing Taktis
+        function probeRelays(list, index) {
+            if (index >= list.length) {
+                displayWsUrl.textContent = `[ ERROR: No active WebSocket found on ${targetDomain} ]`;
+                displayWsUrl.style.color = "#ff4141";
+                feedContainer.innerHTML = '<p style="color:#ff4141;">[ CONNECTION ABORTED ]</p>';
+                return;
+            }
+            
+            let testUrl = list[index];
+            displayWsUrl.textContent = `[ PROBING: ${testUrl} ]`;
+            
+            let ws = new WebSocket(testUrl);
+            let timeout = setTimeout(() => {
+                ws.close();
+                probeRelays(list, index + 1); // Timeout, coba subdomain berikutnya
+            }, 2500); // Batas tunggu 2.5 detik per tebakan
+            
+            ws.onopen = function() {
+                clearTimeout(timeout);
+                ws.close(); // Tutup koneksi tes
+                targetWsUrl = testUrl;
+                displayWsUrl.textContent = `[ CONNECTED: ${targetWsUrl} ]`;
+                displayWsUrl.style.color = "var(--t-green, #00ff41)";
+                startRelayConnection(); // Lanjutkan inisialisasi jaringan utama
+            };
+            
+            ws.onerror = function() {
+                clearTimeout(timeout);
+                ws.close();
+                probeRelays(list, index + 1); // Gagal konek, coba subdomain berikutnya
+            };
+        }
+
+        async function startRelayConnection() {
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
                 BLOSSOM_SERVERS = config.blossom_servers || [];
                 
-                // Add target relay to our tracking if not already present
                 if (!RELAYS.includes(targetWsUrl)) {
                     RELAYS.push(targetWsUrl);
                 }
