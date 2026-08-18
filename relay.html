@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Phosphor - Thread</title>
+    <title>Phosphor - Relay Feed</title>
     
-    <meta name="description" content="Phosphor Thread - View conversation threads on the Nostr network.">
+    <meta name="description" content="Phosphor - View local timeline for a specific Nostr relay.">
     
     <link rel="stylesheet" href="/assets/terminal.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
@@ -17,11 +17,19 @@
         .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
         .hidden { display: none !important; }
         
-        .main-post-card { border: 2px solid currentColor; padding: 20px; margin-bottom: 20px; background: transparent; }
-        .main-post-content { font-size: 1.15em; line-height: 1.5; margin: 15px 0; word-wrap: break-word; overflow-wrap: anywhere; }
+        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        nav a { text-decoration: none !important; color: inherit; }
+        nav a:hover { color: var(--t-green, #00ff41); }
 
-        .reply-container { margin-left: 20px; border-left: 2px dashed currentColor; padding-left: 15px; }
-        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; }
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
+        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .header-box { border: 2px dashed currentColor; padding: 15px; margin-bottom: 20px; text-align: center; background: rgba(0,255,65,0.02); }
+        .relay-title { font-size: 1.5em; font-weight: bold; word-break: break-all; color: var(--t-green, #00ff41); }
+        .relay-subtitle { font-size: 0.85em; opacity: 0.7; margin-top: 5px; }
+
+        .feed-container { display: flex; flex-direction: column; gap: 15px; }
+        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; background: transparent; }
         
         .avatar-box { width: 48px; height: 48px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 1.2em; overflow: hidden; background: var(--bg-base); }
         .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
@@ -43,12 +51,8 @@
         .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
         .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
-        .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
-
-        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
-        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
-        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
+        .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
         .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
         .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
@@ -56,22 +60,16 @@
         
         .post-footer-meta { text-align: right; font-style: italic; opacity: 0.5; font-size: 0.8em; margin-top: 5px; }
 
-        .composer-card { border: 1px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; }
+        .composer-card { border: 1px dashed currentColor; padding: 15px; margin-bottom: 20px; display: flex; }
         textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
         textarea.sys-input { resize: vertical; }
         
         .reply-btn, .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
         .reply-btn:hover, .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
 
-        .terminal-hr { border: none; border-top: 1px dashed var(--t-green, #00ff41); margin: 20px 0; opacity: 0.6; }
-
-        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none !important; color: inherit; }
-        nav a:hover { color: var(--t-green, #00ff41); }
-
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
-        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
+        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
+        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
         .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
     </style>
 </head>
@@ -84,6 +82,7 @@
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
                 <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
+                <a href="compose.html">[ COMPOSE ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
@@ -95,25 +94,24 @@
             <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
         </div>
 
-        <div id="mainPostContainer">
-            <p style="opacity: 0.5;">[ Loading main post from relays... ]</p>
+        <div class="header-box">
+            <div>> TARGET_NODE_STREAM</div>
+            <div class="relay-title" id="displayDomain">...</div>
+            <div class="relay-subtitle" id="displayWsUrl">Establishing persistent link...</div>
         </div>
-
-        <hr class="terminal-hr">
 
         <div class="composer-card hidden" id="replyComposer">
             <div class="avatar-box" id="myReplyAvatar">[P]</div>
             <div class="post-main">
-                <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Write thread reply..."></textarea>
+                <textarea id="replyContentInput" class="sys-input" rows="2" placeholder="Broadcast to this relay & network..."></textarea>
                 <div style="text-align: right;">
-                    <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;" title="Broadcast Reply">> POST_REPLY</button>
+                    <button id="sendReplyBtn" class="action-btn reply-btn" style="border: 1px solid currentColor;" title="Broadcast Note">> TRANSMIT</button>
                 </div>
             </div>
         </div>
 
-        <div style="margin-bottom: 15px; font-weight: bold; opacity: 0.8;">> THREAD_REPLIES</div>
-        <div class="reply-container" id="repliesContainer">
-            <p style="opacity: 0.5;">[ Waiting for replies... ]</p>
+        <div class="feed-container" id="feedContainer">
+            <p style="opacity: 0.5;">[ Waiting for relay transmission... ]</p>
         </div>
     </div>
 
@@ -130,12 +128,11 @@
             </div>
 
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension.</p>
                 <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
             </div>
 
             <div id="viewNsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
@@ -148,7 +145,6 @@
             </div>
 
             <div id="viewNcryptsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
                     <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
@@ -170,7 +166,7 @@
     <div id="unlockModal">
         <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
             <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
-            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter password to unlock.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
             </div>
@@ -237,18 +233,19 @@
     <script>
         let RELAYS = [];
         let BLOSSOM_SERVERS = [];
-
+        let targetWsUrl = "";
+        
         const urlParams = new URLSearchParams(window.location.search);
-        const postId = urlParams.get('id');
+        let targetDomain = urlParams.get('domain') || urlParams.get('d') || urlParams.get('r') || '';
 
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let profileCache = {};
         let activeSockets = [];
-        let parentEvent = null;
+        let eventsCache = {};
+        let relayStatusMap = {};
+
         let quoteTargetEvent = null;
         let editTargetEvent = null;
-        let relayStatusMap = {};
-        let eventsCache = {};
 
         let metricsCache = {};
         let pendingMetricsIds = new Set();
@@ -256,23 +253,26 @@
         
         let likedEvents = new Set();
         let repostedEvents = new Set();
-
         let myBookmarks = new Set();
         let myBookmarkEvent = null;
 
+        // DOM Elements
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
         const navNotifBtn = document.getElementById('navNotifBtn');
         const logoutBtn = document.getElementById('logoutBtn');
-        const mainPostContainer = document.getElementById('mainPostContainer');
-        const repliesContainer = document.getElementById('repliesContainer');
+        
+        const feedContainer = document.getElementById('feedContainer');
+        const displayDomain = document.getElementById('displayDomain');
+        const displayWsUrl = document.getElementById('displayWsUrl');
+        
         const replyContentInput = document.getElementById('replyContentInput');
         const sendReplyBtn = document.getElementById('sendReplyBtn');
         const myReplyAvatar = document.getElementById('myReplyAvatar');
         const replyComposer = document.getElementById('replyComposer');
-        
+
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
@@ -284,21 +284,37 @@
 
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
-
         const rawModal = document.getElementById('rawModal');
         const rawEventContent = document.getElementById('rawEventContent');
 
-        async function loadConfig() {
+        async function initRelayStream() {
+            if (!targetDomain) {
+                displayDomain.textContent = "UNKNOWN_NODE";
+                displayWsUrl.textContent = "Error: Missing ?domain= parameter in URL.";
+                feedContainer.innerHTML = '<p style="color:currentColor;">[ ERROR: No target relay specified ]</p>';
+                return;
+            }
+
+            // Normalize domain into wss:// URL
+            targetDomain = targetDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            targetWsUrl = targetDomain.startsWith('ws') ? targetDomain : `wss://${targetDomain}`;
+            
+            displayDomain.textContent = targetDomain;
+            displayWsUrl.textContent = `[ ${targetWsUrl} ]`;
+
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
                 BLOSSOM_SERVERS = config.blossom_servers || [];
                 
+                // Add target relay to our tracking if not already present
+                if (!RELAYS.includes(targetWsUrl)) {
+                    RELAYS.push(targetWsUrl);
+                }
+
                 await checkLocalSessions();
-                
-                fetchMyAvatar();
-                initThread();
+                connectNetworks();
             } catch (e) {
                 console.error("Failed to load config.json", e);
                 alert("> ERROR: Missing config.json");
@@ -309,9 +325,7 @@
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
             window.nostr = {
                 getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => {
-                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
-                }
+                signEvent: async (eventTemplate) => nostrTools.finalizeEvent(eventTemplate, secretKeyBytes)
             };
         }
 
@@ -339,325 +353,123 @@
             document.getElementById('tabNsec').style.border = "none";
             document.getElementById('tabNcryptsec').style.border = "none";
             
-            if (tab === 'ext') {
-                document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').style.border = "1px solid currentColor";
-            } else if (tab === 'nsec') {
-                document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').style.border = "1px solid currentColor";
-            } else if (tab === 'ncryptsec') {
-                document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
-            }
+            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').style.border = "1px solid currentColor"; } 
+            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').style.border = "1px solid currentColor"; } 
+            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').style.border = "1px solid currentColor"; }
         }
 
-        navLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('loginModal').style.display = 'flex';
-            
-            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            if(savedNcryptsec) {
-                switchLoginTab('ncryptsec');
-                document.getElementById('ncryptsecInput').value = savedNcryptsec;
-            }
-        });
-
-        navUnlockBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('unlockModal').style.display = 'flex';
-        });
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec'); if(savedNcryptsec) { switchLoginTab('ncryptsec'); document.getElementById('ncryptsecInput').value = savedNcryptsec; } });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-                try {
-                    currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    localStorage.removeItem('phosphor_privkey');
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                    location.reload();
-                } catch (err) { alert('> ERROR: Login failed.'); }
+                try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim();
-            let pass = document.getElementById('nsecPassword').value;
-            
+            let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value;
             if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            
             let btn = document.getElementById('nsecLoginBtn');
             try {
                 btn.textContent = '> PROCESSING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
                 let skBytes;
-                if (input.startsWith('nsec1')) {
-                    let decoded = nostrTools.nip19.decode(input);
-                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
-                    skBytes = decoded.data;
-                } else {
-                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                }
-                
+                if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format'); skBytes = decoded.data; } 
+                else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                let ncryptsec = nip49.encrypt(skBytes, pass);
-                
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                localStorage.removeItem('phosphor_privkey');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Invalid key format or processing failed.');
-                btn.textContent = '> ENCRYPT & LOGIN';
-            }
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); let ncryptsec = nip49.encrypt(skBytes, pass);
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.'); location.reload();
+            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim();
-            let pass = document.getElementById('ncryptsecPassword').value;
-            
+            let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value;
             if(!input || !pass) return alert('> ERROR: Key and password required.');
-            
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(input, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
+                let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                localStorage.setItem('phosphor_ncryptsec', input);
-                localStorage.removeItem('phosphor_privkey');
-
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> SECURE DECRYPTION SUCCESSFUL.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT & LOGIN';
-            }
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey');
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); btn.textContent = '> DECRYPT & LOGIN'; }
         });
 
         document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value;
-            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
+            let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
             if(!pass) return alert('> ERROR: Password required.');
-
             let btn = document.getElementById('unlockBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(ncryptsec, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
+                let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                document.getElementById('unlockModal').style.display = 'none';
-                alert('> SESSION UNLOCKED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT';
-            }
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; }
         });
 
-        function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey');
-            localStorage.removeItem('phosphor_privkey');
-            localStorage.removeItem('phosphor_ncryptsec');
-            sessionStorage.removeItem('phosphor_privkey_temp');
-            location.reload();
-        }
-
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logoutFully();
-        });
-
-        // ================= END AUTH LOGIC =================
-
-        // ================= BOOKMARK LOGIC =================
-        async function toggleBookmark(eventId) {
-            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            let isBookmarked = myBookmarks.has(eventId);
-            
-            let tags = [["d", "bookmark"]];
-            if (myBookmarkEvent) {
-                myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
-            }
-            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } 
-            else { myBookmarks.delete(eventId); }
-            
-            let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                myBookmarkEvent = signedEvent;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
-                let btn = document.getElementById(`bm-btn-${eventId}`);
-                if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
-            } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
-        }
+        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
+        logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-
             if (isLocked) {
-                navLoginBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navUnlockBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                replyComposer.classList.add('hidden');
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                
-                document.getElementById('unlockModal').style.display = 'flex';
+                navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); replyComposer.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.remove('hidden');
-                navNotifBtn.classList.remove('hidden');
-                replyComposer.classList.remove('hidden');
-                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
-                document.getElementById('unlockModal').style.display = 'none';
+                navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden'); replyComposer.classList.remove('hidden');
+                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden')); document.getElementById('unlockModal').style.display = 'none';
             } else {
-                navLoginBtn.classList.remove('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                replyComposer.classList.add('hidden');
-                myReplyAvatar.innerHTML = "[P]";
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
+                navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); replyComposer.classList.add('hidden');
+                myReplyAvatar.innerHTML = "[P]"; document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
 
-        async function copyNote(eventId) {
+        // ================= NETWORK & FEED LOGIC =================
+        async function copyNaddr(kind, pubkey, identifier) {
             try {
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                let noteId = nostrTools.nip19.noteEncode(eventId);
-                navigator.clipboard.writeText(`nostr:${noteId}`);
-                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`);
-            } catch (e) { 
-                console.error(e);
-                alert('> ERROR: Failed to encode NIP-19 note.'); 
-            }
-        }
-
-        function fetchMyAvatar() {
-            if (!currentUserPubkey) return;
-            RELAYS.forEach(url => {
-                let sock = new WebSocket(url);
-                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-av-thread", {kinds:[0], authors:[currentUserPubkey], limit:1}]));
-                sock.onmessage = (e) => {
-                    let d = JSON.parse(e.data);
-                    if (d[0] === "EVENT" && d[2] && d[2].kind === 0) {
-                        try {
-                            let meta = JSON.parse(d[2].content);
-                            let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${currentUserPubkey.substring(0,8)}`;
-                            let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                            let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
-                            
-                            profileCache[currentUserPubkey] = {
-                                name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6),
-                                handleLine: handleLineStr,
-                                picture: meta.picture || null,
-                                pending: false
-                            };
-                            
-                            if (meta.picture) {
-                                myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
-                            }
-                            updatePostUI(currentUserPubkey);
-                        } catch(err){}
-                    }
-                };
-            });
+                let naddr = nostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
+                navigator.clipboard.writeText(`nostr:${naddr}`); alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
+            } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
         }
 
         function timeAgo(unixTimestamp) {
             let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
             let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
             if (seconds < 60) return "Just now";
-            for (let i in intervals) {
-                let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
-            }
+            for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; }
             return "Just now";
         }
 
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
-        
-        function openRawModal(eventId) {
-            let ev = eventsCache[eventId];
-            if (ev) {
-                rawEventContent.textContent = JSON.stringify(ev, null, 2);
-                rawModal.style.display = 'flex';
-            }
-        }
+        function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
-
-        function openQuoteModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) {
-                alert('> ERROR: Not logged in! Login to quote.');
-                return;
-            }
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
-            quoteContentInput.value = "";
-            quoteModal.style.display = 'flex';
-        }
+        
+        function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.substring(0, 150) + "..."; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
-        function openEditModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) return;
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            editTargetEvent = ev;
-            editContentInput.value = ev.content;
-            editModal.style.display = 'flex';
-        }
+        function openEditModal(eventId) { if (!currentUserPubkey || !window.nostr) return; let ev = eventsCache[eventId]; if (!ev) return; editTargetEvent = ev; editContentInput.value = ev.content; editModal.style.display = 'flex'; }
         function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
 
         function openRelayModal() {
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="opacity: 0.6;">[OFFLINE]</span>';
-                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor;">[OFFLINE]</span>';
+                let currentTarget = (url === targetWsUrl) ? " > [TARGET_STREAM]" : "";
+                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}<span style="opacity:0.6;">${currentTarget}</span></span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';
@@ -665,37 +477,41 @@
         function closeRelayModal() { relayModal.style.display = 'none'; }
 
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
-
         function updateMetricsUI(id) {
             let m = metricsCache[id];
-            let er = document.getElementById(`metric-replies-${id}`);
-            let et = document.getElementById(`metric-reposts-${id}`);
-            let el = document.getElementById(`metric-likes-${id}`);
-            if(er) er.textContent = m.replies;
-            if(et) et.textContent = m.reposts;
-            if(el) el.textContent = m.likes;
+            let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`);
+            if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes;
         }
 
         function requestMetrics(eventId) {
             pendingMetricsIds.add(eventId);
             clearTimeout(metricsTimeout);
             metricsTimeout = setTimeout(() => {
-                let ids = Array.from(pendingMetricsIds);
-                if(ids.length === 0) return;
+                let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return;
                 let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
-                });
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 pendingMetricsIds.clear();
             }, 1500);
         }
 
-        async function likeEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
+        async function toggleBookmark(eventId) {
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            let isBookmarked = myBookmarks.has(eventId);
+            let tags = [["d", "bookmark"]];
+            if (myBookmarkEvent) { myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); }); }
+            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } else { myBookmarks.delete(eventId); }
+            let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent); myBookmarkEvent = signedEvent;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                let btn = document.getElementById(`bm-btn-${eventId}`); if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
+            } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
+        }
 
+        async function likeEvent(eventId) {
+            let ev = eventsCache[eventId]; if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            if (likedEvents.has(eventId)) return alert('> ERROR: You have already liked this event.');
             let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
@@ -705,16 +521,14 @@
         }
 
         async function repostEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
-            if (!confirm('> Repost this post to your timeline?')) return;
-
+            let ev = eventsCache[eventId]; if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            if (repostedEvents.has(eventId)) return alert('> ERROR: You have already reposted this event.');
+            if (!confirm('> Repost this content to your timeline?')) return;
             let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
+            if (ev.kind === 30023) { let dTag = ev.tags.find(t => t[0] === 'd'); if (dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; } }
             try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
+                let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
                 repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId);
                 alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
@@ -722,22 +536,15 @@
         }
 
         function updatePostUI(pubkey) {
-            let info = profileCache[pubkey];
-            if (!info || info.pending) return;
+            let info = profileCache[pubkey]; if (!info || info.pending) return;
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handleLine; });
-            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
-                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
-            });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; });
         }
 
-        function initThread() {
-            if (!postId) {
-                mainPostContainer.innerHTML = '<p style="color:var(--t-green, #00ff41);">[ ERROR: Post ID not found in URL ]</p>';
-                return;
-            }
-
+        function connectNetworks() {
             let onlineCount = 0;
+            
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false;
                 let socket = new WebSocket(url);
@@ -747,11 +554,14 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20000, 20001, 20002], "ids": [postId] }]));
-                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 20000, 20001, 20002], "#e": [postId] }]));
-                    
+                    // Only fetch the main feed from the target relay
+                    if (url === targetWsUrl) {
+                        socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 30023, 20000, 20001, 20002], "limit": 60 }]));
+                    }
+
                     if (currentUserPubkey) {
-                        socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
+                        socket.send(JSON.stringify(["REQ", "my-av-" + url, { "kinds": [0], "authors": [currentUserPubkey], "limit": 1 }]));
+                        socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }]));
                     }
                 };
 
@@ -764,38 +574,32 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
                             
-                            // Handle NIP-09 Event Deletions in thread view
+                            // NIP-09 Delete Handling
                             if (ev.kind === 5) {
-                                ev.tags.forEach(t => {
-                                    if (t[0] === 'e') {
-                                        let oldCard = document.getElementById(`reply-${t[1]}`) || (parentEvent && parentEvent.id === t[1] ? mainPostContainer : null);
-                                        if (oldCard && oldCard !== mainPostContainer) oldCard.remove();
-                                        if (eventsCache[t[1]]) delete eventsCache[t[1]];
-                                    }
-                                });
+                                ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`reply-${t[1]}`); if (oldCard) oldCard.remove(); if (eventsCache[t[1]]) delete eventsCache[t[1]]; } });
                                 return;
                             }
                             
+                            // Bookmarks Sync
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
                                 if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
-                                    myBookmarkEvent = ev;
-                                    myBookmarks.clear();
-                                    ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
-                                    document.querySelectorAll('.bookmark-btn').forEach(btn => {
-                                        let id = btn.getAttribute('data-id');
-                                        btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save';
-                                    });
+                                    myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
+                                    document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; });
                                 }
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) eventsCache[ev.id] = ev;
+                            eventsCache[ev.id] = ev;
 
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
                                     let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
+                                    
+                                    // Make NIP-05 domain clickable to open in relay.html
+                                    let handleLineStr = domainPart 
+                                        ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green, #00ff41); text-decoration:none;">${domainPart}</a>` 
+                                        : rawName;
                                     
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
@@ -803,12 +607,12 @@
                                         picture: meta.picture || null,
                                         pending: false
                                     };
-                                    
+                                    if (ev.pubkey === currentUserPubkey && meta.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`; }
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
                             
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     profileCache[ev.pubkey] = { pending: true };
                                     let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
@@ -816,6 +620,7 @@
                                 }
                             }
 
+                            // Metrics processing
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(targetId => {
@@ -830,12 +635,10 @@
                                 });
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (ev.id === postId) {
-                                    parentEvent = ev;
-                                    renderMainPost(ev);
-                                } else {
-                                    renderReply(ev);
+                            // Render feed only if it came from our target subscription
+                            if (data[1] === "target-relay-feed") {
+                                if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                    renderEvent(ev);
                                 }
                             }
                         }
@@ -846,103 +649,13 @@
             updateAuthState();
         }
 
-        function renderMainPost(ev) {
-            initMetrics(ev.id); requestMetrics(ev.id);
-
-            let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey];
-            if (!info || info.pending) {
-                info = { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
-            }
-
-            let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
-            let timeStr = timeAgo(ev.created_at);
-            
-            let clientName = "unknown";
-            let hasExpiration = false;
-            let expTimeStr = "EPHEMERAL_STORY";
-
-            ev.tags.forEach(t => { 
-                if (t[0] === "client") clientName = t[1]; 
-                if (t[0] === "expiration") {
-                    hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
-                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
-                }
-            });
-            
-            let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
-            let editBtnVisibility = isMine ? '' : 'hidden';
-            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-
-            let isJsonPayload = false; let parsedJsonContent = "";
-            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
-            }
-            
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
-            let contentHtml = ""; let mediaHtml = "";
-
-            if (isJsonPayload) {
-                contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
-            } else {
-                let contentText = ev.content || "";
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                    let lowerExt = ext.toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`;
-                    else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
-                    return "";
-                });
-                
-                contentText = escapeHtml(contentText.trim());
-
-                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                    let href = url.replace(/&amp;/g, '&');
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                });
-
-                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                });
-                contentHtml = `<div class="main-post-content">${contentText}</div>`;
-            }
-
-            mainPostContainer.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div>
-                        <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong class="author-${ev.pubkey}" style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
-                        <span class="dim-text meta-line" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
-                    </div>
-                </div>
-                ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : ""}
-                ${contentHtml}
-                ${mediaHtml}
-                <div class="post-actions">
-                    <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
-                    <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                    <button class="action-btn" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
-                    <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                    <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                    <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                    <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                    <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
-                </div>
-                <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
-            `;
-            updateMetricsUI(ev.id);
-        }
-
-        function renderReply(ev) {
-            if (repliesContainer.querySelector('p')) { repliesContainer.innerHTML = ''; }
+        function renderEvent(ev) {
+            if (feedContainer.querySelector('p')) { feedContainer.innerHTML = ''; }
             if (document.getElementById(`reply-${ev.id}`)) return;
             initMetrics(ev.id); requestMetrics(ev.id);
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey];
-            if (!info || info.pending) {
-                info = { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
-            }
+            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
 
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
@@ -950,9 +663,11 @@
             let clientName = "unknown";
             let hasExpiration = false;
             let expTimeStr = "EPHEMERAL_STORY";
+            let dTagValue = "";
 
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
+                if (t[0] === "d") dTagValue = t[1];
                 if (t[0] === "expiration") {
                     hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
                     expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
@@ -969,9 +684,26 @@
             }
             
             let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
+            let isArticle = (ev.kind === 30023);
             let contentHtml = ""; let mediaHtml = "";
 
-            if (isJsonPayload) {
+            if (isArticle) {
+                let articleTitle = "Untitled Article";
+                let headingLine = (ev.content || "").split('\n').find(line => line.startsWith('# '));
+                if (headingLine) articleTitle = headingLine.replace('# ', '').trim();
+                ev.tags.forEach(t => { if (t[0] === "title") articleTitle = t[1]; });
+                
+                let words = (ev.content || "").trim().split(/\s+/).length;
+                let minutes = Math.ceil(words / 200);
+
+                contentHtml = `
+                    <div style="margin-top:10px; border-left: 2px solid var(--t-green, #00ff41); padding-left: 10px;">
+                        <div style="font-weight:bold; font-size:1.2em;">${escapeHtml(articleTitle)}</div>
+                        <div style="font-size:0.85em; opacity:0.7; margin-bottom:10px;">${minutes} min read · NIP-23 Long Form</div>
+                        <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}" class="action-btn" style="border: 1px solid currentColor; display:inline-block;">> READ_ARTICLE</a>
+                    </div>
+                `;
+            } else if (isJsonPayload) {
                 contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
@@ -999,109 +731,98 @@
             let card = document.createElement('div');
             card.className = isPulse ? 'post-card pulse-card' : 'post-card';
             card.id = `reply-${ev.id}`;
+            let pulseBadgeHtml = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
+
+            let eventTypeStr = isArticle ? 'long_form_article' : (isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note'));
 
             card.innerHTML = `
                 <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                 <div class="post-main">
                     <div class="post-header">
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
+                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${info.handleLine}</span> · ${timeStr}</span>
                     </div>
-                    ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : ""}
+                    ${pulseBadgeHtml}
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                        <button class="action-btn" title="Reply" onclick="window.location.href='notes.html?id=${ev.id}'">[r] <span id="metric-replies-${ev.id}">0</span></button>
                         <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                        <button class="action-btn" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
                         <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                         <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                         <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                        <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
+                        <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="${isArticle ? `window.location.href='compose.html?d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}'` : `openEditModal('${ev.id}')`} ">[edit]</button>
                     </div>
-                    <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
+                    <div class="post-footer-meta">> ${eventTypeStr} / via ${escapeHtml(clientName)}</div>
                 </div>
             `;
-            repliesContainer.appendChild(card);
+            
+            // Insert sorting (newest first)
+            let inserted = false;
+            for (let i = 0; i < feedContainer.children.length; i++) {
+                let child = feedContainer.children[i];
+                let childId = child.id.replace('reply-', '');
+                let childEv = eventsCache[childId];
+                if (childEv && ev.created_at > childEv.created_at) {
+                    feedContainer.insertBefore(card, child);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) feedContainer.appendChild(card);
+            
             updateMetricsUI(ev.id);
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
         sendReplyBtn.addEventListener('click', async function() {
-            let replyText = replyContentInput.value.trim();
-            if (!replyText) { alert('> ERROR: Message is empty!'); return; }
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            let text = replyContentInput.value.trim();
+            if (!text) return alert('> ERROR: Message is empty!');
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
 
-            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", postId, "", "root"], ["p", parentEvent ? parentEvent.pubkey : "", ""], ["client", "Phosphor"]], content: replyText, pubkey: currentUserPubkey };
+            let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["client", "Phosphor"]], content: text, pubkey: currentUserPubkey };
             try {
                 sendReplyBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                alert(`> SUCCESS: Sent to ${sentCount} relays!`); replyContentInput.value = ''; sendReplyBtn.textContent = '> POST_REPLY'; eventsCache[signedEvent.id] = signedEvent; renderReply(signedEvent);
-            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendReplyBtn.textContent = '> POST_REPLY'; }
+                alert(`> SUCCESS: Sent to ${sentCount} relays!`); replyContentInput.value = ''; sendReplyBtn.textContent = '> TRANSMIT'; eventsCache[signedEvent.id] = signedEvent; renderEvent(signedEvent);
+            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendReplyBtn.textContent = '> TRANSMIT'; }
         });
 
         sendQuoteBtn.addEventListener('click', async function() {
-            let quoteText = quoteContentInput.value.trim();
-            if (!quoteTargetEvent) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return;
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
 
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
             try {
                 sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; eventsCache[signedEvent.id] = signedEvent; renderReply(signedEvent);
+                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; eventsCache[signedEvent.id] = signedEvent; renderEvent(signedEvent);
             } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
-        
+
         sendEditBtn.addEventListener('click', async function() {
             let newText = editContentInput.value.trim();
-            if (!newText) { alert('> ERROR: Message is empty!'); return; }
-            if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
+            if (!newText || !editTargetEvent || !currentUserPubkey || !window.nostr) return;
 
             try {
                 sendEditBtn.textContent = '> SIGNING...';
-                
                 let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
                 let signedDelEvent = await window.nostr.signEvent(delEvent);
-                
                 let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
                 let signedNewEvent = await window.nostr.signEvent(newEvent);
                 
                 let sentCount = 0;
-                activeSockets.forEach(sock => { 
-                    if (sock && sock.readyState === WebSocket.OPEN) { 
-                        sock.send(JSON.stringify(["EVENT", signedDelEvent]));
-                        sock.send(JSON.stringify(["EVENT", signedNewEvent]));
-                        sentCount++; 
-                    } 
-                });
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedDelEvent])); sock.send(JSON.stringify(["EVENT", signedNewEvent])); sentCount++; } });
                 
                 alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
-                
-                let oldCard = document.getElementById(`reply-${editTargetEvent.id}`) || (parentEvent && parentEvent.id === editTargetEvent.id ? mainPostContainer : null);
-                if (oldCard && oldCard !== mainPostContainer) oldCard.remove();
-                if (eventsCache[editTargetEvent.id]) delete eventsCache[editTargetEvent.id];
-                
-                eventsCache[signedNewEvent.id] = signedNewEvent;
-                
-                closeEditModal(); 
-                sendEditBtn.textContent = '> UPDATE_EVENT';
-                
-                if (parentEvent && parentEvent.id === editTargetEvent.id) {
-                    parentEvent = signedNewEvent;
-                    renderMainPost(signedNewEvent);
-                } else {
-                    renderReply(signedNewEvent);
-                }
-            } catch (err) { 
-                alert('> ERROR: Failed to update event.'); 
-                sendEditBtn.textContent = '> UPDATE_EVENT'; 
-            }
+                let oldCard = document.getElementById(`reply-${editTargetEvent.id}`); if (oldCard) oldCard.remove(); if (eventsCache[editTargetEvent.id]) delete eventsCache[editTargetEvent.id];
+                eventsCache[signedNewEvent.id] = signedNewEvent; closeEditModal(); sendEditBtn.textContent = '> UPDATE_EVENT'; renderEvent(signedNewEvent);
+            } catch (err) { alert('> ERROR: Failed to update event.'); sendEditBtn.textContent = '> UPDATE_EVENT'; }
         });
 
-        window.addEventListener('DOMContentLoaded', loadConfig);
+        window.addEventListener('DOMContentLoaded', initRelayStream);
     </script>
 </body>
 </html>

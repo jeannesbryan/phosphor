@@ -60,9 +60,10 @@
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
                 <a href="compose.html" style="color: var(--t-green, #00ff41);">[ COMPOSE ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -76,12 +77,12 @@
             <div class="editor-title">> LONG_FORM_EDITOR <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(NIP-23)</span></div>
 
             <div class="form-group">
-                <label class="form-label" for="articleTitle">TITLE <span style="color: red;">*</span></label>
+                <label class="form-label" for="articleTitle">TITLE <span style="color: var(--t-green, #00ff41);">*</span></label>
                 <input type="text" id="articleTitle" class="sys-input" placeholder="Enter an eye-catching title...">
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="articleSlug">IDENTIFIER (d tag) <span style="color: red;">*</span> <span class="form-hint">Auto-generated from title, unique slug for updates.</span></label>
+                <label class="form-label" for="articleSlug">IDENTIFIER (d tag) <span style="color: var(--t-green, #00ff41);">*</span> <span class="form-hint">Auto-generated from title, unique slug for updates.</span></label>
                 <input type="text" id="articleSlug" class="sys-input" placeholder="e.g., my-awesome-article">
             </div>
 
@@ -102,7 +103,7 @@
             </div>
 
             <div class="form-group" style="margin-top: 25px;">
-                <label class="form-label">CONTENT <span style="color: red;">*</span> <span class="form-hint">Markdown supported.</span></label>
+                <label class="form-label">CONTENT <span style="color: var(--t-green, #00ff41);">*</span> <span class="form-hint">Markdown supported.</span></label>
                 <div class="toolbar">
                     <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="Bold">[B]</button>
                     <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="Italic">[I]</button>
@@ -182,8 +183,8 @@
 
     <!-- UNLOCK MODAL -->
     <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+        <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
             <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory to compose articles.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
@@ -191,7 +192,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
                 <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
                     <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
                 </div>
             </div>
@@ -221,6 +222,7 @@
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         const relayModal = document.getElementById('relayModal');
@@ -466,6 +468,7 @@
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 editorContainer.classList.add('hidden'); // Hide editor to prompt unlock
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
@@ -473,6 +476,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
+                navNotifBtn.classList.remove('hidden');
                 editorContainer.classList.remove('hidden');
                 document.getElementById('unlockModal').style.display = 'none';
             } else {
@@ -480,6 +484,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 editorContainer.classList.add('hidden'); // Cannot write without login
             }
         }
@@ -490,7 +495,7 @@
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: #ff4141;">[OFFLINE]</span>';
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor; opacity: 0.6;">[OFFLINE]</span>';
                 htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;

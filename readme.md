@@ -20,6 +20,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Universal Repost (NIP-18):** Supports reposting standard notes (Kind 6) and Generic Repost (Kind 16) for articles.
 *   **Quote & Threading:** Quote messages and open discussion threads easily using a clean modal interface.
 *   **Multi-Relay Connection:** Pull and broadcast data across multiple relays independently and simultaneously.
+*   **Targeted Relay Explorer:** Click on any verified NIP-05 domain on a user's profile to instantly open a dedicated timeline isolated to that specific node/instance.
 
 ## 🛠️ Installation & Usage
 Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.

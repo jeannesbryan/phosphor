@@ -79,8 +79,9 @@
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="color: var(--t-green, #00ff41);">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -153,8 +154,8 @@
 
     <!-- UNLOCK MODAL -->
     <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+        <div class="modal-content-box" style="max-width: 400px;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
             <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
@@ -162,7 +163,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
                 <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
                     <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
                 </div>
             </div>
@@ -243,6 +244,7 @@
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         
@@ -494,6 +496,7 @@
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 
                 document.getElementById('unlockModal').style.display = 'flex';
@@ -502,6 +505,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
+                navNotifBtn.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
                 document.getElementById('unlockModal').style.display = 'none';
             } else {
@@ -509,6 +513,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
@@ -737,11 +742,13 @@
                                     let rawName = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
                                     
+                                    // [FIXED] Tambahkan pending: false untuk mencegah race condition profile
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
                                         picture: meta.picture || null,
-                                        nip05: meta.nip05 || ""
+                                        nip05: meta.nip05 || "",
+                                        pending: false
                                     };
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
@@ -804,7 +811,15 @@
             initMetrics(ev.id); requestMetrics(ev.id);
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            
+            // [FIXED] Race condition logic fallback: Jika profil belum selesai diload, gunakan fallback string daripada undefined
+            let cached = profileCache[ev.pubkey];
+            let info = (cached && !cached.pending) ? cached : { 
+                name: `Node_${shortPub}`, 
+                handle: `@${ev.pubkey.substring(0, 8)}`, 
+                picture: null 
+            };
+            
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
             

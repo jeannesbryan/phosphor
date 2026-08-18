@@ -18,7 +18,7 @@
         .hidden { display: none !important; }
         
         .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; flex-direction: column; }
-        .notif-badge { font-weight: bold; font-size: 0.85em; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed currentColor; word-break: break-all; }
+        .notif-badge { font-weight: bold; font-size: 0.85em; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed currentColor; word-break: break-all; color: var(--t-green, #00ff41); }
         
         .notif-body { display: flex; width: 100%; }
         
@@ -77,7 +77,7 @@
                 <a href="notifications.html" id="navNotifBtn" class="hidden" style="color: var(--t-green, #00ff41);">[ NOTIFICATIONS ]</a>
                 <a href="compose.html" id="navComposeBtn" class="hidden">[ COMPOSE ]</a>
                 <a href="#" id="navLoginBtn">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -94,7 +94,7 @@
         </section>
     </div>
 
-    <!-- Modals (Login, Unlock, Relay, Quote, Raw) -->
+    <!-- Modals -->
     <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal">
         <div class="modal-content-box" style="max-width: 450px;">
@@ -145,8 +145,8 @@
 
     <!-- UNLOCK MODAL -->
     <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+        <div class="modal-content-box" style="max-width: 400px;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
             <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
@@ -154,7 +154,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
                 <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
                     <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
                 </div>
             </div>
@@ -260,7 +260,6 @@
 
         async function checkLocalSessions() {
             let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
-            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
             
             if (rawHex && currentUserPubkey) {
                 try {
@@ -436,18 +435,25 @@
                             // Ask profile cache
                             if (!profileCache[ev.pubkey]) {
                                 profileCache[ev.pubkey] = { pending: true };
-                                socket.send(JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0,8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]));
+                                activeSockets.forEach(sock => {
+                                    if (sock && sock.readyState === WebSocket.OPEN) {
+                                        sock.send(JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0,8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]));
+                                    }
+                                });
                             }
 
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
-                                    let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`;
+                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
+                                    let rawName = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    
                                     profileCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
+                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 8),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                        picture: meta.picture || null
+                                        picture: meta.picture || null,
+                                        pending: false
                                     };
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
@@ -525,23 +531,27 @@
 
         function renderNotification(ev) {
             if (document.getElementById(`notif-${ev.id}`)) return;
-            
-            // Filter out my own actions unless testing
             if (ev.pubkey === currentUserPubkey) return;
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            
+            // Perbaikan Race Condition: Jika profil belum loaded/pending, buat fallback string yang valid bukan undefined!
+            let cached = profileCache[ev.pubkey];
+            let info = (cached && !cached.pending) ? cached : { 
+                name: `Node_${shortPub}`, 
+                handle: `@${ev.pubkey.substring(0, 8)}`, 
+                picture: null 
+            };
+
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
 
             let badgeText = "";
-            let badgeColor = "currentColor";
             let contentHtml = "";
             let actionButtonsHtml = "";
 
             if (ev.kind === 1) {
                 badgeText = "> INCOMING_TRANSMISSION [ 💬 REPLY / MENTION ]";
-                badgeColor = "var(--t-green, #00ff41)";
                 
                 let contentText = ev.content || "";
                 let mediaHtml = "";
@@ -568,7 +578,6 @@
             } 
             else if (ev.kind === 7) {
                 badgeText = "> TELEMETRY_ACK [ ❤️ REACTION ]";
-                badgeColor = "#ffff00";
                 
                 let targetEventId = "";
                 ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
@@ -579,7 +588,6 @@
             }
             else if (ev.kind === 6 || ev.kind === 16) {
                 badgeText = "> SIGNAL_AMPLIFIED [ ♻️ REPOST ]";
-                badgeColor = "#00ffff";
                 
                 let targetEventId = "";
                 ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
@@ -592,7 +600,7 @@
             card.className = 'post-card';
             card.id = `notif-${ev.id}`;
             card.innerHTML = `
-                <div class="notif-badge" style="color: ${badgeColor};">${badgeText}</div>
+                <div class="notif-badge">${badgeText}</div>
                 <div class="notif-body">
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div class="post-main">

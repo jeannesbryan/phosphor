@@ -29,7 +29,6 @@
         .profile-meta h2 { margin-bottom: 3px; word-wrap: break-word; }
         .profile-bio { margin-bottom: 15px; line-height: 1.4; opacity: 0.85; word-wrap: break-word; }
         
-        /* CSS Fix for long unbroken strings (pubkeys, lnbits) overflowing mobile view */
         .profile-details { font-size: 0.85em; opacity: 0.8; margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px; word-break: break-all; }
         .profile-details a { color: inherit; text-decoration: none; }
 
@@ -66,7 +65,7 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #followingModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #followingModal, #followersModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
@@ -146,6 +145,8 @@
                     <button class="interactive-stat" onclick="openRelayModal()">Relays: <strong id="relayCountText">0</strong></button>
                     <span style="margin: 0 8px; opacity: 0.4;">|</span>
                     <button class="interactive-stat" onclick="openFollowingModal()">Following: <strong id="followingCountText">0</strong></button>
+                    <span style="margin: 0 8px; opacity: 0.4;">|</span>
+                    <button class="interactive-stat" onclick="openFollowersModal()">Followers: <strong id="followersCountText">0</strong></button>
                 </div>
                 <div>
                     <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast Profile">* BROADCAST_METADATA</button>
@@ -282,6 +283,19 @@
         </div>
     </div>
 
+    <!-- NEW: Followers Modal -->
+    <div id="followersModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> FOLLOWERS_LIST (<span id="modalFollowersCount">0</span>)</div>
+            <div class="scrollable-list" id="followersListContainer">
+                <p style="opacity: 0.5;">Loading followers data...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeFollowersModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
     <div id="rawModal">
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
@@ -304,6 +318,7 @@
         let profileNameTxt = "User Name";
         let profileHandleTxt = "@handle";
         let profileNip05Txt = "";
+        let myRawProfileData = null;
         
         let quoteTargetEvent = null;
         let editTargetEvent = null;
@@ -315,6 +330,7 @@
         let debounceTimer = null;
         
         let targetFollowingPubkeys = [];
+        let targetFollowersPubkeys = [];
         let myFollowingPubkeys = [];
         let followingProfilesCache = {};
 
@@ -351,6 +367,7 @@
         const followBtn = document.getElementById('followBtn');
         const relayCountText = document.getElementById('relayCountText');
         const followingCountText = document.getElementById('followingCountText');
+        const followersCountText = document.getElementById('followersCountText');
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -363,9 +380,15 @@
 
         const relayModal = document.getElementById('relayModal');
         const relayListContainer = document.getElementById('relayListContainer');
+        
         const followingModal = document.getElementById('followingModal');
         const followingListContainer = document.getElementById('followingListContainer');
         const modalFollowingCount = document.getElementById('modalFollowingCount');
+        
+        const followersModal = document.getElementById('followersModal');
+        const followersListContainer = document.getElementById('followersListContainer');
+        const modalFollowersCount = document.getElementById('modalFollowersCount');
+
         const rawModal = document.getElementById('rawModal');
         const rawEventContent = document.getElementById('rawEventContent');
 
@@ -722,6 +745,7 @@
         }
         function closeRelayModal() { relayModal.style.display = 'none'; }
         
+        // FOLLOWING Modal Handlers
         function openFollowingModal() { renderFollowingListUI(); followingModal.style.display = 'flex'; }
         function closeFollowingModal() { followingModal.style.display = 'none'; }
 
@@ -740,6 +764,27 @@
                 </div>`;
             });
             followingListContainer.innerHTML = html;
+        }
+
+        // FOLLOWERS Modal Handlers
+        function openFollowersModal() { renderFollowersListUI(); followersModal.style.display = 'flex'; }
+        function closeFollowersModal() { followersModal.style.display = 'none'; }
+
+        function renderFollowersListUI() {
+            modalFollowersCount.textContent = targetFollowersPubkeys.length;
+            if (targetFollowersPubkeys.length === 0) {
+                followersListContainer.innerHTML = '<p style="opacity: 0.5;">No followers data found.</p>';
+                return;
+            }
+            let html = "";
+            targetFollowersPubkeys.forEach(pk => {
+                let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
+                html += `<div class="following-item">
+                    <a href="profile.html?pubkey=${pk}" style="text-decoration:none; color:inherit;"><strong>${escapeHtml(info.name)}</strong></a>
+                    <span style="opacity: 0.6; font-size: 0.85em;">${escapeHtml(info.handle)}</span>
+                </div>`;
+            });
+            followersListContainer.innerHTML = html;
         }
 
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
@@ -802,6 +847,9 @@
 
         async function toggleFollow() {
             if (!currentUserPubkey || !window.nostr) return;
+            
+            followBtn.textContent = '...'; // Fast UI feedback
+
             let isFollowing = myFollowingPubkeys.includes(targetPubkey);
             let newFollowing = [...myFollowingPubkeys];
             
@@ -817,10 +865,14 @@
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                
                 myFollowingPubkeys = newFollowing;
                 followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
-                alert(`> SUCCESS: Follow list updated!`);
-            } catch(e) { alert('> ERROR: Failed to update follow list.'); }
+                alert(`> SUCCESS: Network contact list updated!`);
+            } catch(e) { 
+                alert('> ERROR: Failed to update contact list.'); 
+                followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; 
+            }
         }
 
         async function initProfile() {
@@ -852,6 +904,9 @@
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
+                    
+                    // Fetch followers using #p tag
+                    socket.send(JSON.stringify(["REQ", "target-followers-" + Math.random(), { "kinds": [3], "#p": [targetPubkey] }]));
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
@@ -895,6 +950,19 @@
                             }
 
                             if (ev.kind === 3) {
+                                // Track users who are following the target
+                                if (ev.tags.some(t => t[0] === "p" && t[1] === targetPubkey)) {
+                                    if (!targetFollowersPubkeys.includes(ev.pubkey)) {
+                                        targetFollowersPubkeys.push(ev.pubkey);
+                                        followersCountText.textContent = targetFollowersPubkeys.length;
+                                        
+                                        if (!followingProfilesCache[ev.pubkey]) {
+                                            let subReq = JSON.stringify(["REQ", "follower-profiles", { "kinds": [0], "authors": [ev.pubkey] }]);
+                                            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
+                                        }
+                                    }
+                                }
+
                                 if (ev.pubkey === targetPubkey) {
                                     targetFollowingPubkeys = [];
                                     ev.tags.forEach(t => { if (t[0] === "p") targetFollowingPubkeys.push(t[1]); });
@@ -912,7 +980,7 @@
                                 }
                             }
 
-                            if (ev.kind === 0 && targetFollowingPubkeys.includes(ev.pubkey)) {
+                            if (ev.kind === 0 && (targetFollowingPubkeys.includes(ev.pubkey) || targetFollowersPubkeys.includes(ev.pubkey))) {
                                 try {
                                     let meta = JSON.parse(ev.content);
                                     let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
@@ -923,7 +991,9 @@
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName
                                     };
-                                    renderFollowingListUI();
+                                    
+                                    if (followingModal.style.display === 'flex') renderFollowingListUI();
+                                    if (followersModal.style.display === 'flex') renderFollowersListUI();
                                 } catch(e){}
                             }
                             
@@ -946,6 +1016,7 @@
                             if (ev.kind === 0) {
                                 try {
                                     let profileData = JSON.parse(ev.content);
+                                    if (isMyProfile) myRawProfileData = ev.content;
                                     if (profileData.name || profileData.display_name) {
                                         profileNameTxt = profileData.display_name || profileData.name;
                                         profileName.textContent = profileNameTxt;
@@ -954,7 +1025,10 @@
                                     let rawNameStr = profileData.name || profileData.display_name || targetPubkey.substring(0, 8);
                                     profileHandleTxt = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
                                     let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
-                                    profileHandle.textContent = domainPart ? `${profileHandleTxt} ✓ ${domainPart}` : profileHandleTxt;
+
+                                    profileHandle.innerHTML = domainPart ? 
+                                        `${profileHandleTxt} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green, #00ff41); text-decoration:none;">${domainPart}</a>` : 
+                                        profileHandleTxt;
                                     
                                     if (profileData.about && profileData.about.trim() !== "") {
                                         let bioText = profileData.about;
@@ -1249,6 +1323,47 @@
             } catch (err) { 
                 alert('> ERROR: Failed to update event.'); 
                 sendEditBtn.textContent = '> UPDATE_EVENT'; 
+            }
+        });
+
+        broadcastProfileBtn.addEventListener('click', async function() {
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: NO_ACTIVE_SESSION. Please login first.');
+            if (!myRawProfileData) return alert('> ERROR: Profile data not yet loaded. Please wait for synchronization.');
+            
+            if (!confirm('> This will re-sign and broadcast your profile metadata to all connected relays. Proceed?')) return;
+
+            let originalText = broadcastProfileBtn.textContent;
+            broadcastProfileBtn.textContent = '* TRANSMITTING...';
+            broadcastProfileBtn.style.color = "var(--bg-base, #030303)";
+            broadcastProfileBtn.style.background = "var(--t-green, #00ff41)";
+
+            let rawEvent = {
+                kind: 0,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [],
+                content: myRawProfileData,
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                let sentCount = 0;
+                
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+                
+                alert(`> SUCCESS: Profile metadata updated and broadcasted to ${sentCount} active nodes!`);
+            } catch (err) {
+                console.error(err);
+                alert('> ERROR: Failed to sign or broadcast metadata.');
+            } finally {
+                broadcastProfileBtn.textContent = originalText;
+                broadcastProfileBtn.style.color = "inherit";
+                broadcastProfileBtn.style.background = "transparent";
             }
         });
 

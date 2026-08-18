@@ -93,8 +93,9 @@
                 <a href="index.html">[ TIMELINE ]</a>
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
                 <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
                 <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
             </nav>
@@ -180,8 +181,8 @@
 
     <!-- UNLOCK MODAL -->
     <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
+        <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
             <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
@@ -189,7 +190,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
                 <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
                     <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
                 </div>
             </div>
@@ -278,6 +279,7 @@
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const mainPostContainer = document.getElementById('mainPostContainer');
         const repliesContainer = document.getElementById('repliesContainer');
@@ -549,6 +551,7 @@
                 logoutBtn.classList.add('hidden');
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 replyComposer.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 
@@ -558,6 +561,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
+                navNotifBtn.classList.remove('hidden');
                 replyComposer.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
                 document.getElementById('unlockModal').style.display = 'none';
@@ -566,6 +570,7 @@
                 navUnlockBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
                 navBookmarkBtn.classList.add('hidden');
+                navNotifBtn.classList.add('hidden');
                 replyComposer.classList.add('hidden');
                 myReplyAvatar.innerHTML = "[P]";
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
@@ -646,7 +651,7 @@
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: #ff4141;">[OFFLINE]</span>';
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor;">[OFFLINE]</span>';
                 htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;
@@ -727,7 +732,7 @@
 
         function initNotes() {
             if (!articleId && !dTagParam && !authorParam) {
-                mainPostContainer.innerHTML = '<p style="color:red;">[ ERROR: Article parameters not found in URL ]</p>';
+                mainPostContainer.innerHTML = '<p style="color:var(--t-green, #00ff41);">[ ERROR: Article parameters not found in URL ]</p>';
                 return;
             }
 
@@ -801,7 +806,8 @@
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handleLine: handleLineStr,
-                                        picture: meta.picture || null
+                                        picture: meta.picture || null,
+                                        pending: false
                                     };
                                     if (ev.pubkey === currentUserPubkey && meta.picture) {
                                         myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
