@@ -60,12 +60,11 @@
         
         .post-footer-meta { text-align: right; font-style: italic; opacity: 0.5; font-size: 0.8em; margin-top: 5px; }
 
-        .composer-card { border: 1px dashed currentColor; padding: 15px; margin-bottom: 20px; display: flex; }
         textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
         textarea.sys-input { resize: vertical; }
         
-        .reply-btn, .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
-        .reply-btn:hover, .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
+        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
+        .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
 
         #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
@@ -123,6 +122,7 @@
             </div>
 
             <div id="viewNsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
@@ -135,6 +135,7 @@
             </div>
 
             <div id="viewNcryptsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
                     <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
@@ -360,7 +361,9 @@
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
             window.nostr = {
                 getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => nostrTools.finalizeEvent(eventTemplate, secretKeyBytes)
+                signEvent: async (eventTemplate) => {
+                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
+                }
             };
         }
 
@@ -388,74 +391,169 @@
             document.getElementById('tabNsec').style.border = "none";
             document.getElementById('tabNcryptsec').style.border = "none";
             
-            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').style.border = "1px solid currentColor"; } 
-            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').style.border = "1px solid currentColor"; } 
-            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').style.border = "1px solid currentColor"; }
+            if (tab === 'ext') {
+                document.getElementById('viewExt').classList.remove('hidden');
+                document.getElementById('tabExt').style.border = "1px solid currentColor";
+            } else if (tab === 'nsec') {
+                document.getElementById('viewNsec').classList.remove('hidden');
+                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+            } else if (tab === 'ncryptsec') {
+                document.getElementById('viewNcryptsec').classList.remove('hidden');
+                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
+            }
         }
 
-        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec'); if(savedNcryptsec) { switchLoginTab('ncryptsec'); document.getElementById('ncryptsecInput').value = savedNcryptsec; } });
-        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+        navLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('loginModal').style.display = 'flex';
+            
+            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
+            if(savedNcryptsec) {
+                switchLoginTab('ncryptsec');
+                document.getElementById('ncryptsecInput').value = savedNcryptsec;
+            }
+        });
+
+        navUnlockBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('unlockModal').style.display = 'flex';
+        });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-                try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); }
+                try {
+                    currentUserPubkey = await window.nostr.getPublicKey();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    localStorage.removeItem('phosphor_privkey');
+                    localStorage.removeItem('phosphor_ncryptsec');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
+                    location.reload();
+                } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value;
+            let input = document.getElementById('nsecInput').value.trim();
+            let pass = document.getElementById('nsecPassword').value;
+            
             if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
+            
             let btn = document.getElementById('nsecLoginBtn');
             try {
                 btn.textContent = '> PROCESSING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
                 let skBytes;
-                if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format'); skBytes = decoded.data; } 
-                else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
+                if (input.startsWith('nsec1')) {
+                    let decoded = nostrTools.nip19.decode(input);
+                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
+                    skBytes = decoded.data;
+                } else {
+                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                }
+                
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); let ncryptsec = nip49.encrypt(skBytes, pass);
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.'); location.reload();
-            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; }
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                let ncryptsec = nip49.encrypt(skBytes, pass);
+                
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                localStorage.removeItem('phosphor_privkey');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
+                location.reload();
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Invalid key format or processing failed.');
+                btn.textContent = '> ENCRYPT & LOGIN';
+            }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value;
+            let input = document.getElementById('ncryptsecInput').value.trim();
+            let pass = document.getElementById('ncryptsecPassword').value;
+            
             if(!input || !pass) return alert('> ERROR: Key and password required.');
+            
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                let skBytes = nip49.decrypt(input, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey');
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload();
-            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); btn.textContent = '> DECRYPT & LOGIN'; }
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                localStorage.setItem('phosphor_ncryptsec', input);
+                localStorage.removeItem('phosphor_privkey');
+
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                alert('> SECURE DECRYPTION SUCCESSFUL.');
+                location.reload();
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Decryption failed. Incorrect password?');
+                btn.textContent = '> DECRYPT & LOGIN';
+            }
         });
 
         document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            let pass = document.getElementById('unlockPassword').value;
+            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
             if(!pass) return alert('> ERROR: Password required.');
+
             let btn = document.getElementById('unlockBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                 const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                let skBytes = nip49.decrypt(ncryptsec, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload();
-            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; }
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                document.getElementById('unlockModal').style.display = 'none';
+                alert('> SESSION UNLOCKED.');
+                location.reload();
+            } catch(e) {
+                console.error(e);
+                alert('> ERROR: Decryption failed. Incorrect password?');
+                btn.textContent = '> DECRYPT';
+            }
         });
 
-        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
-        logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
+        function logoutFully() {
+            localStorage.removeItem('phosphor_pubkey');
+            localStorage.removeItem('phosphor_privkey');
+            localStorage.removeItem('phosphor_ncryptsec');
+            sessionStorage.removeItem('phosphor_privkey_temp');
+            location.reload();
+        }
+
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logoutFully();
+        });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
@@ -492,7 +590,7 @@
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
         
-        function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.substring(0, 150) + "..."; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }
+        function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
         function openEditModal(eventId) { if (!currentUserPubkey || !window.nostr) return; let ev = eventsCache[eventId]; if (!ev) return; editTargetEvent = ev; editContentInput.value = ev.content; editModal.style.display = 'flex'; }
@@ -595,7 +693,6 @@
                     }
 
                     if (currentUserPubkey) {
-                        socket.send(JSON.stringify(["REQ", "my-av-" + url, { "kinds": [0], "authors": [currentUserPubkey], "limit": 1 }]));
                         socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }]));
                     }
                 };
@@ -646,11 +743,23 @@
                                 } catch(e){}
                             }
                             
-                            if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     profileCache[ev.pubkey] = { pending: true };
                                     let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
                                     activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                }
+
+                                // Auto-fetch profil penulis asli jika ini adalah repost
+                                if (ev.kind === 6 || ev.kind === 16) {
+                                    try {
+                                        let innerEv = JSON.parse(ev.content);
+                                        if (!profileCache[innerEv.pubkey]) {
+                                            profileCache[innerEv.pubkey] = { pending: true };
+                                            let req = JSON.stringify(["REQ", "prof-repost-" + innerEv.pubkey.substring(0, 8), { "kinds": [0], "authors": [innerEv.pubkey], "limit": 1 }]);
+                                            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                        }
+                                    } catch(e){}
                                 }
                             }
 
@@ -794,13 +903,13 @@
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
-                        <button class="action-btn" title="Reply" onclick="window.location.href='thread.html?id=${targetEv.id}'">[r] <span id="metric-replies-${targetEv.id}">0</span></button>
+                        <a href="thread.html?id=${targetEv.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
                         <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
                         <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
                         <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
                         <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
-                        <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="${isArticle ? `window.location.href='compose.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}'` : `openEditModal('${targetEv.id}')`} ">[edit]</button>
+                        <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${targetEv.id}')">[edit]</button>
                     </div>
                     <div class="post-footer-meta">> ${eventTypeStr} / via ${escapeHtml(clientName)}</div>
                 </div>
