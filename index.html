@@ -41,20 +41,23 @@
 
         .article-card { border: 2px solid currentColor; }
         .article-title { font-size: 1.25em; font-weight: bold; margin-bottom: 8px; line-height: 1.3; }
-        
-        /* FIX: Menambahkan word-break dan overflow-wrap untuk memotong text panjang tanpa spasi */
         .article-summary { opacity: 0.85; margin-bottom: 12px; font-size: 0.95em; line-height: 1.4; word-break: break-all; overflow-wrap: anywhere; }
 
         .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
         .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
 
-        .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
+        .media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+        .post-media { max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
+        .media-grid .post-media { max-width: 100%; height: 100%; aspect-ratio: 16/9; margin: 0; }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; transition: transform 0.2s; }
         .post-media:hover img { transform: scale(1.03); }
 
         .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
         
+        .nsfw-blur { filter: blur(15px) grayscale(1) !important; cursor: pointer !important; transition: filter 0.3s ease; }
+        .nsfw-blur:hover { filter: blur(10px) grayscale(0.5) !important; }
+
         #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal { cursor: zoom-out; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
@@ -67,7 +70,7 @@
         
         .client-tag { text-align: right; font-style: italic; opacity: 0.4; font-size: 0.8em; margin-top: 5px; }
 
-        .composer-card { border: 2px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; }
+        .composer-card { border: 2px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; flex-direction: column; }
         textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
         textarea.sys-input { resize: vertical; }
         
@@ -82,6 +85,10 @@
         .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
 
         .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+
+        /* Terminal Form Elements overrides for composer tools */
+        .composer-tools { border: 1px dashed currentColor; padding: 10px; margin-top: 10px; background: rgba(0,255,65,0.02); display: flex; flex-direction: column; gap: 10px; }
+        .composer-switches { display: flex; gap: 20px; flex-wrap: wrap; }
     </style>
 </head>
 <body class="terminal t-crt">
@@ -100,24 +107,41 @@
             </nav>
         </header>
 
-        <!-- Composer Card hidden by default until logged in -->
+        <!-- Composer Card -->
         <div class="composer-card hidden" id="composerCard">
-            <div class="avatar-box" id="userAvatarBox">[P]</div>
-            <div class="post-main">
-                <textarea id="postContentInput" class="sys-input" rows="3" placeholder="What's happening on the network?"></textarea>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="file" id="mediaUploadInput" accept="image/*,video/*" style="display: none;">
-                        <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video">[ MEDIA ]</button>
-                        <label style="font-size: 0.8em; cursor: pointer; display: flex; align-items: center; gap: 5px;" title="Auto-delete post from timeline after 24 Hours">
-                            <input type="checkbox" id="pulseToggle"> 24H_PULSE
-                        </label>
+            <div style="display: flex;">
+                <div class="avatar-box" id="userAvatarBox">[P]</div>
+                <div class="post-main">
+                    <textarea id="postContentInput" class="sys-input" rows="3" placeholder="What's happening on the network?"></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
+                            <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video (Max 4)">[ MEDIA (0/4) ]</button>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
+                            <span style="opacity: 0.5;">|</span>
+                            <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
+                        </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
-                        <span style="opacity: 0.5;">|</span>
-                        <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
-                    </div>
+                </div>
+            </div>
+            
+            <!-- Protocol Config Panel -->
+            <div class="composer-tools">
+                <div class="composer-switches">
+                    <label class="t-checkbox-label" title="Auto-delete post from timeline after 24 Hours">
+                        <input type="checkbox" id="pulseToggle">
+                        <span class="t-checkmark"></span> 24H_PULSE
+                    </label>
+                    <label class="t-checkbox-label" title="Mark content as Not Safe For Work">
+                        <input type="checkbox" id="nsfwToggle">
+                        <span class="t-checkmark"></span> NSFW Tag
+                    </label>
+                </div>
+                <div style="border-top: 1px dashed currentColor; padding-top: 10px; margin-top: 5px;">
+                    <label class="t-form-label" style="display:block; margin-bottom:5px;">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
+                    <input type="range" min="0" max="16" value="0" class="t-range" style="width:100%;" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
                 </div>
             </div>
         </div>
@@ -140,15 +164,15 @@
                 <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
-            <!-- NIP-07 Login (Default) -->
+            <!-- NIP-07 Login -->
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
                 <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
             </div>
 
             <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
@@ -198,10 +222,12 @@
         </div>
     </div>
 
+    <!-- Lightbox Modal -->
     <div id="lightboxModal" onclick="this.style.display='none'">
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
+    <!-- Quote Modal -->
     <div id="quoteModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
@@ -214,6 +240,7 @@
         </div>
     </div>
 
+    <!-- Edit Modal -->
     <div id="editModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> EDIT_TRANSMISSION</div>
@@ -225,6 +252,7 @@
         </div>
     </div>
 
+    <!-- Relay Modal -->
     <div id="relayModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
@@ -237,6 +265,7 @@
         </div>
     </div>
 
+    <!-- Raw Event Modal -->
     <div id="rawModal">
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
@@ -283,6 +312,8 @@
         const uploadMediaBtn = document.getElementById('uploadMediaBtn');
         const mediaUploadInput = document.getElementById('mediaUploadInput');
         const pulseToggle = document.getElementById('pulseToggle');
+        const nsfwToggle = document.getElementById('nsfwToggle');
+        const powSlider = document.getElementById('powSlider');
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -561,69 +592,119 @@
         uploadMediaBtn.addEventListener('click', () => mediaUploadInput.click());
         
         mediaUploadInput.addEventListener('change', async (e) => {
-            let file = e.target.files[0];
-            if (!file) return;
+            let files = Array.from(e.target.files);
+            if (!files.length) return;
+            
+            // Limit to max 4 files[cite: 14]
+            if (files.length > 4) {
+                alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
+                files = files.slice(0, 4);
+            }
+
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            uploadMediaBtn.textContent = '[ UPLOADING... ]';
             
             try {
                 let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
-                
-                // Pastikan tidak ada trailing slash yang tidak wajar
                 blossomUrl = blossomUrl.replace(/\/$/, '');
                 let uploadEndpoint = blossomUrl + '/upload';
                 
-                // Hasilkan SHA-256 Hash dari isi file untuk dikirim pada tag NIP-98 'payload'
-                let arrayBuffer = await file.arrayBuffer();
-                let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-                let hashArray = Array.from(new Uint8Array(hashBuffer));
-                let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                
-                let nowTimestamp = Math.floor(Date.now() / 1000);
-                
-                // [FIXED]: Tambahkan tag "t" dengan nilai "upload"
-                let authEvent = {
-                    kind: 24242,
-                    created_at: nowTimestamp,
-                    tags: [ 
-                        ["u", uploadEndpoint], 
-                        ["method", "PUT"],
-                        ["payload", hashHex],
-                        ["expiration", String(nowTimestamp + 60)],
-                        ["t", "upload"]
-                    ],
-                    content: "Phosphor Blossom Auth",
-                    pubkey: currentUserPubkey
-                };
-                
-                let signedAuth = await window.nostr.signEvent(authEvent);
-                
-                // Konversi Base64 yang aman untuk UTF-8
-                let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
-                
-                let response = await fetch(uploadEndpoint, {
-                    method: 'PUT',
-                    headers: { 'Authorization': 'Nostr ' + authBase64 },
-                    body: file
-                });
-                
-                if (response.ok) {
-                    let data = await response.json();
-                    postContentInput.value += (postContentInput.value ? '\n' : '') + data.url;
-                } else { 
-                    let errText = await response.text();
-                    console.error("Upload rejected:", errText);
-                    alert('> ERROR: Media server rejected the upload. ' + errText); 
+                for (let i = 0; i < files.length; i++) {
+                    let file = files[i];
+                    uploadMediaBtn.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
+                    
+                    let arrayBuffer = await file.arrayBuffer();
+                    let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                    let hashArray = Array.from(new Uint8Array(hashBuffer));
+                    let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    
+                    let nowTimestamp = Math.floor(Date.now() / 1000);
+                    
+                    let authEvent = {
+                        kind: 24242,
+                        created_at: nowTimestamp,
+                        tags: [ 
+                            ["u", uploadEndpoint], 
+                            ["method", "PUT"],
+                            ["payload", hashHex],
+                            ["expiration", String(nowTimestamp + 60)],
+                            ["t", "upload"]
+                        ],
+                        content: "Phosphor Blossom Auth",
+                        pubkey: currentUserPubkey
+                    };
+                    
+                    let signedAuth = await window.nostr.signEvent(authEvent);
+                    let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                    
+                    let response = await fetch(uploadEndpoint, {
+                        method: 'PUT',
+                        headers: { 'Authorization': 'Nostr ' + authBase64 },
+                        body: file
+                    });
+                    
+                    if (response.ok) {
+                        let data = await response.json();
+                        postContentInput.value += (postContentInput.value ? '\n' : '') + data.url;
+                    } else { 
+                        let errText = await response.text();
+                        console.error("Upload rejected:", errText);
+                        alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
+                    }
                 }
             } catch (err) { 
                 console.error(err);
                 alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); 
             } 
             finally { 
-                uploadMediaBtn.textContent = '[ MEDIA ]'; 
+                uploadMediaBtn.textContent = '[ MEDIA (0/4) ]'; 
                 mediaUploadInput.value = ''; 
             }
         });
+
+        // ================= COPY LINK BUTTON =================
+        function copyThreadLink(id) {
+            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+            let threadUrl = baseUrl + 'thread.html?id=' + id;
+            navigator.clipboard.writeText(threadUrl);
+            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
+        }
+
+        // ================= MINING NIP-13 PoW (ASYNC NON-FREEZE) =================
+        async function minePoW(eventTemplate, targetDifficulty) {
+            let nonce = 0;
+            let encoder = new TextEncoder();
+            
+            while (true) {
+                let clone = JSON.parse(JSON.stringify(eventTemplate));
+                clone.tags.push(["nonce", nonce.toString(), targetDifficulty.toString()]);
+                
+                // Serialize event as array
+                let serialized = JSON.stringify([0, clone.pubkey, clone.created_at, clone.kind, clone.tags, clone.content]);
+                let hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(serialized));
+                let hashArray = new Uint8Array(hashBuffer);
+                
+                // Check leading zeroes
+                let zeroes = 0;
+                for (let i = 0; i < hashArray.length; i++) {
+                    let byte = hashArray[i];
+                    if (byte === 0) { zeroes += 8; continue; }
+                    let bits = 7;
+                    while ((byte & (1 << bits)) === 0) { zeroes++; bits--; }
+                    break;
+                }
+                
+                if (zeroes >= targetDifficulty) {
+                    return clone;
+                }
+                
+                nonce++;
+                // Lepaskan event-loop sejenak setiap 500 iterasi agar browser tidak macet
+                if (nonce % 500 === 0) {
+                    broadcastBtn.textContent = `> MINING PoW [${nonce}]...`;
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+        }
 
         // ================= BOOKMARK LOGIC =================
         async function toggleBookmark(eventId) {
@@ -738,7 +819,7 @@
             let ev = eventsCache[eventId];
             if (!ev) return;
             quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + " বিন্দু" : ev.content;
+            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + " ..." : ev.content;
             quoteContentInput.value = "";
             quoteModal.style.display = 'flex';
         }
@@ -921,7 +1002,17 @@
             for(let t of ev.tags) {
                 if(t[0] === "expiration") {
                     hasExpiration = true;
-                    if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) return; // SWEEPER: Drop expired pulse completely
+                    if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) return;
+                }
+            }
+
+            // NSFW FILTER LOGIC
+            let isNSFW = false;
+            let nsfwReason = "NSFW";
+            for(let t of ev.tags) {
+                if(t[0] === "content-warning") {
+                    isNSFW = true;
+                    if(t[1]) nsfwReason = t[1];
                 }
             }
 
@@ -960,6 +1051,8 @@
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
+            let blurClass = isNSFW ? 'nsfw-blur' : '';
+            let nsfwBadgeHtml = isNSFW ? `<div class="pulse-badge" style="border-color:#ff4141; color:#ff4141;">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
             let card = document.createElement('div');
             card.id = `post-${ev.id}`;
@@ -969,8 +1062,9 @@
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
                 ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
-                let coverHtml = coverImg ? `<div class="post-media" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : "";
+                let coverHtml = coverImg ? `<div class="post-media ${blurClass}" onclick="if(this.classList.contains('nsfw-blur')){this.classList.remove('nsfw-blur'); event.stopPropagation();} else {openLightbox('${coverImg}');}"><img src="${coverImg}" alt="Cover Article"></div>` : "";
                 let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
+                let finalSummaryHtml = `<div class="article-summary ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>`;
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -979,9 +1073,10 @@
                             <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                             <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
-                        <div class="article-title">${escapeHtml(title)}</div>
+                        ${nsfwBadgeHtml}
+                        <div class="article-title ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${escapeHtml(title)}</div>
                         ${coverHtml}
-                        <div class="article-summary">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
+                        ${finalSummaryHtml}
                         <div class="post-actions">
                             <a href="notes.html?${articleTargetParam}" class="action-btn" title="Read Article" style="text-decoration:none;">[read]</a>
                             <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -990,74 +1085,39 @@
                             <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                             <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                             <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                             <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
                         </div>
                         <div class="client-tag">> long_form / via ${escapeHtml(clientName)}</div>
                     </div>
                 `;
             }
-            else if (isPulse) {
-                card.className = 'post-card pulse-card';
-                let contentText = ev.content; let mediaHtml = "";
-                
-                // 1. Tangkap Media (Gambar/Video)
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                    let lowerExt = ext.toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
-                    else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`;
-                    return "";
-                });
-                
-                // 2. Escape HTML
-                contentText = escapeHtml(contentText.trim());
-
-                // 3. Auto-linker untuk Sisa URL standar
-                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                    let href = url.replace(/&amp;/g, '&');
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                });
-
-                // 4. Parser NIP-19 Embeds
-                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                });
-
-                card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="post-main">
-                        <div class="post-header">
-                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
-                        </div>
-                        <div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>
-                        <div class="post-content">${contentText}</div>
-                        ${mediaHtml}
-                        <div class="post-actions">
-                            <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q] quote</button>
-                            <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                        </div>
-                        <div class="client-tag">> pulse_event / via ${escapeHtml(clientName)}</div>
-                    </div>
-                `;
-            }
             else {
-                card.className = 'post-card';
+                card.className = isPulse ? 'post-card pulse-card' : 'post-card';
                 let contentHtml = ""; let mediaHtml = "";
+                let contentText = ev.content;
 
                 if (isJsonPayload) {
                     contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
-                    let contentText = ev.content;
-                    
-                    // 1. Tangkap Media (Gambar/Video)
+                    let mediaElements = [];
+                    // 1. Tangkap Media (Gambar/Video) - Multi Media Handling[cite: 14]
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`;
-                        else mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
+                            mediaElements.push(`<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
+                        } else {
+                            mediaElements.push(`<div class="post-media" onclick="if(this.parentNode.classList.contains('nsfw-blur')) return; openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
+                        }
                         return "";
                     });
+                    
+                    if (mediaElements.length > 1) {
+                        mediaHtml = `<div class="media-grid ${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements.join('')}</div>`;
+                    } else if (mediaElements.length === 1) {
+                        // Apply blur to single wrapper if nsfw
+                        mediaHtml = `<div class="${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements[0]}</div>`;
+                    }
                     
                     // 2. Escape HTML
                     contentText = escapeHtml(contentText.trim());
@@ -1074,8 +1134,10 @@
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                     });
 
-                    contentHtml = `<div class="post-content">${contentText}</div>`;
+                    contentHtml = `<div class="post-content ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${contentText}</div>`;
                 }
+
+                let pulseBadge = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1084,6 +1146,8 @@
                             <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                             <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
+                        ${pulseBadge}
+                        ${nsfwBadgeHtml}
                         ${contentHtml}
                         ${mediaHtml}
                         <div class="post-actions">
@@ -1093,9 +1157,10 @@
                             <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                             <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                             <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                             <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                         </div>
-                        <div class="client-tag">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
+                        <div class="client-tag">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
                     </div>
                 `;
             }
@@ -1112,23 +1177,49 @@
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let tags = [["client", "Phosphor"]];
+            
             if (pulseToggle.checked) {
                 tags.push(["expiration", String(Math.floor(Date.now() / 1000) + 86400)]);
             }
+            if (nsfwToggle.checked) {
+                tags.push(["content-warning", "NSFW"]);
+            }
 
+            let difficulty = parseInt(powSlider.value) || 0;
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: tags, content: contentText, pubkey: currentUserPubkey };
+            
             try {
+                broadcastBtn.disabled = true;
+                if (difficulty > 0) {
+                    broadcastBtn.textContent = '> INITIALIZING MINING RIG...';
+                    rawEvent = await minePoW(rawEvent, difficulty);
+                }
+
                 broadcastBtn.textContent = '> SIGNING...';
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                
+                activeSockets.forEach(sock => { 
+                    if (sock && sock.readyState === WebSocket.OPEN) { 
+                        sock.send(JSON.stringify(["EVENT", signedEvent])); 
+                        sentCount++; 
+                    } 
+                });
+                
                 alert(`> SUCCESS: Broadcasted to ${sentCount} relays!`);
                 postContentInput.value = ''; 
-                broadcastBtn.textContent = '> BROADCAST_EVENT';
                 pulseToggle.checked = false;
+                nsfwToggle.checked = false;
+                
                 eventsCache[signedEvent.id] = signedEvent; 
                 renderPost(signedEvent);
-            } catch (err) { alert('> ERROR: Failed to broadcast.'); broadcastBtn.textContent = '> BROADCAST_EVENT'; }
+            } catch (err) { 
+                alert('> ERROR: Failed to broadcast.'); 
+                console.error(err);
+            } finally {
+                broadcastBtn.textContent = '> BROADCAST_EVENT';
+                broadcastBtn.disabled = false;
+            }
         });
 
         sendQuoteBtn.addEventListener('click', async function() {
