@@ -193,7 +193,8 @@
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" style="font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="text-align: right; margin-top: 10px;">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
                 <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
@@ -201,6 +202,7 @@
 
     <script>
         let RELAYS = [];
+        let BLOSSOM_SERVERS = [];
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let profileCache = {};
         let eventsCache = {};
@@ -234,7 +236,13 @@
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
-                RELAYS = config.relays || [];
+                
+                // NIP-65 & NIP-10063 Fallback Logic
+                let savedRelays = localStorage.getItem('phosphor_user_relays');
+                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 
                 await checkLocalSessions();
                 updateAuthState();
@@ -401,83 +409,30 @@
             }
         }
 
-        // ================= NOTIFICATION LOGIC =================
-
-        function connectMultiRelays() {
-            let onlineCount = 0;
-            RELAYS.forEach(url => {
-                relayStatusMap[url] = false;
-                let socket = new WebSocket(url);
-
-                socket.onopen = function() {
-                    onlineCount++;
-                    relayStatusMap[url] = true;
-                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    
-                    // Fetch events that mention my pubkey (#p)
-                    let subId = "notifs-" + Math.random().toString(36).substring(2);
-                    socket.send(JSON.stringify([
-                        "REQ", 
-                        subId, 
-                        { "#p": [currentUserPubkey], "kinds": [1, 6, 7, 16], "limit": 50 }
-                    ]));
-                };
-
-                socket.onerror = function() { relayStatusMap[url] = false; };
-                socket.onclose = function() { relayStatusMap[url] = false; };
-
-                socket.onmessage = function(event) {
-                    try {
-                        let data = JSON.parse(event.data);
-                        if (data[0] === "EVENT" && data[2]) {
-                            let ev = data[2];
-
-                            // Ask profile cache
-                            if (!profileCache[ev.pubkey]) {
-                                profileCache[ev.pubkey] = { pending: true };
-                                activeSockets.forEach(sock => {
-                                    if (sock && sock.readyState === WebSocket.OPEN) {
-                                        sock.send(JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0,8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]));
-                                    }
-                                });
-                            }
-
-                            if (ev.kind === 0) {
-                                try {
-                                    let meta = JSON.parse(ev.content);
-                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
-                                    let rawName = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
-                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    
-                                    profileCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 8),
-                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                        picture: meta.picture || null,
-                                        pending: false
-                                    };
-                                    updatePostUI(ev.pubkey);
-                                } catch(e){}
-                            }
-                            
-                            // Render notification
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
-                                eventsCache[ev.id] = ev;
-                                renderNotification(ev);
-                            }
-                        }
-                    } catch (err) {}
-                };
-                activeSockets.push(socket);
-            });
+        // ================= UTILITIES & COPY FUNCTIONS =================
+        async function copyNote(eventId) {
+            try {
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                let noteId = nostrTools.nip19.noteEncode(eventId);
+                navigator.clipboard.writeText(`nostr:${noteId}`);
+                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`);
+            } catch (e) { alert('> ERROR: Failed to encode NIP-19 note.'); }
         }
 
-        function updatePostUI(pubkey) {
-            let info = profileCache[pubkey];
-            if (!info || info.pending) return;
-            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handle; });
-            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
-                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
+        function copyThreadLink(id) {
+            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+            let threadUrl = baseUrl + 'thread.html?id=' + id;
+            navigator.clipboard.writeText(threadUrl);
+            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
+        }
+
+        function copyRawJson() {
+            let textToCopy = rawEventContent.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("> SUCCESS: Raw JSON copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy:", err);
+                alert("> ERROR: Failed to copy to clipboard.");
             });
         }
 
@@ -529,13 +484,108 @@
             } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
+        // ================= NOTIFICATION LOGIC =================
+
+        function connectMultiRelays() {
+            let onlineCount = 0;
+            RELAYS.forEach(url => {
+                relayStatusMap[url] = false;
+                let socket = new WebSocket(url);
+
+                socket.onopen = function() {
+                    onlineCount++;
+                    relayStatusMap[url] = true;
+                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    
+                    // Fetch events that mention my pubkey (#p)
+                    let subId = "notifs-" + Math.random().toString(36).substring(2);
+                    socket.send(JSON.stringify([
+                        "REQ", 
+                        subId, 
+                        { "#p": [currentUserPubkey], "kinds": [1, 6, 7, 16], "limit": 50 }
+                    ]));
+                    
+                    // NIP-65 & Blossom Settings Sync (Silently to LocalStorage)
+                    socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
+                };
+
+                socket.onerror = function() { relayStatusMap[url] = false; };
+                socket.onclose = function() { relayStatusMap[url] = false; };
+
+                socket.onmessage = function(event) {
+                    try {
+                        let data = JSON.parse(event.data);
+                        if (data[0] === "EVENT" && data[2]) {
+                            let ev = data[2];
+                            
+                            // NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
+                                let userRelays = [];
+                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
+                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
+                            }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
+                                let userBlossom = [];
+                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
+                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
+                            }
+
+                            // Ask profile cache
+                            if (!profileCache[ev.pubkey]) {
+                                profileCache[ev.pubkey] = { pending: true };
+                                activeSockets.forEach(sock => {
+                                    if (sock && sock.readyState === WebSocket.OPEN) {
+                                        sock.send(JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0,8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]));
+                                    }
+                                });
+                            }
+
+                            if (ev.kind === 0) {
+                                try {
+                                    let meta = JSON.parse(ev.content);
+                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
+                                    let rawName = `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
+                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    
+                                    profileCache[ev.pubkey] = {
+                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 8),
+                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
+                                        picture: meta.picture || null,
+                                        pending: false
+                                    };
+                                    updatePostUI(ev.pubkey);
+                                } catch(e){}
+                            }
+                            
+                            // Render notification
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
+                                eventsCache[ev.id] = ev;
+                                renderNotification(ev);
+                            }
+                        }
+                    } catch (err) {}
+                };
+                activeSockets.push(socket);
+            });
+        }
+
+        function updatePostUI(pubkey) {
+            let info = profileCache[pubkey];
+            if (!info || info.pending) return;
+            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handle; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
+                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
+            });
+        }
+
         function renderNotification(ev) {
             if (document.getElementById(`notif-${ev.id}`)) return;
             if (ev.pubkey === currentUserPubkey) return;
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
             
-            // Perbaikan Race Condition: Jika profil belum loaded/pending, buat fallback string yang valid bukan undefined!
+            // Perbaikan Race Condition: Jika profil belum loaded/pending, buat fallback string yang valid
             let cached = profileCache[ev.pubkey];
             let info = (cached && !cached.pending) ? cached : { 
                 name: `Node_${shortPub}`, 
@@ -573,6 +623,8 @@
                 actionButtonsHtml = `
                     <a href="thread.html?id=${ev.id}" class="action-btn" title="View Thread" style="text-decoration:none;">[view_thread]</a>
                     <button class="action-btn" title="Quote/Reply" onclick="openQuoteModal('${ev.id}')">[reply]</button>
+                    <button class="action-btn" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
+                    <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                     <button class="action-btn" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>
                 `;
             } 

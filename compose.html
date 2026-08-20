@@ -214,6 +214,7 @@
 
     <script>
         let RELAYS = [];
+        let BLOSSOM_SERVERS = [];
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let relayStatusMap = {};
         let activeSockets = [];
@@ -246,7 +247,13 @@
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
-                RELAYS = config.relays || [];
+                
+                // NIP-65 & NIP-10063 Fallback Logic
+                let savedRelays = localStorage.getItem('phosphor_user_relays');
+                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 
                 await checkLocalSessions();
                 
@@ -469,7 +476,7 @@
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
                 navNotifBtn.classList.add('hidden');
-                editorContainer.classList.add('hidden'); // Hide editor to prompt unlock
+                editorContainer.classList.add('hidden'); 
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
                 navLoginBtn.classList.add('hidden');
@@ -485,7 +492,7 @@
                 logoutBtn.classList.add('hidden');
                 navBookmarkBtn.classList.add('hidden');
                 navNotifBtn.classList.add('hidden');
-                editorContainer.classList.add('hidden'); // Cannot write without login
+                editorContainer.classList.add('hidden'); 
             }
         }
 
@@ -514,20 +521,39 @@
                     onlineCount++;
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    
+                    if (currentUserPubkey) {
+                        socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
+                    }
                 };
 
                 socket.onerror = function() { relayStatusMap[url] = false; };
                 socket.onclose = function() { relayStatusMap[url] = false; };
                 
-                // If editing, listen for the event response
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);
-                        if (data[0] === "EVENT" && data[2] && data[2].kind === 30023) {
+                        if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-                            let dTag = ev.tags.find(t => t[0] === 'd');
-                            if (dTag && dTag[1] === editIdentifier && ev.pubkey === editAuthor) {
-                                populateForm(ev);
+                            
+                            // NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
+                                let userRelays = [];
+                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
+                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
+                            }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
+                                let userBlossom = [];
+                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
+                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
+                            }
+
+                            // Event listener for edit mode
+                            if (ev.kind === 30023) {
+                                let dTag = ev.tags.find(t => t[0] === 'd');
+                                if (dTag && dTag[1] === editIdentifier && ev.pubkey === editAuthor) {
+                                    populateForm(ev);
+                                }
                             }
                         }
                     } catch (e) {}
@@ -539,7 +565,7 @@
 
         // Auto-generate slug from title (only if not currently editing an existing slug)
         titleInput.addEventListener('input', function(e) {
-            if (editIdentifier) return; // Prevent overwriting slug if editing
+            if (editIdentifier) return; 
             let rawText = e.target.value.toLowerCase();
             let slug = rawText.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
             slugInput.value = slug;
@@ -554,7 +580,6 @@
             
             contentTextarea.value = contentTextarea.value.substring(0, start) + replacement + contentTextarea.value.substring(end);
             
-            // Set cursor position appropriately
             contentTextarea.focus();
             if (selectedText.length === 0) {
                 contentTextarea.selectionStart = contentTextarea.selectionEnd = start + prefix.length;
@@ -566,22 +591,19 @@
 
         function loadArticleForEditing(identifier, author) {
             publishBtn.textContent = '> UPDATE_ARTICLE';
-            slugInput.readOnly = true; // Lock slug to prevent accidental ID changes during edit
+            slugInput.readOnly = true; 
             slugInput.style.opacity = '0.5';
             
-            // Request the specific event from relays
             let req = JSON.stringify(["REQ", "edit-fetch", { "kinds": [30023], "authors": [author], "#d": [identifier], "limit": 1 }]);
             
-            // Send request once sockets open (or immediately if already open)
             setTimeout(() => {
                 activeSockets.forEach(sock => {
                     if (sock && sock.readyState === WebSocket.OPEN) sock.send(req);
                 });
-            }, 1000); // Small delay to ensure connections
+            }, 1000); 
         }
 
         function populateForm(ev) {
-            // Prevent overwriting if user already started typing before fetch completed
             if (titleInput.value !== "" && !editIdentifier) return; 
 
             contentTextarea.value = ev.content;
@@ -615,7 +637,6 @@
                 return;
             }
 
-            // Build Tags Array
             let tags = [
                 ["d", slug],
                 ["title", title],
