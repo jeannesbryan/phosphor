@@ -96,14 +96,14 @@
         <header>
             <h1>> Phosphor</h1>
             <nav>
-                <a href="index.html" style="color: var(--t-green, #00ff41);">[ TIMELINE ]</a>
-                <a href="profile.html">[ PROFILE ]</a>
-                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
-                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
-                <a href="#" id="navLoginBtn">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[ UNLOCK SESSION ]</a>
-                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
-                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+                <a href="index.html" style="color: var(--t-green, #00ff41);">[TIMELINE]</a>
+                <a href="profile.html">[PROFILE]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
+                <a href="#" id="navLoginBtn">[LOGIN]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[UNLOCK SESSION]</a>
+                <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
+                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
             </nav>
         </header>
 
@@ -116,12 +116,12 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
-                            <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video (Max 4)">[ MEDIA (0/4) ]</button>
+                            <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[ COMPOSE ]</a>
+                            <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[COMPOSE]</a>
                             <span style="opacity: 0.5;">|</span>
-                            <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">> BROADCAST_EVENT</button>
+                            <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">[PUBLISH]</button>
                         </div>
                     </div>
                 </div>
@@ -270,7 +270,8 @@
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="text-align: right; margin-top: 10px;">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
                 <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
@@ -595,7 +596,7 @@
             let files = Array.from(e.target.files);
             if (!files.length) return;
             
-            // Limit to max 4 files[cite: 14]
+            // Limit to max 4 files
             if (files.length > 4) {
                 alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
                 files = files.slice(0, 4);
@@ -810,6 +811,17 @@
             }
         }
         function closeRawModal() { rawModal.style.display = 'none'; }
+        
+        // ================= NEW RAW JSON COPY LOGIC =================
+        function copyRawJson() {
+            let textToCopy = rawEventContent.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("> SUCCESS: Raw JSON copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy:", err);
+                alert("> ERROR: Failed to copy to clipboard.");
+            });
+        }
 
         function openQuoteModal(eventId) {
             if (!currentUserPubkey || !window.nostr) {
@@ -1101,7 +1113,7 @@
                     contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
                     let mediaElements = [];
-                    // 1. Tangkap Media (Gambar/Video) - Multi Media Handling[cite: 14]
+                    // 1. Tangkap Media (Gambar/Video) - Multi Media Handling
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {

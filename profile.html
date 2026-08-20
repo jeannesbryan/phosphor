@@ -142,11 +142,11 @@
 
             <div class="profile-stats">
                 <div>
-                    <button class="interactive-stat" onclick="openRelayModal()">Relays: <strong id="relayCountText">0</strong></button>
-                    <span style="margin: 0 8px; opacity: 0.4;">|</span>
                     <button class="interactive-stat" onclick="openFollowingModal()">Following: <strong id="followingCountText">0</strong></button>
                     <span style="margin: 0 8px; opacity: 0.4;">|</span>
                     <button class="interactive-stat" onclick="openFollowersModal()">Followers: <strong id="followersCountText">0</strong></button>
+                    <span style="margin: 0 8px; opacity: 0.4;">|</span>
+                    <span style="opacity: 0.5;">Muted: <strong id="mutedCountText">0</strong></span>
                 </div>
                 <div>
                     <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast Profile">* BROADCAST_METADATA</button>
@@ -283,7 +283,6 @@
         </div>
     </div>
 
-    <!-- NEW: Followers Modal -->
     <div id="followersModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 12px;">> FOLLOWERS_LIST (<span id="modalFollowersCount">0</span>)</div>
@@ -300,7 +299,8 @@
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="text-align: right; margin-top: 10px;">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
                 <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
@@ -365,9 +365,10 @@
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         const broadcastProfileBtn = document.getElementById('broadcastProfileBtn');
         const followBtn = document.getElementById('followBtn');
-        const relayCountText = document.getElementById('relayCountText');
+        
         const followingCountText = document.getElementById('followingCountText');
         const followersCountText = document.getElementById('followersCountText');
+        const mutedCountText = document.getElementById('mutedCountText'); // NEW
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -398,11 +399,15 @@
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
-                RELAYS = config.relays || [];
-                BLOSSOM_SERVERS = config.blossom_servers || [];
+                
+                // Fallback Logic: Local Storage > Config JSON
+                let savedRelays = localStorage.getItem('phosphor_user_relays');
+                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 
                 await checkLocalSessions();
-                
                 initProfile();
             } catch (e) {
                 console.error("Failed to load config.json", e);
@@ -686,6 +691,25 @@
                 alert('> ERROR: Failed to encode NIP-19 naddr.'); 
             }
         }
+        
+        // ================= COPY LINK BUTTON =================
+        function copyThreadLink(id) {
+            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+            let threadUrl = baseUrl + 'thread.html?id=' + id;
+            navigator.clipboard.writeText(threadUrl);
+            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
+        }
+        
+        // ================= COPY RAW JSON BUTTON =================
+        function copyRawJson() {
+            let textToCopy = rawEventContent.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("> SUCCESS: Raw JSON copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy:", err);
+                alert("> ERROR: Failed to copy to clipboard.");
+            });
+        }
 
         function timeAgo(unixTimestamp) {
             let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
@@ -903,6 +927,7 @@
                     
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
+                    socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
                     
                     // Fetch followers using #p tag
@@ -910,6 +935,9 @@
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
+                        // Subskripsi otomatis Kind 10002 & 10063 milik user untuk ditanam ke Local Storage
+                        socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
+                        
                         if (!isMyProfile) {
                             socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
                         }
@@ -924,6 +952,25 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+
+                            // Catcher for NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
+                                let userRelays = [];
+                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
+                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
+                            }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
+                                let userBlossom = [];
+                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
+                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
+                            }
+
+                            // Catcher for Muted Lists (Kind 10000)
+                            if (ev.kind === 10000 && ev.pubkey === targetPubkey) {
+                                let mutedCount = 0;
+                                ev.tags.forEach(t => { if (t[0] === 'p') mutedCount++; });
+                                mutedCountText.textContent = mutedCount;
+                            }
 
                             // NIP-09 Delete Event processing
                             if (ev.kind === 5) {
@@ -1096,7 +1143,6 @@
 
         function updateRelayCounter(onlineCount) {
             relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-            relayCountText.textContent = onlineCount;
         }
 
         function triggerDebouncedRender() {
@@ -1207,6 +1253,7 @@
                                 <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
                                 <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${targetEv.pubkey}" class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
                             </div>
                             <div class="post-footer-meta">> long_form / via ${escapeHtml(clientName)}</div>
@@ -1249,6 +1296,7 @@
                                 <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q] quote</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
                             </div>
                             <div class="post-footer-meta">> pulse_event / via ${escapeHtml(clientName)}</div>
                         </div>
@@ -1299,6 +1347,7 @@
                                 <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
                                 <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
                                 <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
                                 <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${targetEv.id}')">[edit]</button>
                             </div>
                             <div class="post-footer-meta">> ${isJsonPayload ? 'telemetry_data' : 'text_note'} / via ${escapeHtml(clientName)}</div>
