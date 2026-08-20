@@ -23,6 +23,8 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Quote & Threading:** Quote messages and open discussion threads easily using a clean modal interface. Includes a one-click auto-copy button to generate interactive Thread links.
 *   **Multi-Relay Connection:** Pull and broadcast data across multiple relays independently and simultaneously.
 *   **Targeted Relay Explorer:** Click on any verified NIP-05 domain on a user's profile to instantly open a dedicated timeline isolated to that specific node/instance.
+*   **Mute / Block List (NIP-51):** Seamlessly block noisy nodes or spam with synchronized Muted Lists (Kind 10000) that automatically filter out unwanted content across devices.
+*   **Nomadic Network Preferences (NIP-65):** Automatically syncs and applies your custom relay network topology (Kind 10002) upon login, overriding static configurations for true portability.
 
 ## 🛠️ Installation & Usage
 Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.

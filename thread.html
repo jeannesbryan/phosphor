@@ -228,7 +228,8 @@
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
             <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="text-align: right; margin-top: 10px;">
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
                 <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
@@ -292,8 +293,13 @@
             try {
                 let res = await fetch('config.json');
                 let config = await res.json();
-                RELAYS = config.relays || [];
-                BLOSSOM_SERVERS = config.blossom_servers || [];
+                
+                // NIP-65 & NIP-10063 Fallback Logic
+                let savedRelays = localStorage.getItem('phosphor_user_relays');
+                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 
                 await checkLocalSessions();
                 
@@ -505,7 +511,7 @@
 
         // ================= END AUTH LOGIC =================
 
-        // ================= BOOKMARK LOGIC =================
+        // ================= UTILITIES & COPY FUNCTIONS =================
         async function toggleBookmark(eventId) {
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
             let isBookmarked = myBookmarks.has(eventId);
@@ -573,6 +579,23 @@
                 console.error(e);
                 alert('> ERROR: Failed to encode NIP-19 note.'); 
             }
+        }
+        
+        function copyThreadLink(id) {
+            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+            let threadUrl = baseUrl + 'thread.html?id=' + id;
+            navigator.clipboard.writeText(threadUrl);
+            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
+        }
+        
+        function copyRawJson() {
+            let textToCopy = rawEventContent.textContent;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                alert("> SUCCESS: Raw JSON copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy:", err);
+                alert("> ERROR: Failed to copy to clipboard.");
+            });
         }
 
         function fetchMyAvatar() {
@@ -752,6 +775,8 @@
                     
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
+                        // Sinkronisasi otomatis NIP-65 & Blossom Settings (Kind 10002 & 10063)
+                        socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                     }
                 };
 
@@ -764,6 +789,18 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
                             
+                            // Catcher for NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
+                                let userRelays = [];
+                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
+                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
+                            }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
+                                let userBlossom = [];
+                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
+                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
+                            }
+
                             // Handle NIP-09 Event Deletions in thread view
                             if (ev.kind === 5) {
                                 ev.tags.forEach(t => {
@@ -926,6 +963,7 @@
                     <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                     <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                     <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                    <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                     <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                 </div>
                 <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
@@ -1018,6 +1056,7 @@
                         <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                         <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
                         <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                        <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                         <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                     </div>
                     <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>

@@ -22,7 +22,8 @@
         .profile-banner img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
         
         .profile-header { display: flex; align-items: center; gap: 20px; margin-bottom: 15px; }
-        .profile-avatar { width: 80px; height: 80px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; font-size: 1.8em; font-weight: bold; flex-shrink: 0; overflow: hidden; background: var(--bg-base); }
+        .profile-avatar { width: 80px; height: 80px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; font-size: 1.8em; font-weight: bold; flex-shrink: 0; overflow: hidden; background: var(--bg-base); transition: opacity 0.2s; }
+        .profile-avatar:hover { opacity: 0.8; }
         .profile-avatar img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
         
         .profile-meta { min-width: 0; flex: 1; overflow: hidden; }
@@ -65,7 +66,7 @@
         
         .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
 
-        #lightboxModal, #quoteModal, #relayModal, #followingModal, #followersModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        #lightboxModal, #quoteModal, #relayModal, #followingModal, #followersModal, #mutedModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
         
         .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
@@ -124,7 +125,8 @@
                 <span style="opacity: 0.3; font-size: 0.8em;">[ NO_BANNER ]</span>
             </div>
             <div class="profile-header">
-                <div class="profile-avatar" id="profileAvatarBox">[...]</div>
+                <!-- Avatar is now zoomable if image exists -->
+                <div class="profile-avatar" id="profileAvatarBox" title="View Avatar">[...]</div>
                 <div class="profile-meta">
                     <h2 id="profileName">User Name</h2>
                     <div class="dim-text meta-line" id="profileHandle">@handle</div>
@@ -146,10 +148,13 @@
                     <span style="margin: 0 8px; opacity: 0.4;">|</span>
                     <button class="interactive-stat" onclick="openFollowersModal()">Followers: <strong id="followersCountText">0</strong></button>
                     <span style="margin: 0 8px; opacity: 0.4;">|</span>
-                    <span style="opacity: 0.5;">Muted: <strong id="mutedCountText">0</strong></span>
+                    <!-- Mutasi Muted List menjadi Interaktif -->
+                    <button class="interactive-stat" onclick="openMutedModal()">Muted: <strong id="mutedCountText">0</strong></button>
                 </div>
-                <div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="shareProfileBtn" class="sync-btn hidden" onclick="shareProfileUrl()" title="Share Profile URL">[SHARE_URL]</button>
                     <button id="broadcastProfileBtn" class="sync-btn hidden" title="Broadcast Profile">* BROADCAST_METADATA</button>
+                    <button id="muteBtn" class="sync-btn hidden" onclick="toggleMute()" style="border-color: #ff4141; color: #ff4141;">[MUTE]</button>
                     <button id="followBtn" class="sync-btn hidden" onclick="toggleFollow()">[FOLLOW]</button>
                 </div>
             </div>
@@ -294,6 +299,19 @@
             </div>
         </div>
     </div>
+    
+    <!-- MUTED Modal Baru -->
+    <div id="mutedModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> MUTED_LIST (<span id="modalMutedCount">0</span>)</div>
+            <div class="scrollable-list" id="mutedListContainer">
+                <p style="opacity: 0.5;">Loading muted data...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeMutedModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
 
     <div id="rawModal">
         <div class="modal-content-box" style="width: 95%; max-width: 600px;">
@@ -331,7 +349,12 @@
         
         let targetFollowingPubkeys = [];
         let targetFollowersPubkeys = [];
+        let targetMutedPubkeys = [];
+        
         let myFollowingPubkeys = [];
+        let myMutedPubkeys = [];
+        let myMuteEvent = null; // Menyimpan event asli untuk retain rule set yang lain
+        
         let followingProfilesCache = {};
 
         let metricsCache = {};
@@ -363,12 +386,15 @@
         const profileNip05Container = document.getElementById('profileNip05Container');
         const userPostsContainer = document.getElementById('user-posts-container');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
+        
         const broadcastProfileBtn = document.getElementById('broadcastProfileBtn');
+        const shareProfileBtn = document.getElementById('shareProfileBtn');
+        const muteBtn = document.getElementById('muteBtn');
         const followBtn = document.getElementById('followBtn');
         
         const followingCountText = document.getElementById('followingCountText');
         const followersCountText = document.getElementById('followersCountText');
-        const mutedCountText = document.getElementById('mutedCountText'); // NEW
+        const mutedCountText = document.getElementById('mutedCountText');
 
         const quoteModal = document.getElementById('quoteModal');
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
@@ -389,6 +415,10 @@
         const followersModal = document.getElementById('followersModal');
         const followersListContainer = document.getElementById('followersListContainer');
         const modalFollowersCount = document.getElementById('modalFollowersCount');
+
+        const mutedModal = document.getElementById('mutedModal');
+        const mutedListContainer = document.getElementById('mutedListContainer');
+        const modalMutedCount = document.getElementById('modalMutedCount');
 
         const rawModal = document.getElementById('rawModal');
         const rawEventContent = document.getElementById('rawEventContent');
@@ -642,6 +672,8 @@
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
 
+            shareProfileBtn.classList.remove('hidden');
+
             if (isLocked) {
                 navLoginBtn.classList.add('hidden');
                 logoutBtn.classList.add('hidden');
@@ -650,6 +682,7 @@
                 navNotifBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
                 broadcastProfileBtn.classList.add('hidden');
+                muteBtn.classList.add('hidden');
                 
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
@@ -658,8 +691,14 @@
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
                 navNotifBtn.classList.remove('hidden');
-                if (isMyProfile) broadcastProfileBtn.classList.remove('hidden');
-                else followBtn.classList.remove('hidden');
+                
+                if (isMyProfile) {
+                    broadcastProfileBtn.classList.remove('hidden');
+                } else {
+                    followBtn.classList.remove('hidden');
+                    muteBtn.classList.remove('hidden');
+                }
+                
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
                 document.getElementById('unlockModal').style.display = 'none';
             } else {
@@ -670,6 +709,7 @@
                 navNotifBtn.classList.add('hidden');
                 broadcastProfileBtn.classList.add('hidden');
                 followBtn.classList.add('hidden');
+                muteBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
@@ -692,7 +732,6 @@
             }
         }
         
-        // ================= COPY LINK BUTTON =================
         function copyThreadLink(id) {
             let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
             let threadUrl = baseUrl + 'thread.html?id=' + id;
@@ -700,7 +739,18 @@
             alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
         }
         
-        // ================= COPY RAW JSON BUTTON =================
+        // ================= SHARE PROFILE URL =================
+        function shareProfileUrl() {
+            let baseUrl = window.location.origin + window.location.pathname;
+            let profileUrl = baseUrl + '?pubkey=' + targetPubkey;
+            navigator.clipboard.writeText(profileUrl).then(() => {
+                alert("> SUCCESS: Profile URL copied to clipboard!\n\n" + profileUrl);
+            }).catch(err => {
+                console.error("Failed to copy:", err);
+                alert("> ERROR: Failed to copy to clipboard.");
+            });
+        }
+        
         function copyRawJson() {
             let textToCopy = rawEventContent.textContent;
             navigator.clipboard.writeText(textToCopy).then(() => {
@@ -811,6 +861,27 @@
             followersListContainer.innerHTML = html;
         }
 
+        // MUTED Modal Handlers
+        function openMutedModal() { renderMutedListUI(); mutedModal.style.display = 'flex'; }
+        function closeMutedModal() { mutedModal.style.display = 'none'; }
+
+        function renderMutedListUI() {
+            modalMutedCount.textContent = targetMutedPubkeys.length;
+            if (targetMutedPubkeys.length === 0) {
+                mutedListContainer.innerHTML = '<p style="opacity: 0.5;">No muted users found.</p>';
+                return;
+            }
+            let html = "";
+            targetMutedPubkeys.forEach(pk => {
+                let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
+                html += `<div class="following-item">
+                    <a href="profile.html?pubkey=${pk}" style="text-decoration:none; color:inherit;"><strong>${escapeHtml(info.name)}</strong></a>
+                    <span style="opacity: 0.6; font-size: 0.85em;">${escapeHtml(info.handle)}</span>
+                </div>`;
+            });
+            mutedListContainer.innerHTML = html;
+        }
+
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
 
         function updateMetricsUI(id) {
@@ -872,7 +943,7 @@
         async function toggleFollow() {
             if (!currentUserPubkey || !window.nostr) return;
             
-            followBtn.textContent = '...'; // Fast UI feedback
+            followBtn.textContent = '...'; 
 
             let isFollowing = myFollowingPubkeys.includes(targetPubkey);
             let newFollowing = [...myFollowingPubkeys];
@@ -896,6 +967,49 @@
             } catch(e) { 
                 alert('> ERROR: Failed to update contact list.'); 
                 followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; 
+            }
+        }
+
+        async function toggleMute() {
+            if (!currentUserPubkey || !window.nostr) return;
+            
+            muteBtn.textContent = '...'; 
+
+            let isMuted = myMutedPubkeys.includes(targetPubkey);
+            let tags = [];
+            
+            // Rebuild event using old rules to avoid wiping user preferences
+            if (myMuteEvent) {
+                myMuteEvent.tags.forEach(t => {
+                    if (t[0] !== 'p' || t[1] !== targetPubkey) {
+                        tags.push(t);
+                    }
+                });
+            }
+            
+            if (!isMuted) {
+                tags.push(["p", targetPubkey]);
+                myMutedPubkeys.push(targetPubkey);
+            } else {
+                myMutedPubkeys = myMutedPubkeys.filter(pk => pk !== targetPubkey);
+            }
+            
+            let rawEvent = { kind: 10000, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
+            
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                myMuteEvent = signedEvent;
+                
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
+                
+                muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]';
+                muteBtn.style.color = myMutedPubkeys.includes(targetPubkey) ? 'inherit' : '#ff4141';
+                muteBtn.style.borderColor = myMutedPubkeys.includes(targetPubkey) ? 'currentColor' : '#ff4141';
+                
+                alert(`> SUCCESS: Mute list network metadata updated!`);
+            } catch(e) { 
+                alert('> ERROR: Failed to update mute list.'); 
+                muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; 
             }
         }
 
@@ -935,8 +1049,10 @@
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
-                        // Subskripsi otomatis Kind 10002 & 10063 milik user untuk ditanam ke Local Storage
                         socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
+                        
+                        // Sync own Mute list if looking at other profile
+                        socket.send(JSON.stringify(["REQ", "my-mute-" + Math.random(), { "kinds": [10000], "authors": [currentUserPubkey], "limit": 1 }]));
                         
                         if (!isMyProfile) {
                             socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
@@ -966,10 +1082,30 @@
                             }
 
                             // Catcher for Muted Lists (Kind 10000)
-                            if (ev.kind === 10000 && ev.pubkey === targetPubkey) {
-                                let mutedCount = 0;
-                                ev.tags.forEach(t => { if (t[0] === 'p') mutedCount++; });
-                                mutedCountText.textContent = mutedCount;
+                            if (ev.kind === 10000) {
+                                if (ev.pubkey === targetPubkey) {
+                                    targetMutedPubkeys = [];
+                                    ev.tags.forEach(t => { if (t[0] === 'p') targetMutedPubkeys.push(t[1]); });
+                                    mutedCountText.textContent = targetMutedPubkeys.length;
+                                    
+                                    if (targetMutedPubkeys.length > 0) {
+                                        let subReq = JSON.stringify(["REQ", "muted-profiles", { "kinds": [0], "authors": targetMutedPubkeys }]);
+                                        activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
+                                    }
+                                }
+                                if (currentUserPubkey && ev.pubkey === currentUserPubkey) {
+                                    if (!myMuteEvent || ev.created_at >= myMuteEvent.created_at) {
+                                        myMuteEvent = ev;
+                                        myMutedPubkeys = [];
+                                        ev.tags.forEach(t => { if (t[0] === 'p') myMutedPubkeys.push(t[1]); });
+                                        
+                                        if (muteBtn && !isMyProfile) {
+                                            muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]';
+                                            muteBtn.style.color = myMutedPubkeys.includes(targetPubkey) ? 'inherit' : '#ff4141';
+                                            muteBtn.style.borderColor = myMutedPubkeys.includes(targetPubkey) ? 'currentColor' : '#ff4141';
+                                        }
+                                    }
+                                }
                             }
 
                             // NIP-09 Delete Event processing
@@ -985,7 +1121,7 @@
                             }
                             
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
-                                if (!myBookmarkEvent || ev.created_at > myBookmarkEvent.created_at) {
+                                if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
                                     myBookmarkEvent = ev;
                                     myBookmarks.clear();
                                     ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
@@ -1023,7 +1159,7 @@
                                 if (ev.pubkey === currentUserPubkey) {
                                     myFollowingPubkeys = [];
                                     ev.tags.forEach(t => { if (t[0] === "p") myFollowingPubkeys.push(t[1]); });
-                                    followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
+                                    if (followBtn && !isMyProfile) followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
                                 }
                             }
 
@@ -1042,6 +1178,7 @@
                                     
                                     if (followingModal.style.display === 'flex') renderFollowingListUI();
                                     if (followersModal.style.display === 'flex') renderFollowersListUI();
+                                    if (mutedModal.style.display === 'flex') renderMutedListUI();
                                     triggerDebouncedRender();
                                 } catch(e){}
                             }
@@ -1109,6 +1246,8 @@
                                     if (profileData.picture) {
                                         profileAvatarUrl = profileData.picture;
                                         profileAvatarBox.innerHTML = `<img src="${escapeHtml(profileData.picture)}" alt="Avatar">`;
+                                        profileAvatarBox.style.cursor = 'pointer';
+                                        profileAvatarBox.onclick = function() { openLightbox(profileAvatarUrl); };
                                     }
                                     if (profileData.banner) {
                                         profileBannerBox.innerHTML = `<img src="${escapeHtml(profileData.banner)}" alt="Banner">`;
