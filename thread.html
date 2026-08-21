@@ -40,6 +40,11 @@
         .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
         .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
 
+        .sport-card { border: 1px solid var(--t-green, #00ff41); border-left: 4px solid var(--t-green, #00ff41); padding: 12px; margin: 10px 0; background: rgba(0,255,65,0.05); }
+        .sport-header { font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; color: var(--t-green, #00ff41); }
+        .sport-metrics { font-family: monospace; font-size: 0.9em; margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .metric-badge { border: 1px dashed currentColor; padding: 2px 6px; }
+
         .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
         .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
@@ -770,12 +775,12 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20000, 20001, 20002], "ids": [postId] }]));
-                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 20000, 20001, 20002], "#e": [postId] }]));
+                    // Added kinds 30311 & 33400 to parse Activity/Telemetry events natively
+                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
+                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
                     
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
-                        // Sinkronisasi otomatis NIP-65 & Blossom Settings (Kind 10002 & 10063)
                         socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                     }
                 };
@@ -789,7 +794,6 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
                             
-                            // Catcher for NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
                             if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
                                 let userRelays = [];
                                 ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
@@ -801,7 +805,6 @@
                                 if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
                             }
 
-                            // Handle NIP-09 Event Deletions in thread view
                             if (ev.kind === 5) {
                                 ev.tags.forEach(t => {
                                     if (t[0] === 'e') {
@@ -825,7 +828,7 @@
                                 }
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) eventsCache[ev.id] = ev;
+                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) eventsCache[ev.id] = ev;
 
                             if (ev.kind === 0) {
                                 try {
@@ -845,7 +848,7 @@
                                 } catch(e){}
                             }
                             
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     profileCache[ev.pubkey] = { pending: true };
                                     let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
@@ -867,7 +870,7 @@
                                 });
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) {
                                 if (ev.id === postId) {
                                     parentEvent = ev;
                                     renderMainPost(ev);
@@ -883,6 +886,56 @@
             updateAuthState();
         }
 
+        // --- Common Parser Function for Events ---
+        function parseActivityData(ev) {
+            let isSportActivity = false;
+            let sportType = "UNKNOWN";
+            let sportMetrics = [];
+            let clientName = "unknown";
+            let hasExpiration = false;
+            let expTimeStr = "EPHEMERAL_STORY";
+            let parsedJsonContent = "";
+            let isJsonPayload = false;
+
+            if (ev.kind === 30311 || ev.kind === 33400) isSportActivity = true;
+
+            ev.tags.forEach(t => { 
+                if (t[0] === "client") clientName = t[1]; 
+                if (t[0] === "expiration") {
+                    hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
+                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
+                }
+                
+                // Track Sport Activity Tags
+                if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) {
+                    isSportActivity = true;
+                    if (sportType === "UNKNOWN") sportType = t[1].toUpperCase();
+                }
+                if (t[0] === "activity" || t[0] === "activity_type") { isSportActivity = true; sportType = t[1].toUpperCase(); }
+                if (t[0] === "distance") sportMetrics.push(`DIST: ${t[1]}`);
+                if (t[0] === "duration") sportMetrics.push(`TIME: ${t[1]}`);
+                if (t[0] === "pace" || t[0] === "speed") sportMetrics.push(`SPD: ${t[1]}`);
+            });
+
+            if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
+                try { 
+                    let parsedObj = JSON.parse(ev.content.trim());
+                    parsedJsonContent = JSON.stringify(parsedObj, null, 2); 
+                    isJsonPayload = true; 
+                    
+                    if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") {
+                        isSportActivity = true;
+                        sportType = (parsedObj.sport || parsedObj.activity || sportType).toString().toUpperCase();
+                    }
+                    if (parsedObj.distance) sportMetrics.push(`DIST: ${parsedObj.distance}`);
+                    if (parsedObj.duration) sportMetrics.push(`TIME: ${parsedObj.duration}`);
+                    if (parsedObj.heartrate) sportMetrics.push(`HR: ${parsedObj.heartrate} BPM`);
+                } catch (e) {}
+            }
+
+            return { isSportActivity, sportType, sportMetrics, clientName, hasExpiration, expTimeStr, isJsonPayload, parsedJsonContent };
+        }
+
         function renderMainPost(ev) {
             initMetrics(ev.id); requestMetrics(ev.id);
 
@@ -895,32 +948,25 @@
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
             
-            let clientName = "unknown";
-            let hasExpiration = false;
-            let expTimeStr = "EPHEMERAL_STORY";
-
-            ev.tags.forEach(t => { 
-                if (t[0] === "client") clientName = t[1]; 
-                if (t[0] === "expiration") {
-                    hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
-                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
-                }
-            });
-            
+            let parsed = parseActivityData(ev);
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-
-            let isJsonPayload = false; let parsedJsonContent = "";
-            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
-            }
+            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration);
             
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
             let contentHtml = ""; let mediaHtml = "";
 
-            if (isJsonPayload) {
-                contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+            if (parsed.isSportActivity) {
+                let metricsBadges = parsed.sportMetrics.length > 0 ? parsed.sportMetrics.map(m => `<span class="metric-badge">${escapeHtml(m)}</span>`).join('') : '<span class="metric-badge">NO_METRICS_FOUND</span>';
+                contentHtml = `
+                    <div class="sport-card">
+                        <div class="sport-header">> SPORT_TELEMETRY_LOG: ${escapeHtml(parsed.sportType)}</div>
+                        <div class="sport-metrics">${metricsBadges}</div>
+                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : `<div class="post-content">${escapeHtml(ev.content)}</div>`}
+                    </div>
+                `;
+            } else if (parsed.isJsonPayload) {
+                contentHtml = `<pre class="json-payload">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
@@ -931,18 +977,18 @@
                 });
                 
                 contentText = escapeHtml(contentText.trim());
-
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                     let href = url.replace(/&amp;/g, '&');
                     return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
                 });
-
                 contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
                 contentHtml = `<div class="main-post-content">${contentText}</div>`;
             }
+
+            let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
 
             mainPostContainer.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
@@ -952,7 +998,7 @@
                         <span class="dim-text meta-line" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
                     </div>
                 </div>
-                ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : ""}
+                ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
                 ${contentHtml}
                 ${mediaHtml}
                 <div class="post-actions">
@@ -966,7 +1012,7 @@
                     <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                     <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                 </div>
-                <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
+                <div class="post-footer-meta">> ${footerType} / via ${escapeHtml(parsed.clientName)}</div>
             `;
             updateMetricsUI(ev.id);
         }
@@ -985,32 +1031,25 @@
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
             
-            let clientName = "unknown";
-            let hasExpiration = false;
-            let expTimeStr = "EPHEMERAL_STORY";
-
-            ev.tags.forEach(t => { 
-                if (t[0] === "client") clientName = t[1]; 
-                if (t[0] === "expiration") {
-                    hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
-                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
-                }
-            });
-            
+            let parsed = parseActivityData(ev);
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-
-            let isJsonPayload = false; let parsedJsonContent = "";
-            if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
-            }
+            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration);
             
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
             let contentHtml = ""; let mediaHtml = "";
 
-            if (isJsonPayload) {
-                contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+            if (parsed.isSportActivity) {
+                let metricsBadges = parsed.sportMetrics.length > 0 ? parsed.sportMetrics.map(m => `<span class="metric-badge">${escapeHtml(m)}</span>`).join('') : '<span class="metric-badge">NO_METRICS_FOUND</span>';
+                contentHtml = `
+                    <div class="sport-card">
+                        <div class="sport-header">> SPORT_TELEMETRY_LOG: ${escapeHtml(parsed.sportType)}</div>
+                        <div class="sport-metrics">${metricsBadges}</div>
+                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : `<div class="post-content">${escapeHtml(ev.content)}</div>`}
+                    </div>
+                `;
+            } else if (parsed.isJsonPayload) {
+                contentHtml = `<pre class="json-payload">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
@@ -1021,12 +1060,10 @@
                 });
                 
                 contentText = escapeHtml(contentText.trim());
-
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                     let href = url.replace(/&amp;/g, '&');
                     return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
                 });
-
                 contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
@@ -1034,6 +1071,8 @@
                 contentHtml = `<div class="post-content">${contentText}</div>`;
             }
 
+            let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
+            
             let card = document.createElement('div');
             card.className = isPulse ? 'post-card pulse-card' : 'post-card';
             card.id = `reply-${ev.id}`;
@@ -1045,7 +1084,7 @@
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                         <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
                     </div>
-                    ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : ""}
+                    ${isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
                     ${contentHtml}
                     ${mediaHtml}
                     <div class="post-actions">
@@ -1059,7 +1098,7 @@
                         <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                         <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                     </div>
-                    <div class="post-footer-meta">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
+                    <div class="post-footer-meta">> ${footerType} / via ${escapeHtml(parsed.clientName)}</div>
                 </div>
             `;
             repliesContainer.appendChild(card);

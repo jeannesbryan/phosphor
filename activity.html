@@ -75,7 +75,7 @@
         </div>
 
         <div class="editor-section hidden" id="editorContainer">
-            <div class="editor-title">> ACTIVITY_TRACKER <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(GASPOOL GPX IMPORT)</span></div>
+            <div class="editor-title">> ACTIVITY_TRACKER <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(GPX IMPORT)</span></div>
 
             <div class="form-group">
                 <label class="form-label" for="gpxFileInput">GPX FILE <span style="color: var(--t-green, #00ff41);">*</span></label>
@@ -87,12 +87,15 @@
                     <label class="form-label" for="activityType">ACTIVITY TYPE <span style="color: var(--t-green, #00ff41);">*</span></label>
                     <select id="activityType" class="sys-select">
                         <option value="Cycling">Cycling</option>
-                        <option value="Running/Walk">Running / Walk</option>
+                        <option value="Running">Running</option>
+                        <option value="Walking">Walking</option>
+                        <option value="Hiking">Hiking</option>
+                        <option value="Swimming">Swimming</option>
                     </select>
                 </div>
                 <div style="flex: 1; min-width: 250px;">
                     <label class="form-label" for="activityTitle">TITLE <span class="form-hint">Optional</span></label>
-                    <input type="text" id="activityTitle" class="sys-input" placeholder="e.g., Morning Ride">
+                    <input type="text" id="activityTitle" class="sys-input" placeholder="e.g., Morning Session">
                 </div>
             </div>
 
@@ -110,6 +113,11 @@
                     <div class="stat-label">Duration</div>
                     <div class="stat-value" id="valDuration">00:00:00</div>
                 </div>
+                <!-- Dynamic Pace/Speed Box -->
+                <div class="stat-box">
+                    <div class="stat-label" id="lblPaceSpeed">Avg Speed</div>
+                    <div class="stat-value" id="valPaceSpeed">0.00</div>
+                </div>
                 <div class="stat-box">
                     <div class="stat-label">Elevation Gain</div>
                     <div class="stat-value" id="valElevation">0 m</div>
@@ -119,6 +127,9 @@
                     <div class="stat-value" id="valTimestamp">-</div>
                 </div>
             </div>
+            
+            <!-- Hidden field for storing detected client -->
+            <input type="hidden" id="detectedClient" value="Unknown Client">
 
             <div class="action-row">
                 <button type="button" class="action-btn" style="border-style: dashed; opacity: 0.7;" onclick="resetForm()">[ RESET ]</button>
@@ -205,7 +216,7 @@
     </div>
 
     <script>
-        // --- 1. CORE AUTH & RELAY LOGIC (Identical to compose.html) ---
+        // --- 1. CORE AUTH & RELAY LOGIC ---
         let RELAYS = [];
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let relayStatusMap = {};
@@ -272,10 +283,10 @@
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
-        document.getElementById('extLoginBtn').addEventListener('click', async () => { /* NIP-07 Login Logic */ location.reload(); });
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { /* NSEC Logic */ location.reload(); });
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { /* NCRYPTSEC Logic */ location.reload(); });
-        document.getElementById('unlockBtn').addEventListener('click', async () => { /* UNLOCK Logic */ location.reload(); });
+        document.getElementById('extLoginBtn').addEventListener('click', async () => { location.reload(); });
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { location.reload(); });
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { location.reload(); });
+        document.getElementById('unlockBtn').addEventListener('click', async () => { location.reload(); });
         
         function logoutFully() {
             localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp');
@@ -320,16 +331,15 @@
             });
         }
 
-
-        // --- 2. GPX PARSING & ACTIVITY LOGIC ---
+        // --- 2. GPX PARSING, PACE CALCULATION & ACTIVITY LOGIC ---
         
         const gpxInput = document.getElementById('gpxFileInput');
         const publishBtn = document.getElementById('publishBtn');
         const statsPreview = document.getElementById('statsPreviewContainer');
+        const activityTypeSelect = document.getElementById('activityType');
         
         let parsedActivityData = null;
 
-        // Haversine formula for distance calculation (returns km)
         function calculateDistance(lat1, lon1, lat2, lon2) {
             const R = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -341,13 +351,51 @@
             return R * c;
         }
 
-        // Format seconds to HH:MM:SS
         function formatDuration(seconds) {
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
             const s = Math.floor(seconds % 60);
             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
+
+        // Fungsi baru untuk kalkulasi Pace/Speed dinamis
+        function updatePaceSpeedDisplay(distanceKm, durationSeconds, exerciseType) {
+            let exercise = exerciseType.toLowerCase();
+            let displayStat = "";
+            let displayLabel = "";
+
+            if (exercise === 'cycling') {
+                const durationHours = durationSeconds / 3600;
+                const speed = (distanceKm / durationHours).toFixed(2);
+                displayStat = `${speed} km/h`;
+                displayLabel = "Avg Speed";
+            } else if (exercise === 'swimming') {
+                const distance100m = (distanceKm * 1000) / 100; 
+                const pacePer100m = (durationSeconds / 60) / distance100m;
+                const paceMins = Math.floor(pacePer100m);
+                const paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
+                displayStat = `${paceMins}:${paceSecs} /100m`;
+                displayLabel = "Avg Pace";
+            } else {
+                // Running, Walking, Hiking
+                const durationMinutes = durationSeconds / 60;
+                const paceDecimal = durationMinutes / distanceKm;
+                const paceMins = Math.floor(paceDecimal);
+                const paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
+                displayStat = `${paceMins}:${paceSecs} /km`;
+                displayLabel = "Avg Pace";
+            }
+
+            document.getElementById('lblPaceSpeed').innerText = displayLabel;
+            document.getElementById('valPaceSpeed').innerText = displayStat;
+        }
+
+        // Listener jika user mengganti jenis olahraga setelah file diupload
+        activityTypeSelect.addEventListener('change', function() {
+            if (parsedActivityData) {
+                updatePaceSpeedDisplay(parsedActivityData.distanceRaw, parsedActivityData.durationRaw, this.value);
+            }
+        });
 
         gpxInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -365,13 +413,17 @@
                     return;
                 }
 
+                // Ambil atribut creator dari <gpx> tag
+                const gpxNode = xmlDoc.getElementsByTagName("gpx")[0];
+                const clientName = gpxNode ? (gpxNode.getAttribute("creator") || "Unknown Client") : "Unknown Client";
+                document.getElementById('detectedClient').value = clientName;
+
                 let totalDistance = 0;
                 let totalElevation = 0;
                 
                 let startTime = new Date(trackPoints[0].getElementsByTagName("time")[0].textContent);
                 let endTime = new Date(trackPoints[trackPoints.length - 1].getElementsByTagName("time")[0].textContent);
                 
-                // Calculate duration in seconds
                 let durationSeconds = (endTime - startTime) / 1000;
 
                 for (let i = 0; i < trackPoints.length - 1; i++) {
@@ -394,13 +446,14 @@
                     }
                 }
 
-                // Store in memory
                 parsedActivityData = {
                     distance: totalDistance.toFixed(2),
+                    distanceRaw: totalDistance,
                     duration: formatDuration(durationSeconds),
                     durationRaw: durationSeconds,
                     elevation: totalElevation.toFixed(0),
-                    timestamp: Math.floor(startTime.getTime() / 1000)
+                    timestamp: Math.floor(startTime.getTime() / 1000),
+                    client: clientName
                 };
 
                 // Update UI Preview
@@ -409,13 +462,16 @@
                 document.getElementById('valElevation').innerText = parsedActivityData.elevation + " m";
                 document.getElementById('valTimestamp').innerText = startTime.toLocaleString();
                 
+                // Panggil logika update pace/speed
+                updatePaceSpeedDisplay(totalDistance, durationSeconds, activityTypeSelect.value);
+
                 statsPreview.classList.remove('hidden');
                 publishBtn.disabled = false;
                 publishBtn.style.opacity = '1';
                 
                 // Auto-fill title if empty
                 if(document.getElementById('activityTitle').value === "") {
-                    let actType = document.getElementById('activityType').value;
+                    let actType = activityTypeSelect.value;
                     document.getElementById('activityTitle').value = `${actType} Session`;
                 }
             };
@@ -426,6 +482,7 @@
             gpxInput.value = "";
             document.getElementById('activityTitle').value = "";
             document.getElementById('activityNote').value = "";
+            document.getElementById('detectedClient').value = "Unknown Client";
             statsPreview.classList.add('hidden');
             publishBtn.disabled = true;
             publishBtn.style.opacity = '0.5';
@@ -436,8 +493,9 @@
             if (!currentUserPubkey || !window.nostr || !parsedActivityData) return;
 
             const activityTitle = document.getElementById('activityTitle').value.trim();
-            const activityType = document.getElementById('activityType').value;
+            const activityType = activityTypeSelect.value;
             const notes = document.getElementById('activityNote').value.trim();
+            const clientApp = document.getElementById('detectedClient').value;
 
             // Nostr Activity / Workout Event (Custom Kind 1301)
             let tags = [
@@ -446,11 +504,11 @@
                 ["distance", parsedActivityData.distance, "km"],
                 ["duration", parsedActivityData.duration],
                 ["elevation_gain", parsedActivityData.elevation, "m"],
-                ["client", "Phosphor x Gaspool"]
+                ["client", clientApp] // <-- Sudah Dinamis!
             ];
 
             let rawEvent = {
-                kind: 1301, // Tracking/Workout stat
+                kind: 1301, 
                 created_at: Math.floor(Date.now() / 1000),
                 tags: tags,
                 content: notes || `Completed a ${parsedActivityData.distance} km ${activityType.toLowerCase()} in ${parsedActivityData.duration}.`,
@@ -470,7 +528,7 @@
                 });
 
                 if (sentCount > 0) {
-                    alert(`> SUCCESS: Activity Broadcasted to ${sentCount} relays!`);
+                    alert(`> SUCCESS: Activity Broadcasted to ${sentCount} relays via ${clientApp}!`);
                     window.location.href = `profile.html?pubkey=${currentUserPubkey}`;
                 } else {
                     alert('> ERROR: No relays connected to broadcast.');

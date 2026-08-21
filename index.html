@@ -1123,6 +1123,51 @@
                     if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
                 });
 
+                // --- NEW LOGIC FOR PACE/SPEED ---
+                let paceSpeedLabel = "Avg Pace";
+                let paceSpeedValue = "0:00 /km";
+                
+                try {
+                    let distNum = parseFloat(actDist);
+                    if (!isNaN(distNum) && actDur && distNum > 0) {
+                        let timeParts = actDur.split(':');
+                        let totalSeconds = 0;
+                        if (timeParts.length === 3) {
+                            totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
+                        } else if (timeParts.length === 2) {
+                            totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); // MM:SS fallback
+                        }
+
+                        if (totalSeconds > 0) {
+                            let exercise = actType.toLowerCase();
+                            const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling'];
+                            const waterSports = ['swimming'];
+
+                            if (speedSports.includes(exercise)) {
+                                let durationHours = totalSeconds / 3600;
+                                let speed = (distNum / durationHours).toFixed(2);
+                                paceSpeedValue = `${speed} km/h`;
+                                paceSpeedLabel = "Avg Speed";
+                            } else if (waterSports.includes(exercise)) {
+                                let distance100m = (distNum * 1000) / 100;
+                                let pacePer100m = (totalSeconds / 60) / distance100m;
+                                let paceMins = Math.floor(pacePer100m);
+                                let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
+                                paceSpeedValue = `${paceMins}:${paceSecs} /100m`;
+                                paceSpeedLabel = "Avg Pace";
+                            } else {
+                                let durationMinutes = totalSeconds / 60;
+                                let paceDecimal = durationMinutes / distNum;
+                                let paceMins = Math.floor(paceDecimal);
+                                let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
+                                paceSpeedValue = `${paceMins}:${paceSecs} /km`;
+                                paceSpeedLabel = "Avg Pace";
+                            }
+                        }
+                    }
+                } catch(e) {}
+                // --------------------------------
+
                 let iconStr = "[A]";
                 let tLower = actType.toLowerCase();
                 if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
@@ -1159,6 +1204,10 @@
                             <div class="metric-box" style="margin-right: 20px;">
                                 <div class="metric-value">${escapeHtml(actDur)}</div>
                                 <div class="metric-label">Duration</div>
+                            </div>
+                            <div class="metric-box" style="margin-right: 20px;">
+                                <div class="metric-value">${escapeHtml(paceSpeedValue)}</div>
+                                <div class="metric-label">${escapeHtml(paceSpeedLabel)}</div>
                             </div>
                             <div class="metric-box">
                                 <div class="metric-value">${escapeHtml(actEle)} <span class="metric-unit">${escapeHtml(actEleUnit)}</span></div>
