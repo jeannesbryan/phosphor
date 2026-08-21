@@ -25,6 +25,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Targeted Relay Explorer:** Click on any verified NIP-05 domain on a user's profile to instantly open a dedicated timeline isolated to that specific node/instance.
 *   **Mute / Block List (NIP-51):** Seamlessly block noisy nodes or spam with synchronized Muted Lists (Kind 10000) that automatically filter out unwanted content across devices.
 *   **Nomadic Network Preferences (NIP-65):** Automatically syncs and applies your custom relay network topology (Kind 10002) upon login, overriding static configurations for true portability.
+*   **Activity & Sport Telemetry Tracking:** Native rendering for outdoor fitness events (Kind 30311 & 33400). Automatically calculates Avg Pace or Avg Speed based on the activity type, acting as a decentralized, text-based alternative to Strava on the Nostr network.
 
 ## 🛠️ Installation & Usage
 Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no dependency hell, compilation, or complex backend setup required.

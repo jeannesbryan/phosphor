@@ -40,10 +40,18 @@
         .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
         .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
 
-        .sport-card { border: 1px solid var(--t-green, #00ff41); border-left: 4px solid var(--t-green, #00ff41); padding: 12px; margin: 10px 0; background: rgba(0,255,65,0.05); }
-        .sport-header { font-weight: bold; margin-bottom: 8px; letter-spacing: 1px; color: var(--t-green, #00ff41); }
-        .sport-metrics { font-family: monospace; font-size: 0.9em; margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 10px; }
-        .metric-badge { border: 1px dashed currentColor; padding: 2px 6px; }
+        /* ACTIVITY TRACKER STYLES */
+        .activity-card { border: 2px dashed var(--t-green, #00ff41); background: rgba(0,255,65,0.02); }
+        .activity-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; }
+        .activity-icon { font-size: 1.5em; border: 1px solid currentColor; padding: 5px 10px; background: var(--bg-base); }
+        .activity-title { font-size: 1.2em; font-weight: bold; text-transform: uppercase; }
+        .activity-type { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+        .activity-metrics { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+        .metric-box { display: flex; flex-direction: column; }
+        .metric-value { font-size: 1.4em; font-weight: bold; }
+        .metric-value.large { font-size: 2.5em; color: var(--t-green, #00ff41); line-height: 1; }
+        .metric-unit { font-size: 0.5em; opacity: 0.8; font-weight: normal; vertical-align: baseline; }
+        .metric-label { font-size: 0.7em; opacity: 0.6; text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
 
         .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
         .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
@@ -775,7 +783,6 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    // Added kinds 30311 & 33400 to parse Activity/Telemetry events natively
                     socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
                     socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
                     
@@ -889,15 +896,18 @@
         // --- Common Parser Function for Events ---
         function parseActivityData(ev) {
             let isSportActivity = false;
-            let sportType = "UNKNOWN";
-            let sportMetrics = [];
+            let actTitle = "Workout";
+            let actType = "Activity";
+            let actDist = "0"; let actDistUnit = "km";
+            let actDur = "00:00:00";
+            let actEle = "0"; let actEleUnit = "m";
             let clientName = "unknown";
             let hasExpiration = false;
             let expTimeStr = "EPHEMERAL_STORY";
             let parsedJsonContent = "";
             let isJsonPayload = false;
 
-            if (ev.kind === 30311 || ev.kind === 33400) isSportActivity = true;
+            if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) isSportActivity = true;
 
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
@@ -906,15 +916,14 @@
                     expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
                 }
                 
-                // Track Sport Activity Tags
+                if (t[0] === "title") actTitle = t[1];
+                if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; }
                 if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) {
                     isSportActivity = true;
-                    if (sportType === "UNKNOWN") sportType = t[1].toUpperCase();
                 }
-                if (t[0] === "activity" || t[0] === "activity_type") { isSportActivity = true; sportType = t[1].toUpperCase(); }
-                if (t[0] === "distance") sportMetrics.push(`DIST: ${t[1]}`);
-                if (t[0] === "duration") sportMetrics.push(`TIME: ${t[1]}`);
-                if (t[0] === "pace" || t[0] === "speed") sportMetrics.push(`SPD: ${t[1]}`);
+                if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; }
+                if (t[0] === "duration") actDur = t[1];
+                if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
             });
 
             if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
@@ -925,15 +934,58 @@
                     
                     if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") {
                         isSportActivity = true;
-                        sportType = (parsedObj.sport || parsedObj.activity || sportType).toString().toUpperCase();
+                        actType = (parsedObj.sport || parsedObj.activity || actType);
                     }
-                    if (parsedObj.distance) sportMetrics.push(`DIST: ${parsedObj.distance}`);
-                    if (parsedObj.duration) sportMetrics.push(`TIME: ${parsedObj.duration}`);
-                    if (parsedObj.heartrate) sportMetrics.push(`HR: ${parsedObj.heartrate} BPM`);
+                    if (parsedObj.title) actTitle = parsedObj.title;
+                    if (parsedObj.distance) actDist = parsedObj.distance;
+                    if (parsedObj.duration) actDur = parsedObj.duration;
+                    if (parsedObj.heartrate) { actEle = parsedObj.heartrate; actEleUnit = "bpm"; }
                 } catch (e) {}
             }
 
-            return { isSportActivity, sportType, sportMetrics, clientName, hasExpiration, expTimeStr, isJsonPayload, parsedJsonContent };
+            let paceSpeedLabel = "Avg Pace";
+            let paceSpeedValue = "0:00 /km";
+            try {
+                let distNum = parseFloat(actDist);
+                if (!isNaN(distNum) && actDur && distNum > 0) {
+                    let timeParts = actDur.split(':');
+                    let totalSeconds = 0;
+                    if (timeParts.length === 3) {
+                        totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
+                    } else if (timeParts.length === 2) {
+                        totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); // MM:SS fallback
+                    }
+
+                    if (totalSeconds > 0) {
+                        let exercise = actType.toLowerCase();
+                        const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling'];
+                        const waterSports = ['swimming'];
+
+                        if (speedSports.includes(exercise)) {
+                            let durationHours = totalSeconds / 3600;
+                            let speed = (distNum / durationHours).toFixed(2);
+                            paceSpeedValue = `${speed} km/h`;
+                            paceSpeedLabel = "Avg Speed";
+                        } else if (waterSports.includes(exercise)) {
+                            let distance100m = (distNum * 1000) / 100;
+                            let pacePer100m = (totalSeconds / 60) / distance100m;
+                            let paceMins = Math.floor(pacePer100m);
+                            let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
+                            paceSpeedValue = `${paceMins}:${paceSecs} /100m`;
+                            paceSpeedLabel = "Avg Pace";
+                        } else {
+                            let durationMinutes = totalSeconds / 60;
+                            let paceDecimal = durationMinutes / distNum;
+                            let paceMins = Math.floor(paceDecimal);
+                            let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
+                            paceSpeedValue = `${paceMins}:${paceSecs} /km`;
+                            paceSpeedLabel = "Avg Pace";
+                        }
+                    }
+                }
+            } catch(e) {}
+
+            return { isSportActivity, actTitle, actType, actDist, actDistUnit, actDur, actEle, actEleUnit, paceSpeedLabel, paceSpeedValue, clientName, hasExpiration, expTimeStr, isJsonPayload, parsedJsonContent };
         }
 
         function renderMainPost(ev) {
@@ -957,12 +1009,42 @@
             let contentHtml = ""; let mediaHtml = "";
 
             if (parsed.isSportActivity) {
-                let metricsBadges = parsed.sportMetrics.length > 0 ? parsed.sportMetrics.map(m => `<span class="metric-badge">${escapeHtml(m)}</span>`).join('') : '<span class="metric-badge">NO_METRICS_FOUND</span>';
+                let iconStr = "[A]";
+                let tLower = parsed.actType.toLowerCase();
+                if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
+                else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
+                
+                let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
+
                 contentHtml = `
-                    <div class="sport-card">
-                        <div class="sport-header">> SPORT_TELEMETRY_LOG: ${escapeHtml(parsed.sportType)}</div>
-                        <div class="sport-metrics">${metricsBadges}</div>
-                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : `<div class="post-content">${escapeHtml(ev.content)}</div>`}
+                    <div class="activity-card" style="padding: 15px; margin: 15px 0;">
+                        <div class="activity-header">
+                            <div class="activity-icon">${iconStr}</div>
+                            <div>
+                                <div class="activity-title">${escapeHtml(parsed.actTitle)}</div>
+                                <div class="activity-type">${escapeHtml(parsed.actType)}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-metrics">
+                            <div class="metric-box" style="flex: 1 1 100%;">
+                                <div class="metric-value large">${escapeHtml(parsed.actDist)} <span class="metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
+                                <div class="metric-label">Distance</div>
+                            </div>
+                            <div class="metric-box" style="margin-right: 20px;">
+                                <div class="metric-value">${escapeHtml(parsed.actDur)}</div>
+                                <div class="metric-label">Duration</div>
+                            </div>
+                            <div class="metric-box" style="margin-right: 20px;">
+                                <div class="metric-value">${escapeHtml(parsed.paceSpeedValue)}</div>
+                                <div class="metric-label">${escapeHtml(parsed.paceSpeedLabel)}</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-value">${escapeHtml(parsed.actEle)} <span class="metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
+                                <div class="metric-label">${eleLabel}</div>
+                            </div>
+                        </div>
+                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (ev.content.trim() ? `<div class="main-post-content">${escapeHtml(ev.content)}</div>` : '')}
                     </div>
                 `;
             } else if (parsed.isJsonPayload) {
@@ -1040,13 +1122,41 @@
             let contentHtml = ""; let mediaHtml = "";
 
             if (parsed.isSportActivity) {
-                let metricsBadges = parsed.sportMetrics.length > 0 ? parsed.sportMetrics.map(m => `<span class="metric-badge">${escapeHtml(m)}</span>`).join('') : '<span class="metric-badge">NO_METRICS_FOUND</span>';
+                let iconStr = "[A]";
+                let tLower = parsed.actType.toLowerCase();
+                if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
+                else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
+
+                let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
+
                 contentHtml = `
-                    <div class="sport-card">
-                        <div class="sport-header">> SPORT_TELEMETRY_LOG: ${escapeHtml(parsed.sportType)}</div>
-                        <div class="sport-metrics">${metricsBadges}</div>
-                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : `<div class="post-content">${escapeHtml(ev.content)}</div>`}
+                    <div class="activity-header" style="margin-top: 10px;">
+                        <div class="activity-icon">${iconStr}</div>
+                        <div>
+                            <div class="activity-title">${escapeHtml(parsed.actTitle)}</div>
+                            <div class="activity-type">${escapeHtml(parsed.actType)}</div>
+                        </div>
                     </div>
+                    
+                    <div class="activity-metrics">
+                        <div class="metric-box" style="flex: 1 1 100%;">
+                            <div class="metric-value large">${escapeHtml(parsed.actDist)} <span class="metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
+                            <div class="metric-label">Distance</div>
+                        </div>
+                        <div class="metric-box" style="margin-right: 20px;">
+                            <div class="metric-value">${escapeHtml(parsed.actDur)}</div>
+                            <div class="metric-label">Duration</div>
+                        </div>
+                        <div class="metric-box" style="margin-right: 20px;">
+                            <div class="metric-value">${escapeHtml(parsed.paceSpeedValue)}</div>
+                            <div class="metric-label">${escapeHtml(parsed.paceSpeedLabel)}</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-value">${escapeHtml(parsed.actEle)} <span class="metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
+                            <div class="metric-label">${eleLabel}</div>
+                        </div>
+                    </div>
+                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (ev.content.trim() ? `<div class="post-content">${escapeHtml(ev.content)}</div>` : '')}
                 `;
             } else if (parsed.isJsonPayload) {
                 contentHtml = `<pre class="json-payload">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
@@ -1074,7 +1184,7 @@
             let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
             
             let card = document.createElement('div');
-            card.className = isPulse ? 'post-card pulse-card' : 'post-card';
+            card.className = parsed.isSportActivity ? 'post-card activity-card' : (isPulse ? 'post-card pulse-card' : 'post-card');
             card.id = `reply-${ev.id}`;
 
             card.innerHTML = `
