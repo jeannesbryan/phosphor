@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Phosphor - Activity Tracker</title>
+    
+    <meta name="description" content="Phosphor Activity - Parse GPX and broadcast sports tracking stats to the Nostr network.">
+    
+    <link rel="stylesheet" href="/assets/terminal.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
+    <link rel="manifest" href="/assets/site.webmanifest">
+    
+    <style>
+        .container { max-width: 800px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        
+        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
+        nav a { text-decoration: none !important; color: inherit; }
+        nav a:hover { color: var(--t-green, #00ff41); }
+        
+        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
+        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        .editor-section { border: 2px dashed currentColor; padding: 20px; margin-bottom: 20px; }
+        .editor-title { font-weight: bold; margin-bottom: 20px; font-size: 1.2em; text-transform: uppercase; }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; margin-bottom: 5px; font-weight: bold; opacity: 0.9; font-size: 0.9em; }
+        .form-hint { font-size: 0.75em; opacity: 0.6; margin-left: 5px; font-weight: normal; }
+        
+        .sys-input, .sys-select, .sys-textarea { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: 1px solid currentColor; padding: 10px; font-family: inherit; outline: none; word-wrap: break-word; overflow-wrap: anywhere; }
+        .sys-input:focus, .sys-select:focus, .sys-textarea:focus { border-color: var(--t-green, #00ff41); box-shadow: 0 0 5px rgba(0,255,65,0.2); }
+        .sys-input, .sys-select { border-style: dashed; border-top: none; border-left: none; border-right: none; }
+        .sys-select option { background: var(--bg-base, #030303); color: inherit; }
+        
+        .stats-preview { background: rgba(0,255,65,0.05); border: 1px dashed var(--t-green, #00ff41); padding: 15px; margin-top: 15px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        .stat-box { border-left: 2px solid currentColor; padding-left: 10px; }
+        .stat-label { font-size: 0.7em; opacity: 0.7; text-transform: uppercase; }
+        .stat-value { font-size: 1.2em; font-weight: bold; margin-top: 5px; }
+
+        .action-row { display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
+        .action-btn { background: transparent; color: inherit; border: 1px solid currentColor; cursor: pointer; font-family: inherit; padding: 8px 15px; text-decoration: none; font-weight: bold; font-size: 1em; text-transform: uppercase; }
+        .action-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
+
+        #relayModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
+        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
+        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
+        .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
+    </style>
+</head>
+<body class="terminal t-crt">
+    <div class="container">
+        <header>
+            <h1>> Phosphor</h1>
+            <nav>
+                <a href="index.html">[ TIMELINE ]</a>
+                <a href="profile.html">[ PROFILE ]</a>
+                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
+                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
+                <a href="compose.html">[ COMPOSE ]</a>
+                <a href="activity.html" style="color: var(--t-green, #00ff41);">[ ACTIVITY ]</a>
+                <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
+                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
+                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
+                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+            </nav>
+        </header>
+
+        <div style="margin-bottom: 15px;">
+            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
+        </div>
+
+        <div class="editor-section hidden" id="editorContainer">
+            <div class="editor-title">> ACTIVITY_TRACKER <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(GASPOOL GPX IMPORT)</span></div>
+
+            <div class="form-group">
+                <label class="form-label" for="gpxFileInput">GPX FILE <span style="color: var(--t-green, #00ff41);">*</span></label>
+                <input type="file" id="gpxFileInput" class="sys-input" accept=".gpx">
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <label class="form-label" for="activityType">ACTIVITY TYPE <span style="color: var(--t-green, #00ff41);">*</span></label>
+                    <select id="activityType" class="sys-select">
+                        <option value="Cycling">Cycling</option>
+                        <option value="Running/Walk">Running / Walk</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 250px;">
+                    <label class="form-label" for="activityTitle">TITLE <span class="form-hint">Optional</span></label>
+                    <input type="text" id="activityTitle" class="sys-input" placeholder="e.g., Morning Ride">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="activityNote">NOTES / CAPTION <span class="form-hint">Optional</span></label>
+                <textarea id="activityNote" class="sys-textarea" style="min-height: 80px;" placeholder="How did it feel?"></textarea>
+            </div>
+
+            <div id="statsPreviewContainer" class="stats-preview hidden">
+                <div class="stat-box">
+                    <div class="stat-label">Total Distance</div>
+                    <div class="stat-value" id="valDistance">0.00 km</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Duration</div>
+                    <div class="stat-value" id="valDuration">00:00:00</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Elevation Gain</div>
+                    <div class="stat-value" id="valElevation">0 m</div>
+                </div>
+                <div class="stat-box" style="display:none;">
+                    <div class="stat-label">Start Time</div>
+                    <div class="stat-value" id="valTimestamp">-</div>
+                </div>
+            </div>
+
+            <div class="action-row">
+                <button type="button" class="action-btn" style="border-style: dashed; opacity: 0.7;" onclick="resetForm()">[ RESET ]</button>
+                <button type="button" id="publishBtn" class="action-btn" disabled style="opacity: 0.5;">> BROADCAST_ACTIVITY</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals (Exactly as in compose.html) -->
+    <!-- AUTH/LOGIN MODAL -->
+    <div id="loginModal">
+        <div class="modal-content-box" style="max-width: 450px;">
+            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+            
+            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
+                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            </div>
+
+            <div id="viewExt">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension.</p>
+                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+            </div>
+
+            <div id="viewNsec" class="hidden">
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
+                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
+                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
+                </div>
+                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
+            </div>
+
+            <div id="viewNcryptsec" class="hidden">
+                <div style="margin-bottom: 10px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
+                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
+                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
+                </div>
+                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
+            </div>
+
+            <div style="text-align: right; margin-top: 15px;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UNLOCK MODAL -->
+    <div id="unlockModal">
+        <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
+            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
+            <div style="margin-bottom: 15px;">
+                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
+                <div>
+                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Relay Modal -->
+    <div id="relayModal">
+        <div class="modal-content-box">
+            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" style="margin-bottom: 15px;">
+                <p style="opacity: 0.5;">Checking network connections...</p>
+            </div>
+            <div style="text-align: right;">
+                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CORE AUTH & RELAY LOGIC (Identical to compose.html) ---
+        let RELAYS = [];
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
+        let relayStatusMap = {};
+        let activeSockets = [];
+
+        const navLoginBtn = document.getElementById('navLoginBtn');
+        const navUnlockBtn = document.getElementById('navUnlockBtn');
+        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
+        const navNotifBtn = document.getElementById('navNotifBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const relayStatusBtn = document.getElementById('relayStatusBtn');
+        const relayModal = document.getElementById('relayModal');
+        const relayListContainer = document.getElementById('relayListContainer');
+        const editorContainer = document.getElementById('editorContainer');
+        
+        async function loadConfig() {
+            try {
+                let res = await fetch('config.json');
+                let config = await res.json();
+                let savedRelays = localStorage.getItem('phosphor_user_relays');
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                
+                await checkLocalSessions();
+                updateAuthState();
+                connectMultiRelays();
+            } catch (e) { console.error("Config missing"); }
+        }
+
+        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
+            window.nostr = {
+                getPublicKey: async () => pubkeyHex,
+                signEvent: async (eventTemplate) => nostrTools.finalizeEvent(eventTemplate, secretKeyBytes)
+            };
+        }
+
+        async function checkLocalSessions() {
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp');
+            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
+            if (rawHex && currentUserPubkey) {
+                try {
+                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
+                } catch(e) {}
+            } else if (savedNcryptsec && !window.nostr && !rawHex) {
+                currentUserPubkey = null;
+                localStorage.removeItem('phosphor_pubkey');
+            }
+        }
+
+        function switchLoginTab(tab) {
+            document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewNsec').classList.add('hidden');
+            document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabNsec').style.border = "none";
+            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').style.border = "1px solid currentColor"; }
+            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').style.border = "1px solid currentColor"; }
+            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').style.border = "1px solid currentColor"; }
+        }
+
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+        document.getElementById('extLoginBtn').addEventListener('click', async () => { /* NIP-07 Login Logic */ location.reload(); });
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { /* NSEC Logic */ location.reload(); });
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { /* NCRYPTSEC Logic */ location.reload(); });
+        document.getElementById('unlockBtn').addEventListener('click', async () => { /* UNLOCK Logic */ location.reload(); });
+        
+        function logoutFully() {
+            localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp');
+            location.reload();
+        }
+        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
+
+        function updateAuthState() {
+            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
+            if (isLocked) {
+                navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden');
+                editorContainer.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex';
+            } else if (currentUserPubkey) {
+                navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden');
+                editorContainer.classList.remove('hidden'); document.getElementById('unlockModal').style.display = 'none';
+            } else {
+                navLoginBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); 
+            }
+        }
+
+        function openRelayModal() {
+            let htmlContent = "";
+            RELAYS.forEach(url => {
+                let isOnline = relayStatusMap[url] === true;
+                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor; opacity: 0.6;">[OFFLINE]</span>';
+                htmlContent += `<div class="relay-item"><span>${url}</span> ${statusBadge}</div>`;
+            });
+            relayListContainer.innerHTML = htmlContent;
+            relayModal.style.display = 'flex';
+        }
+        function closeRelayModal() { relayModal.style.display = 'none'; }
+
+        function connectMultiRelays() {
+            let onlineCount = 0;
+            RELAYS.forEach(url => {
+                relayStatusMap[url] = false;
+                let socket = new WebSocket(url);
+                socket.onopen = function() { onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`; };
+                socket.onerror = function() { relayStatusMap[url] = false; };
+                socket.onclose = function() { relayStatusMap[url] = false; };
+                activeSockets.push(socket);
+            });
+        }
+
+
+        // --- 2. GPX PARSING & ACTIVITY LOGIC ---
+        
+        const gpxInput = document.getElementById('gpxFileInput');
+        const publishBtn = document.getElementById('publishBtn');
+        const statsPreview = document.getElementById('statsPreviewContainer');
+        
+        let parsedActivityData = null;
+
+        // Haversine formula for distance calculation (returns km)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Format seconds to HH:MM:SS
+        function formatDuration(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        gpxInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const gpxText = event.target.result;
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(gpxText, "text/xml");
+
+                const trackPoints = xmlDoc.getElementsByTagName("trkpt");
+                if (trackPoints.length === 0) {
+                    alert("> ERROR: No tracking points found in this GPX file.");
+                    return;
+                }
+
+                let totalDistance = 0;
+                let totalElevation = 0;
+                
+                let startTime = new Date(trackPoints[0].getElementsByTagName("time")[0].textContent);
+                let endTime = new Date(trackPoints[trackPoints.length - 1].getElementsByTagName("time")[0].textContent);
+                
+                // Calculate duration in seconds
+                let durationSeconds = (endTime - startTime) / 1000;
+
+                for (let i = 0; i < trackPoints.length - 1; i++) {
+                    let p1 = trackPoints[i];
+                    let p2 = trackPoints[i+1];
+                    
+                    let lat1 = parseFloat(p1.getAttribute("lat"));
+                    let lon1 = parseFloat(p1.getAttribute("lon"));
+                    let lat2 = parseFloat(p2.getAttribute("lat"));
+                    let lon2 = parseFloat(p2.getAttribute("lon"));
+                    
+                    totalDistance += calculateDistance(lat1, lon1, lat2, lon2);
+
+                    let ele1 = p1.getElementsByTagName("ele")[0];
+                    let ele2 = p2.getElementsByTagName("ele")[0];
+                    
+                    if (ele1 && ele2) {
+                        let diff = parseFloat(ele2.textContent) - parseFloat(ele1.textContent);
+                        if (diff > 0) totalElevation += diff;
+                    }
+                }
+
+                // Store in memory
+                parsedActivityData = {
+                    distance: totalDistance.toFixed(2),
+                    duration: formatDuration(durationSeconds),
+                    durationRaw: durationSeconds,
+                    elevation: totalElevation.toFixed(0),
+                    timestamp: Math.floor(startTime.getTime() / 1000)
+                };
+
+                // Update UI Preview
+                document.getElementById('valDistance').innerText = parsedActivityData.distance + " km";
+                document.getElementById('valDuration').innerText = parsedActivityData.duration;
+                document.getElementById('valElevation').innerText = parsedActivityData.elevation + " m";
+                document.getElementById('valTimestamp').innerText = startTime.toLocaleString();
+                
+                statsPreview.classList.remove('hidden');
+                publishBtn.disabled = false;
+                publishBtn.style.opacity = '1';
+                
+                // Auto-fill title if empty
+                if(document.getElementById('activityTitle').value === "") {
+                    let actType = document.getElementById('activityType').value;
+                    document.getElementById('activityTitle').value = `${actType} Session`;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function resetForm() {
+            gpxInput.value = "";
+            document.getElementById('activityTitle').value = "";
+            document.getElementById('activityNote').value = "";
+            statsPreview.classList.add('hidden');
+            publishBtn.disabled = true;
+            publishBtn.style.opacity = '0.5';
+            parsedActivityData = null;
+        }
+
+        publishBtn.addEventListener('click', async function() {
+            if (!currentUserPubkey || !window.nostr || !parsedActivityData) return;
+
+            const activityTitle = document.getElementById('activityTitle').value.trim();
+            const activityType = document.getElementById('activityType').value;
+            const notes = document.getElementById('activityNote').value.trim();
+
+            // Nostr Activity / Workout Event (Custom Kind 1301)
+            let tags = [
+                ["title", activityTitle || `${activityType} Workout`],
+                ["activity_type", activityType.toLowerCase()],
+                ["distance", parsedActivityData.distance, "km"],
+                ["duration", parsedActivityData.duration],
+                ["elevation_gain", parsedActivityData.elevation, "m"],
+                ["client", "Phosphor x Gaspool"]
+            ];
+
+            let rawEvent = {
+                kind: 1301, // Tracking/Workout stat
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: notes || `Completed a ${parsedActivityData.distance} km ${activityType.toLowerCase()} in ${parsedActivityData.duration}.`,
+                pubkey: currentUserPubkey
+            };
+
+            try {
+                publishBtn.textContent = '> SIGNING...';
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                
+                let sentCount = 0;
+                activeSockets.forEach(sock => {
+                    if (sock && sock.readyState === WebSocket.OPEN) {
+                        sock.send(JSON.stringify(["EVENT", signedEvent]));
+                        sentCount++;
+                    }
+                });
+
+                if (sentCount > 0) {
+                    alert(`> SUCCESS: Activity Broadcasted to ${sentCount} relays!`);
+                    window.location.href = `profile.html?pubkey=${currentUserPubkey}`;
+                } else {
+                    alert('> ERROR: No relays connected to broadcast.');
+                    publishBtn.textContent = '> BROADCAST_ACTIVITY';
+                }
+            } catch (err) {
+                alert('> ERROR: Failed to sign/broadcast event.');
+                publishBtn.textContent = '> BROADCAST_ACTIVITY';
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>

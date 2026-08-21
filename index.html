@@ -43,6 +43,19 @@
         .article-title { font-size: 1.25em; font-weight: bold; margin-bottom: 8px; line-height: 1.3; }
         .article-summary { opacity: 0.85; margin-bottom: 12px; font-size: 0.95em; line-height: 1.4; word-break: break-all; overflow-wrap: anywhere; }
 
+        /* ACTIVITY TRACKER STYLES */
+        .activity-card { border: 2px dashed var(--t-green, #00ff41); background: rgba(0,255,65,0.02); }
+        .activity-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; }
+        .activity-icon { font-size: 1.5em; border: 1px solid currentColor; padding: 5px 10px; background: var(--bg-base); }
+        .activity-title { font-size: 1.2em; font-weight: bold; text-transform: uppercase; }
+        .activity-type { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+        .activity-metrics { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
+        .metric-box { display: flex; flex-direction: column; }
+        .metric-value { font-size: 1.4em; font-weight: bold; }
+        .metric-value.large { font-size: 2.5em; color: var(--t-green, #00ff41); line-height: 1; }
+        .metric-unit { font-size: 0.5em; opacity: 0.8; font-weight: normal; vertical-align: baseline; }
+        .metric-label { font-size: 0.7em; opacity: 0.6; text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
+
         .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
         .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
 
@@ -86,7 +99,6 @@
 
         .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
 
-        /* Terminal Form Elements overrides for composer tools */
         .composer-tools { border: 1px dashed currentColor; padding: 10px; margin-top: 10px; background: rgba(0,255,65,0.02); display: flex; flex-direction: column; gap: 10px; }
         .composer-switches { display: flex; gap: 20px; flex-wrap: wrap; }
     </style>
@@ -120,6 +132,7 @@
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[COMPOSE]</a>
+                            <a href="activity.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Broadcast Activity Tracker">[ACTIVITY]</a>
                             <span style="opacity: 0.5;">|</span>
                             <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">[PUBLISH]</button>
                         </div>
@@ -587,8 +600,6 @@
             }
         }
 
-        // ================= END AUTH LOGIC =================
-
         // ================= MEDIA UPLOAD LOGIC =================
         uploadMediaBtn.addEventListener('click', () => mediaUploadInput.click());
         
@@ -596,7 +607,6 @@
             let files = Array.from(e.target.files);
             if (!files.length) return;
             
-            // Limit to max 4 files
             if (files.length > 4) {
                 alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
                 files = files.slice(0, 4);
@@ -679,12 +689,10 @@
                 let clone = JSON.parse(JSON.stringify(eventTemplate));
                 clone.tags.push(["nonce", nonce.toString(), targetDifficulty.toString()]);
                 
-                // Serialize event as array
                 let serialized = JSON.stringify([0, clone.pubkey, clone.created_at, clone.kind, clone.tags, clone.content]);
                 let hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(serialized));
                 let hashArray = new Uint8Array(hashBuffer);
                 
-                // Check leading zeroes
                 let zeroes = 0;
                 for (let i = 0; i < hashArray.length; i++) {
                     let byte = hashArray[i];
@@ -699,7 +707,6 @@
                 }
                 
                 nonce++;
-                // Lepaskan event-loop sejenak setiap 500 iterasi agar browser tidak macet
                 if (nonce % 500 === 0) {
                     broadcastBtn.textContent = `> MINING PoW [${nonce}]...`;
                     await new Promise(resolve => setTimeout(resolve, 0));
@@ -812,7 +819,6 @@
         }
         function closeRawModal() { rawModal.style.display = 'none'; }
         
-        // ================= NEW RAW JSON COPY LOGIC =================
         function copyRawJson() {
             let textToCopy = rawEventContent.textContent;
             navigator.clipboard.writeText(textToCopy).then(() => {
@@ -927,7 +933,7 @@
                     onlineCount++;
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    socket.send(JSON.stringify(["REQ", "feed-" + Math.random(), { "kinds": [1, 30023, 20000], "limit": 40 }]));
+                    socket.send(JSON.stringify(["REQ", "feed-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]));
                 };
 
                 socket.onerror = function() { relayStatusMap[url] = false; };
@@ -939,7 +945,6 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
 
-                            // Prevent rendering NIP-09 Deleted Events
                             if (ev.kind === 5) {
                                 ev.tags.forEach(t => {
                                     if (t[0] === 'e') {
@@ -980,7 +985,7 @@
                                 });
                             }
 
-                            if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     profileCache[ev.pubkey] = { pending: true };
                                     let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
@@ -1009,7 +1014,6 @@
         function renderPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
             
-            // EXPIRE FILTER LOGIC
             let hasExpiration = false;
             for(let t of ev.tags) {
                 if(t[0] === "expiration") {
@@ -1018,7 +1022,6 @@
                 }
             }
 
-            // NSFW FILTER LOGIC
             let isNSFW = false;
             let nsfwReason = "NSFW";
             for(let t of ev.tags) {
@@ -1104,6 +1107,80 @@
                     </div>
                 `;
             }
+            else if (ev.kind === 1301) {
+                card.className = 'post-card activity-card';
+                
+                let actTitle = "Workout"; let actType = "Activity";
+                let actDist = "0"; let actDistUnit = "km";
+                let actDur = "00:00:00"; 
+                let actEle = "0"; let actEleUnit = "m";
+                
+                ev.tags.forEach(t => { 
+                    if (t[0] === "title") actTitle = t[1]; 
+                    if (t[0] === "activity_type") actType = t[1]; 
+                    if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; }
+                    if (t[0] === "duration") actDur = t[1];
+                    if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
+                });
+
+                let iconStr = "[A]";
+                let tLower = actType.toLowerCase();
+                if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
+                else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
+
+                let contentText = escapeHtml(ev.content.trim());
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
+                    let href = url.replace(/&amp;/g, '&');
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                });
+
+                card.innerHTML = `
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                    <div class="post-main">
+                        <div class="post-header">
+                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
+                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        </div>
+                        ${nsfwBadgeHtml}
+                        
+                        <div class="activity-header">
+                            <div class="activity-icon">${iconStr}</div>
+                            <div>
+                                <div class="activity-title">${escapeHtml(actTitle)}</div>
+                                <div class="activity-type">${escapeHtml(actType)}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-metrics">
+                            <div class="metric-box" style="flex: 1 1 100%;">
+                                <div class="metric-value large">${escapeHtml(actDist)} <span class="metric-unit">${escapeHtml(actDistUnit)}</span></div>
+                                <div class="metric-label">Distance</div>
+                            </div>
+                            <div class="metric-box" style="margin-right: 20px;">
+                                <div class="metric-value">${escapeHtml(actDur)}</div>
+                                <div class="metric-label">Duration</div>
+                            </div>
+                            <div class="metric-box">
+                                <div class="metric-value">${escapeHtml(actEle)} <span class="metric-unit">${escapeHtml(actEleUnit)}</span></div>
+                                <div class="metric-label">Elevation Gain</div>
+                            </div>
+                        </div>
+
+                        ${contentText ? `<div class="post-content ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${contentText}</div>` : ''}
+                        
+                        <div class="post-actions">
+                            <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                        </div>
+                        <div class="client-tag">> tracker_data / via ${escapeHtml(clientName)}</div>
+                    </div>
+                `;
+            }
             else {
                 card.className = isPulse ? 'post-card pulse-card' : 'post-card';
                 let contentHtml = ""; let mediaHtml = "";
@@ -1113,7 +1190,6 @@
                     contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
                     let mediaElements = [];
-                    // 1. Tangkap Media (Gambar/Video) - Multi Media Handling
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
@@ -1127,20 +1203,16 @@
                     if (mediaElements.length > 1) {
                         mediaHtml = `<div class="media-grid ${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements.join('')}</div>`;
                     } else if (mediaElements.length === 1) {
-                        // Apply blur to single wrapper if nsfw
                         mediaHtml = `<div class="${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements[0]}</div>`;
                     }
                     
-                    // 2. Escape HTML
                     contentText = escapeHtml(contentText.trim());
 
-                    // 3. Auto-linker untuk Sisa URL standar
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                         let href = url.replace(/&amp;/g, '&');
                         return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
                     });
 
-                    // 4. Parser NIP-19 Embeds
                     contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
                         let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
@@ -1259,11 +1331,9 @@
             try {
                 sendEditBtn.textContent = '> SIGNING...';
                 
-                // NIP-09: Request deletion of the old event first
                 let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
                 let signedDelEvent = await window.nostr.signEvent(delEvent);
                 
-                // Create the new event holding the edited text
                 let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
                 let signedNewEvent = await window.nostr.signEvent(newEvent);
                 
@@ -1278,7 +1348,6 @@
                 
                 alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
                 
-                // Immediately remove the old post DOM to prevent duplicates
                 let oldCard = document.getElementById(`post-${editTargetEvent.id}`);
                 if (oldCard) oldCard.remove();
                 
