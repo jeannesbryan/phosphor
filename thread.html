@@ -672,7 +672,7 @@
             let ev = eventsCache[eventId];
             if (!ev) return;
             quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
+            quoteTargetPreview.textContent = (ev.content || "").length > 150 ? (ev.content || "").substring(0, 150) + "..." : (ev.content || "");
             quoteContentInput.value = "";
             quoteModal.style.display = 'flex';
         }
@@ -683,7 +683,7 @@
             let ev = eventsCache[eventId];
             if (!ev) return;
             editTargetEvent = ev;
-            editContentInput.value = ev.content;
+            editContentInput.value = ev.content || "";
             editModal.style.display = 'flex';
         }
         function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
@@ -761,7 +761,7 @@
             let info = profileCache[pubkey];
             if (!info || info.pending) return;
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handleLine; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; });
             document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
                 if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
             });
@@ -783,8 +783,9 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
-                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
+                    // NOTE: Added kind 1301 into REQ filter
+                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 1301, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
+                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 1301, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
                     
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
@@ -835,7 +836,12 @@
                                 }
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) eventsCache[ev.id] = ev;
+                            // Strict Filtering Logic to prevent Ghost Posts (Exclude 30003)
+                            let isPostKind = (ev.kind === 1 || ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400 || (ev.kind >= 20000 && ev.kind < 30000));
+
+                            if (isPostKind) {
+                                eventsCache[ev.id] = ev;
+                            }
 
                             if (ev.kind === 0) {
                                 try {
@@ -855,7 +861,7 @@
                                 } catch(e){}
                             }
                             
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) {
+                            if (isPostKind) {
                                 if (!profileCache[ev.pubkey]) {
                                     profileCache[ev.pubkey] = { pending: true };
                                     let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
@@ -877,7 +883,7 @@
                                 });
                             }
 
-                            if (ev.kind === 1 || (ev.kind >= 20000 && ev.kind < 34000)) {
+                            if (isPostKind) {
                                 if (ev.id === postId) {
                                     parentEvent = ev;
                                     renderMainPost(ev);
@@ -926,9 +932,10 @@
                 if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
             });
 
-            if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
+            // FIX: added fallback (ev.content || "") to prevent crash on missing content
+            if ((ev.kind === 1 || isSportActivity) && (ev.content || "").trim().startsWith('{') && (ev.content || "").trim().endsWith('}')) {
                 try { 
-                    let parsedObj = JSON.parse(ev.content.trim());
+                    let parsedObj = JSON.parse((ev.content || "").trim());
                     parsedJsonContent = JSON.stringify(parsedObj, null, 2); 
                     isJsonPayload = true; 
                     
@@ -1016,6 +1023,7 @@
                 
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
+                // FIX: Used (ev.content || "") 
                 contentHtml = `
                     <div class="activity-card" style="padding: 15px; margin: 15px 0;">
                         <div class="activity-header">
@@ -1044,7 +1052,7 @@
                                 <div class="metric-label">${eleLabel}</div>
                             </div>
                         </div>
-                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (ev.content.trim() ? `<div class="main-post-content">${escapeHtml(ev.content)}</div>` : '')}
+                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="main-post-content">${escapeHtml(ev.content)}</div>` : '')}
                     </div>
                 `;
             } else if (parsed.isJsonPayload) {
@@ -1129,6 +1137,7 @@
 
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
+                // FIX: Used (ev.content || "") 
                 contentHtml = `
                     <div class="activity-header" style="margin-top: 10px;">
                         <div class="activity-icon">${iconStr}</div>
@@ -1156,7 +1165,7 @@
                             <div class="metric-label">${eleLabel}</div>
                         </div>
                     </div>
-                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (ev.content.trim() ? `<div class="post-content">${escapeHtml(ev.content)}</div>` : '')}
+                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="post-content">${escapeHtml(ev.content)}</div>` : '')}
                 `;
             } else if (parsed.isJsonPayload) {
                 contentHtml = `<pre class="json-payload">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
