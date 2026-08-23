@@ -249,6 +249,64 @@
     </div>
 
     <script>
+        // ================= INDEXED_DB LOCAL CACHING =================
+        let db = null;
+        function initDB() {
+            return new Promise((resolve) => {
+                let request = indexedDB.open("PhosphorDB", 1);
+                request.onupgradeneeded = function(e) {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains("profiles")) {
+                        database.createObjectStore("profiles", { keyPath: "pubkey" });
+                    }
+                };
+                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
+                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
+            });
+        }
+
+        function saveProfileToCache(pubkey, profileData) {
+            if (!db) return;
+            let tx = db.transaction("profiles", "readwrite");
+            let store = tx.objectStore("profiles");
+            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
+        }
+
+        async function getProfileFromCache(pubkey) {
+            if (!db) return null;
+            return new Promise((resolve) => {
+                let tx = db.transaction("profiles", "readonly");
+                let store = tx.objectStore("profiles");
+                let req = store.get(pubkey);
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function requestProfileInfo(pubkey) {
+            if (profileCache[pubkey]) return;
+            
+            profileCache[pubkey] = { pending: true };
+            let cached = await getProfileFromCache(pubkey);
+            
+            if (cached) {
+                profileCache[pubkey] = {
+                    name: cached.name,
+                    handleLine: cached.handleLine,
+                    picture: cached.picture,
+                    pending: false
+                };
+                if (pubkey === currentUserPubkey && cached.picture) {
+                    myReplyAvatar.innerHTML = `<img src="${escapeHtml(cached.picture)}" alt="Me">`;
+                }
+                updatePostUI(pubkey);
+            } else {
+                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+            }
+        }
+        // ==========================================================
+
         let RELAYS = [];
         let BLOSSOM_SERVERS = [];
 
@@ -304,6 +362,7 @@
 
         async function loadConfig() {
             try {
+                await initDB(); // <-- INISIALISASI INDEXEDDB
                 let res = await fetch('config.json');
                 let config = await res.json();
                 
@@ -632,6 +691,8 @@
                                 pending: false
                             };
                             
+                            saveProfileToCache(currentUserPubkey, profileCache[currentUserPubkey]); // <-- SIMPAN KE CACHE LOKAL
+
                             if (meta.picture) {
                                 myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
                             }
@@ -783,7 +844,6 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
-                    // NOTE: Added kind 1301 into REQ filter
                     socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 1301, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
                     socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 1301, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
                     
@@ -836,7 +896,6 @@
                                 }
                             }
 
-                            // Strict Filtering Logic to prevent Ghost Posts (Exclude 30003)
                             let isPostKind = (ev.kind === 1 || ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400 || (ev.kind >= 20000 && ev.kind < 30000));
 
                             if (isPostKind) {
@@ -857,15 +916,15 @@
                                         pending: false
                                     };
                                     
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SIMPAN KE CACHE LOKAL
+
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
                             
                             if (isPostKind) {
                                 if (!profileCache[ev.pubkey]) {
-                                    profileCache[ev.pubkey] = { pending: true };
-                                    let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
-                                    activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                    requestProfileInfo(ev.pubkey); // <-- CEK CACHE LOKAL DULU
                                 }
                             }
 
@@ -932,7 +991,6 @@
                 if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
             });
 
-            // FIX: added fallback (ev.content || "") to prevent crash on missing content
             if ((ev.kind === 1 || isSportActivity) && (ev.content || "").trim().startsWith('{') && (ev.content || "").trim().endsWith('}')) {
                 try { 
                     let parsedObj = JSON.parse((ev.content || "").trim());
@@ -960,7 +1018,7 @@
                     if (timeParts.length === 3) {
                         totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
                     } else if (timeParts.length === 2) {
-                        totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); // MM:SS fallback
+                        totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]);
                     }
 
                     if (totalSeconds > 0) {
@@ -1023,7 +1081,6 @@
                 
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
-                // FIX: Used (ev.content || "") 
                 contentHtml = `
                     <div class="activity-card" style="padding: 15px; margin: 15px 0;">
                         <div class="activity-header">
@@ -1137,7 +1194,6 @@
 
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
-                // FIX: Used (ev.content || "") 
                 contentHtml = `
                     <div class="activity-header" style="margin-top: 10px;">
                         <div class="activity-icon">${iconStr}</div>

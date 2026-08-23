@@ -249,6 +249,64 @@
     </div>
 
     <script>
+        // ================= INDEXED_DB LOCAL CACHING =================
+        let db = null;
+        function initDB() {
+            return new Promise((resolve) => {
+                let request = indexedDB.open("PhosphorDB", 1);
+                request.onupgradeneeded = function(e) {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains("profiles")) {
+                        database.createObjectStore("profiles", { keyPath: "pubkey" });
+                    }
+                };
+                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
+                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
+            });
+        }
+
+        function saveProfileToCache(pubkey, profileData) {
+            if (!db) return;
+            let tx = db.transaction("profiles", "readwrite");
+            let store = tx.objectStore("profiles");
+            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
+        }
+
+        async function getProfileFromCache(pubkey) {
+            if (!db) return null;
+            return new Promise((resolve) => {
+                let tx = db.transaction("profiles", "readonly");
+                let store = tx.objectStore("profiles");
+                let req = store.get(pubkey);
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function requestProfileInfo(pubkey) {
+            if (profileCache[pubkey]) return;
+            
+            profileCache[pubkey] = { pending: true };
+            let cached = await getProfileFromCache(pubkey);
+            
+            if (cached) {
+                profileCache[pubkey] = {
+                    name: cached.name,
+                    handleLine: cached.handleLine,
+                    picture: cached.picture,
+                    pending: false
+                };
+                if (pubkey === currentUserPubkey && cached.picture) {
+                    myReplyAvatar.innerHTML = `<img src="${escapeHtml(cached.picture)}" alt="Me">`;
+                }
+                updatePostUI(pubkey);
+            } else {
+                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+            }
+        }
+        // ==========================================================
+
         let RELAYS = [];
         let BLOSSOM_SERVERS = [];
 
@@ -306,6 +364,7 @@
 
         async function loadConfig() {
             try {
+                await initDB(); // <-- INISIALISASI INDEXEDDB
                 let res = await fetch('config.json');
                 let config = await res.json();
                 
@@ -863,6 +922,9 @@
                                         picture: meta.picture || null,
                                         pending: false
                                     };
+                                    
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SIMPAN KE CACHE LOKAL
+
                                     if (ev.pubkey === currentUserPubkey && meta.picture) {
                                         myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
                                     }
@@ -872,9 +934,7 @@
                             
                             if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
-                                    profileCache[ev.pubkey] = { pending: true };
-                                    let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
-                                    activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                    requestProfileInfo(ev.pubkey); // <-- CEK CACHE LOKAL DULU
                                 }
                             }
 
