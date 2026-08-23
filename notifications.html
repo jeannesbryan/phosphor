@@ -75,7 +75,6 @@
                 <a href="profile.html">[ PROFILE ]</a>
                 <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
                 <a href="notifications.html" id="navNotifBtn" class="hidden" style="color: var(--t-green, #00ff41);">[ NOTIFICATIONS ]</a>
-                <a href="compose.html" id="navComposeBtn" class="hidden">[ COMPOSE ]</a>
                 <a href="#" id="navLoginBtn">[ LOGIN ]</a>
                 <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
                 <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
@@ -214,7 +213,6 @@
         const navUnlockBtn = document.getElementById('navUnlockBtn');
         const navBookmarkBtn = document.getElementById('navBookmarkBtn');
         const navNotifBtn = document.getElementById('navNotifBtn');
-        const navComposeBtn = document.getElementById('navComposeBtn');
         const logoutBtn = document.getElementById('logoutBtn');
         const relayStatusBtn = document.getElementById('relayStatusBtn');
         
@@ -397,7 +395,6 @@
                 navUnlockBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.add('hidden');
                 navNotifBtn.classList.add('hidden');
-                navComposeBtn.classList.add('hidden');
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
                 navLoginBtn.classList.add('hidden');
@@ -405,7 +402,6 @@
                 logoutBtn.classList.remove('hidden');
                 navBookmarkBtn.classList.remove('hidden');
                 navNotifBtn.classList.remove('hidden');
-                navComposeBtn.classList.remove('hidden');
             }
         }
 

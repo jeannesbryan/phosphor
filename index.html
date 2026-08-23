@@ -291,6 +291,62 @@
     </div>
 
     <script>
+        // ================= INDEXED_DB LOCAL CACHING =================
+        let db = null;
+        function initDB() {
+            return new Promise((resolve) => {
+                let request = indexedDB.open("PhosphorDB", 1);
+                request.onupgradeneeded = function(e) {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains("profiles")) {
+                        database.createObjectStore("profiles", { keyPath: "pubkey" });
+                    }
+                };
+                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
+                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
+            });
+        }
+
+        function saveProfileToCache(pubkey, profileData) {
+            if (!db) return;
+            let tx = db.transaction("profiles", "readwrite");
+            let store = tx.objectStore("profiles");
+            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
+        }
+
+        async function getProfileFromCache(pubkey) {
+            if (!db) return null;
+            return new Promise((resolve) => {
+                let tx = db.transaction("profiles", "readonly");
+                let store = tx.objectStore("profiles");
+                let req = store.get(pubkey);
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        async function requestProfileInfo(pubkey) {
+            if (profileCache[pubkey]) return;
+            
+            profileCache[pubkey] = { pending: true };
+            let cached = await getProfileFromCache(pubkey);
+            
+            if (cached) {
+                profileCache[pubkey] = {
+                    name: cached.name,
+                    handle: cached.handle,
+                    nip05: cached.nip05 || "",
+                    picture: cached.picture,
+                    pending: false
+                };
+                updatePostUI(pubkey);
+            } else {
+                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+            }
+        }
+        // ==========================================================
+
         let RELAYS = [];
         let BLOSSOM_SERVERS = [];
 
@@ -347,6 +403,8 @@
 
         async function loadConfig() {
             try {
+                await initDB(); // Inisialisasi DB di awal
+                
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
@@ -774,8 +832,11 @@
                                     name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6),
                                     handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
                                     nip05: meta.nip05 || "",
-                                    picture: meta.picture || null
+                                    picture: meta.picture || null,
+                                    pending: false
                                 };
+                                
+                                saveProfileToCache(currentUserPubkey, profileCache[currentUserPubkey]);
                                 
                                 if (meta.picture) userAvatarBox.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
                                 updatePostUI(currentUserPubkey);
@@ -965,8 +1026,11 @@
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
                                         nip05: meta.nip05 || "",
-                                        picture: meta.picture || null
+                                        picture: meta.picture || null,
+                                        pending: false
                                     };
+                                    
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]);
                                     updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
@@ -987,9 +1051,7 @@
 
                             if (ev.kind === 1 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
-                                    profileCache[ev.pubkey] = { pending: true };
-                                    let req = JSON.stringify(["REQ", "prof-" + ev.pubkey.substring(0, 8), { "kinds": [0], "authors": [ev.pubkey], "limit": 1 }]);
-                                    activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                    requestProfileInfo(ev.pubkey);
                                 }
                                 eventsCache[ev.id] = ev; 
                                 renderPost(ev);

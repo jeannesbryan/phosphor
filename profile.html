@@ -138,7 +138,6 @@
                 <span style="opacity: 0.3; font-size: 0.8em;">[ NO_BANNER ]</span>
             </div>
             <div class="profile-header">
-                <!-- Avatar is now zoomable if image exists -->
                 <div class="profile-avatar" id="profileAvatarBox" title="View Avatar">[...]</div>
                 <div class="profile-meta">
                     <h2 id="profileName">User Name</h2>
@@ -336,6 +335,67 @@
     </div>
 
     <script>
+        // ================= INDEXED_DB LOCAL CACHING =================
+        let db = null;
+        function initDB() {
+            return new Promise((resolve) => {
+                let request = indexedDB.open("PhosphorDB", 1);
+                request.onupgradeneeded = function(e) {
+                    let database = e.target.result;
+                    if (!database.objectStoreNames.contains("profiles")) {
+                        database.createObjectStore("profiles", { keyPath: "pubkey" });
+                    }
+                };
+                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
+                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
+            });
+        }
+
+        function saveProfileToCache(pubkey, profileData) {
+            if (!db) return;
+            let tx = db.transaction("profiles", "readwrite");
+            let store = tx.objectStore("profiles");
+            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
+        }
+
+        async function getProfileFromCache(pubkey) {
+            if (!db) return null;
+            return new Promise((resolve) => {
+                let tx = db.transaction("profiles", "readonly");
+                let store = tx.objectStore("profiles");
+                let req = store.get(pubkey);
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = () => resolve(null);
+            });
+        }
+
+        // Hybrid Profile Request: Checks memory, then IndexedDB, then network
+        async function requestProfileInfo(pubkey) {
+            if (followingProfilesCache[pubkey]) return;
+            
+            followingProfilesCache[pubkey] = { pending: true };
+            let cached = await getProfileFromCache(pubkey);
+            
+            if (cached) {
+                followingProfilesCache[pubkey] = {
+                    name: cached.name,
+                    handle: cached.handle,
+                    picture: cached.picture,
+                    pending: false
+                };
+                
+                // Re-render UI Elements smoothly
+                if (followingModal.style.display === 'flex') renderFollowingListUI();
+                if (followersModal.style.display === 'flex') renderFollowersListUI();
+                if (mutedModal.style.display === 'flex') renderMutedListUI();
+                triggerDebouncedRender();
+            } else {
+                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+            }
+        }
+        // ==========================================================
+
         let RELAYS = [];
         let BLOSSOM_SERVERS = [];
         
@@ -438,6 +498,8 @@
 
         async function loadConfig() {
             try {
+                await initDB(); // Initialize IndexedDB first
+
                 let res = await fetch('config.json');
                 let config = await res.json();
                 
@@ -1090,8 +1152,7 @@
                                     mutedCountText.textContent = targetMutedPubkeys.length;
                                     
                                     if (targetMutedPubkeys.length > 0) {
-                                        let subReq = JSON.stringify(["REQ", "muted-profiles", { "kinds": [0], "authors": targetMutedPubkeys }]);
-                                        activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
+                                        targetMutedPubkeys.forEach(pk => requestProfileInfo(pk));
                                     }
                                 }
                                 if (currentUserPubkey && ev.pubkey === currentUserPubkey) {
@@ -1137,11 +1198,7 @@
                                     if (!targetFollowersPubkeys.includes(ev.pubkey)) {
                                         targetFollowersPubkeys.push(ev.pubkey);
                                         followersCountText.textContent = targetFollowersPubkeys.length;
-                                        
-                                        if (!followingProfilesCache[ev.pubkey]) {
-                                            let subReq = JSON.stringify(["REQ", "follower-profiles", { "kinds": [0], "authors": [ev.pubkey] }]);
-                                            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
-                                        }
+                                        requestProfileInfo(ev.pubkey);
                                     }
                                 }
 
@@ -1151,8 +1208,7 @@
                                     followingCountText.textContent = targetFollowingPubkeys.length;
                                     
                                     if (targetFollowingPubkeys.length > 0) {
-                                        let subReq = JSON.stringify(["REQ", "following-profiles", { "kinds": [0], "authors": targetFollowingPubkeys }]);
-                                        activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); });
+                                        targetFollowingPubkeys.forEach(pk => requestProfileInfo(pk));
                                     }
                                 }
                                 if (ev.pubkey === currentUserPubkey) {
@@ -1172,8 +1228,12 @@
                                     followingProfilesCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                        picture: meta.picture || null
+                                        picture: meta.picture || null,
+                                        pending: false
                                     };
+                                    
+                                    // Save to IndexedDB
+                                    saveProfileToCache(ev.pubkey, followingProfilesCache[ev.pubkey]);
                                     
                                     if (followingModal.style.display === 'flex') renderFollowingListUI();
                                     if (followersModal.style.display === 'flex') renderFollowersListUI();
@@ -1263,10 +1323,8 @@
                                 if (ev.kind === 6 || ev.kind === 16) {
                                     try {
                                         let innerEv = JSON.parse(ev.content);
-                                        if (innerEv.pubkey !== targetPubkey && !followingProfilesCache[innerEv.pubkey]) {
-                                            followingProfilesCache[innerEv.pubkey] = { pending: true };
-                                            let req = JSON.stringify(["REQ", "prof-repost-" + innerEv.pubkey.substring(0, 8), { "kinds": [0], "authors": [innerEv.pubkey], "limit": 1 }]);
-                                            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                                        if (innerEv.pubkey !== targetPubkey) {
+                                            requestProfileInfo(innerEv.pubkey);
                                         }
                                     } catch(e){}
                                 }
