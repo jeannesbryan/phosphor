@@ -472,7 +472,8 @@
                 // Jika global belum pernah di-subscribe, tembak relay sekarang
                 if (!globalSubscribed) {
                     globalSubscribed = true;
-                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]);
+                    // MINTA KIND 6 & 16 AGAR REPOST JUGA DITARIK
+                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]);
                     activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 }
             }
@@ -1010,11 +1011,13 @@
                     
                     let followingAuthors = Array.from(myFollowing);
                     if (followingAuthors.length > 0) {
-                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
+                        // MINTA KIND 6 & 16
+                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
                     }
                     
                     if (globalSubscribed) {
-                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]));
+                        // MINTA KIND 6 & 16
+                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]));
                     }
                 };
 
@@ -1076,6 +1079,18 @@
                                 }
                                 eventsCache[ev.id] = ev; 
                                 renderPost(ev);
+                            } 
+                            // TANGKAP DAN EKSTRAK JSON UNTUK EVENT REPOST (KIND 6 & 16)
+                            else if (ev.kind === 6 || ev.kind === 16) {
+                                try {
+                                    let innerEv = JSON.parse(ev.content);
+                                    if (innerEv && innerEv.id) {
+                                        if (!profileCache[innerEv.pubkey]) requestProfileInfo(innerEv.pubkey);
+                                        if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
+                                        eventsCache[innerEv.id] = innerEv; 
+                                        renderPost(innerEv, ev); // Lempar event asli beserta konteks siapa yg merepost
+                                    }
+                                } catch(e) {}
                             }
                         }
                     } catch (err) {}
@@ -1094,8 +1109,10 @@
             });
         }
 
-        function renderPost(ev) {
-            if (document.getElementById(`post-${ev.id}`)) return;
+        function renderPost(ev, repostEv = null) {
+            // Gunakan ID unik agar repost dari author yg sama tidak conflict
+            let renderId = repostEv ? repostEv.id : ev.id;
+            if (document.getElementById(`post-${renderId}`)) return;
             
             let hasExpiration = false;
             for(let t of ev.tags) {
@@ -1153,15 +1170,24 @@
             let nsfwBadgeHtml = isNSFW ? `<div class="pulse-badge" style="border-color:#ff4141; color:#ff4141;">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
             let card = document.createElement('div');
-            card.id = `post-${ev.id}`;
-            // PENYIMPANAN DATASET UNTUK FILTER TAB
-            card.dataset.time = ev.created_at;
-            card.dataset.author = ev.pubkey;
-            if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
+            card.id = `post-${renderId}`;
+            
+            // PENYIMPANAN DATASET UNTUK FILTER TAB & KRONOLOGI
+            // Jika repost, gunakan timestamp dan author si reposter agar muncul di tab Following dengan benar
+            card.dataset.time = repostEv ? repostEv.created_at : ev.created_at;
+            card.dataset.author = repostEv ? repostEv.pubkey : ev.pubkey;
+            if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
+
+            // HEADER INDIKATOR REPOST
+            let repostHtml = "";
+            if (repostEv) {
+                let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
+                repostHtml = `<div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 8px; color: var(--t-green, #00ff41);">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" style="color:inherit; text-decoration:underline;" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
+            }
             
             if (ev.kind === 30023) {
                 card.className = 'post-card article-card';
-                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed'); // append class for filtering
+                if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
                 ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
@@ -1173,6 +1199,7 @@
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div class="post-main">
+                        ${repostHtml}
                         <div class="post-header">
                             <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                             <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
@@ -1198,7 +1225,7 @@
             }
             else if (ev.kind === 1301) {
                 card.className = 'post-card activity-card';
-                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
+                if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let actTitle = "Workout"; let actType = "Activity";
                 let actDist = "0"; let actDistUnit = "km";
@@ -1270,6 +1297,7 @@
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div class="post-main">
+                        ${repostHtml}
                         <div class="post-header">
                             <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                             <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
@@ -1320,7 +1348,7 @@
             }
             else {
                 card.className = isPulse ? 'post-card pulse-card' : 'post-card';
-                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
+                if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let contentHtml = ""; let mediaHtml = "";
                 let contentText = ev.content;
@@ -1365,6 +1393,7 @@
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div class="post-main">
+                        ${repostHtml}
                         <div class="post-header">
                             <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
                             <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
@@ -1389,10 +1418,11 @@
             }
 
             // Pemasukan berdasarkan kronologi
+            let evTime = repostEv ? repostEv.created_at : ev.created_at;
             let children = postsContainer.children;
             let inserted = false;
             for (let i = 0; i < children.length; i++) {
-                if (parseInt(children[i].dataset.time) < ev.created_at) {
+                if (parseInt(children[i].dataset.time) < evTime) {
                     postsContainer.insertBefore(card, children[i]);
                     inserted = true;
                     break;

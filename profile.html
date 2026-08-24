@@ -1099,7 +1099,6 @@
         function connectMultiRelays() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
-                relayStatusMap[url] = false;
                 let socket = new WebSocket(url);
 
                 socket.onopen = function() {
@@ -1110,7 +1109,9 @@
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
+                    
+                    // ADDED KINDS 6 & 16 HERE
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
                     
                     socket.send(JSON.stringify(["REQ", "target-followers-" + Math.random(), { "kinds": [3], "#p": [targetPubkey] }]));
 
