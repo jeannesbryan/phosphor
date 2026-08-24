@@ -141,10 +141,10 @@
                             <button id="uploadMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Compose Long-form Article">[COMPOSE]</a>
-                            <a href="activity.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none;" title="Broadcast Activity Tracker">[ACTIVITY]</a>
+                            <a href="compose.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none; font-size: 0.8em; padding: 5px 10px;" title="Compose Long-form Article">[COMPOSE]</a>
+                            <a href="activity.html" class="action-btn modal-btn" style="border: 1px solid currentColor; text-decoration: none; font-size: 0.8em; padding: 5px 10px;" title="Broadcast Activity Tracker">[ACTIVITY]</a>
                             <span style="opacity: 0.5;">|</span>
-                            <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor;">[PUBLISH]</button>
+                            <button id="broadcastBtn" class="action-btn broadcast-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;">[PUBLISH]</button>
                         </div>
                     </div>
                 </div>
@@ -1007,7 +1007,7 @@
                 socket.onopen = function() {
                     onlineCount++;
                     relayStatusMap[url] = true;
-                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    relayStatusBtn.textContent = `[RELAYS: ${onlineCount}/${RELAYS.length} ONLINE]`;
                     
                     let followingAuthors = Array.from(myFollowing);
                     if (followingAuthors.length > 0) {
@@ -1182,7 +1182,7 @@
             let repostHtml = "";
             if (repostEv) {
                 let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
-                repostHtml = `<div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 8px; color: var(--t-green, #00ff41);">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" style="color:inherit; text-decoration:underline;" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
+                repostHtml = `<div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 8px; color: var(--t-green, #00ff41);">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" style="color:inherit; text-decoration:none;" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
             }
             
             if (ev.kind === 30023) {

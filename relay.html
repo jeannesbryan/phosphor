@@ -1201,7 +1201,7 @@
                 try {
                     targetEv = JSON.parse(ev.content); 
                     let reposterInfo = profileCache[ev.pubkey] || { name: ev.pubkey.substring(0, 8) };
-                    repostHeader = `<div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px; border-bottom: 1px dashed currentColor; padding-bottom: 4px;">> ♻️ REPOSTED BY: ${escapeHtml(reposterInfo.name)}</div>`;
+                    repostHeader = `<div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px; border-bottom: 1px dashed currentColor; padding-bottom: 4px;">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${ev.pubkey}" style="color:inherit; text-decoration:none;" class="author-${ev.pubkey}">${escapeHtml(reposterInfo.name)}</a></div>`;
                 } catch(e) { 
                     return; 
                 } 
