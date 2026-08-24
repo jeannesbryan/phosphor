@@ -101,6 +101,16 @@
 
         .composer-tools { border: 1px dashed currentColor; padding: 10px; margin-top: 10px; background: rgba(0,255,65,0.02); display: flex; flex-direction: column; gap: 10px; }
         .composer-switches { display: flex; gap: 20px; flex-wrap: wrap; }
+
+        /* TABS STYLING */
+        .t-tabs-wrapper { margin-bottom: 20px; }
+        .t-tabs-header { display: flex; gap: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 5px; }
+        .t-tab-btn { background: transparent; border: none; color: inherit; cursor: pointer; font-family: inherit; font-size: 1.1em; opacity: 0.5; padding: 5px 10px; font-weight: bold; }
+        .t-tab-btn.active { opacity: 1; border-bottom: 2px solid var(--t-green, #00ff41); color: var(--t-green, #00ff41); }
+        .t-tab-btn:hover { color: var(--t-green, #00ff41); opacity: 1; }
+        
+        /* CSS FILTER MAGIC FOR FOLLOWING TAB */
+        .feed-mode-following .post-card:not(.is-followed) { display: none !important; }
     </style>
 </head>
 <body class="terminal t-crt">
@@ -159,8 +169,16 @@
             </div>
         </div>
 
+        <!-- TIMELINE TABS -->
+        <div class="t-tabs-wrapper" id="timelineTabs">
+            <div class="t-tabs-header">
+                <button id="tabFollowing" class="t-tab-btn active" onclick="switchTimeline('following')">FOLLOWING</button>
+                <button id="tabGlobal" class="t-tab-btn" onclick="switchTimeline('global')">GLOBAL</button>
+            </div>
+        </div>
+
         <section id="feed">
-            <div id="posts-container"></div>
+            <div id="posts-container" class="feed-mode-following"></div>
             <p id="noMoreText" style="text-align: center; opacity: 0.5;">[ Listening to Network Multi-Relays... ]</p>
         </section>
     </div>
@@ -351,6 +369,18 @@
         let BLOSSOM_SERVERS = [];
 
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
+        
+        // FOLLOWING SYSTEM (Set & Cache)
+        let myFollowing = new Set();
+        let storedFollowing = localStorage.getItem('phosphor_following');
+        if (storedFollowing) {
+            try { JSON.parse(storedFollowing).forEach(p => myFollowing.add(p)); } catch(e){}
+        }
+        if (currentUserPubkey) myFollowing.add(currentUserPubkey); // Selalu include diri sendiri
+        
+        let globalSubscribed = false;
+        let activeTab = 'following'; // default tab
+
         let profileCache = {};
         let eventsCache = {};
         let quoteTargetEvent = null;
@@ -366,6 +396,7 @@
 
         let myBookmarks = new Set();
         let myBookmarkEvent = null;
+        let myContactEvent = null; // Kind 3 cache
 
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
@@ -403,8 +434,7 @@
 
         async function loadConfig() {
             try {
-                await initDB(); // Inisialisasi DB di awal
-                
+                await initDB(); 
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
@@ -421,8 +451,34 @@
             }
         }
 
-        // ================= AUTHENTICATION LOGIC =================
+        // ================= TIMELINE TABS LOGIC =================
+        function switchTimeline(tab) {
+            activeTab = tab;
+            let container = document.getElementById('posts-container');
+            let btnFollowing = document.getElementById('tabFollowing');
+            let btnGlobal = document.getElementById('tabGlobal');
 
+            if (tab === 'following') {
+                btnFollowing.classList.add('active');
+                btnGlobal.classList.remove('active');
+                container.classList.add('feed-mode-following');
+                container.classList.remove('feed-mode-global');
+            } else {
+                btnGlobal.classList.add('active');
+                btnFollowing.classList.remove('active');
+                container.classList.add('feed-mode-global');
+                container.classList.remove('feed-mode-following');
+
+                // Jika global belum pernah di-subscribe, tembak relay sekarang
+                if (!globalSubscribed) {
+                    globalSubscribed = true;
+                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]);
+                    activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                }
+            }
+        }
+
+        // ================= AUTHENTICATION LOGIC =================
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
             window.nostr = {
                 getPublicKey: async () => pubkeyHex,
@@ -465,15 +521,8 @@
             }
         }
 
-        navLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('loginModal').style.display = 'flex';
-        });
-
-        navUnlockBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('unlockModal').style.display = 'flex';
-        });
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
@@ -486,9 +535,11 @@
                     sessionStorage.removeItem('phosphor_privkey_temp');
                     
                     updateAuthState();
+                    myFollowing.add(currentUserPubkey); // Tambahkan diri sendiri
                     fetchMyAvatarAndBookmarks();
                     document.getElementById('loginModal').style.display = 'none';
-                    alert('> CONNECTION SUCCESSFUL.');
+                    alert('> CONNECTION SUCCESSFUL. RELOADING CONFIG...');
+                    setTimeout(() => location.reload(), 500);
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
@@ -498,7 +549,6 @@
             let pass = document.getElementById('nsecPassword').value;
             
             if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            
             let btn = document.getElementById('nsecLoginBtn');
             try {
                 btn.textContent = '> PROCESSING...';
@@ -510,9 +560,7 @@
                     let decoded = nostrTools.nip19.decode(input);
                     if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
                     skBytes = decoded.data;
-                } else {
-                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                }
+                } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
                 
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
@@ -528,15 +576,14 @@
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 updateAuthState();
+                myFollowing.add(currentUserPubkey);
                 fetchMyAvatarAndBookmarks();
                 document.getElementById('loginModal').style.display = 'none';
-                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
+                alert('> LOCAL SIGNER ENCRYPTED. RELOADING CONFIG...');
+                setTimeout(() => location.reload(), 500);
             } catch(e) {
-                console.error(e);
                 alert('> ERROR: Invalid key format or processing failed.');
-            } finally {
-                btn.textContent = '> ENCRYPT & LOGIN';
-            }
+            } finally { btn.textContent = '> ENCRYPT & LOGIN'; }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
@@ -544,7 +591,6 @@
             let pass = document.getElementById('ncryptsecPassword').value;
             
             if(!input || !pass) return alert('> ERROR: Key and password required.');
-            
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
@@ -565,15 +611,13 @@
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 updateAuthState();
+                myFollowing.add(currentUserPubkey);
                 fetchMyAvatarAndBookmarks();
                 document.getElementById('loginModal').style.display = 'none';
-                alert('> SECURE DECRYPTION SUCCESSFUL.');
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-            } finally {
-                btn.textContent = '> DECRYPT & LOGIN';
-            }
+                alert('> DECRYPTION SUCCESSFUL. RELOADING...');
+                setTimeout(() => location.reload(), 500);
+            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); } 
+            finally { btn.textContent = '> DECRYPT & LOGIN'; }
         });
 
         document.getElementById('unlockBtn').addEventListener('click', async () => {
@@ -581,7 +625,6 @@
             let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
             
             if(!pass) return alert('> ERROR: Password required.');
-
             let btn = document.getElementById('unlockBtn');
             try {
                 btn.textContent = '> DECRYPTING...';
@@ -601,28 +644,23 @@
                 
                 document.getElementById('unlockModal').style.display = 'none';
                 updateAuthState();
+                myFollowing.add(currentUserPubkey);
                 fetchMyAvatarAndBookmarks();
                 alert('> SESSION UNLOCKED.');
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-            } finally {
-                btn.textContent = '> DECRYPT';
-            }
+            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); } 
+            finally { btn.textContent = '> DECRYPT'; }
         });
 
         function logoutFully() {
             localStorage.removeItem('phosphor_pubkey');
             localStorage.removeItem('phosphor_privkey');
             localStorage.removeItem('phosphor_ncryptsec');
+            localStorage.removeItem('phosphor_following');
             sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
         }
 
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            logoutFully();
-        });
+        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
@@ -635,7 +673,6 @@
                 navNotifBtn.classList.add('hidden');
                 composerCard.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                
                 document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
                 navLoginBtn.classList.add('hidden');
@@ -691,13 +728,7 @@
                     let authEvent = {
                         kind: 24242,
                         created_at: nowTimestamp,
-                        tags: [ 
-                            ["u", uploadEndpoint], 
-                            ["method", "PUT"],
-                            ["payload", hashHex],
-                            ["expiration", String(nowTimestamp + 60)],
-                            ["t", "upload"]
-                        ],
+                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
                         content: "Phosphor Blossom Auth",
                         pubkey: currentUserPubkey
                     };
@@ -716,21 +747,13 @@
                         postContentInput.value += (postContentInput.value ? '\n' : '') + data.url;
                     } else { 
                         let errText = await response.text();
-                        console.error("Upload rejected:", errText);
                         alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
                     }
                 }
-            } catch (err) { 
-                console.error(err);
-                alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); 
-            } 
-            finally { 
-                uploadMediaBtn.textContent = '[ MEDIA (0/4) ]'; 
-                mediaUploadInput.value = ''; 
-            }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); } 
+            finally { uploadMediaBtn.textContent = '[ MEDIA (0/4) ]'; mediaUploadInput.value = ''; }
         });
 
-        // ================= COPY LINK BUTTON =================
         function copyThreadLink(id) {
             let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
             let threadUrl = baseUrl + 'thread.html?id=' + id;
@@ -738,7 +761,6 @@
             alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
         }
 
-        // ================= MINING NIP-13 PoW (ASYNC NON-FREEZE) =================
         async function minePoW(eventTemplate, targetDifficulty) {
             let nonce = 0;
             let encoder = new TextEncoder();
@@ -760,9 +782,7 @@
                     break;
                 }
                 
-                if (zeroes >= targetDifficulty) {
-                    return clone;
-                }
+                if (zeroes >= targetDifficulty) return clone;
                 
                 nonce++;
                 if (nonce % 500 === 0) {
@@ -772,7 +792,6 @@
             }
         }
 
-        // ================= BOOKMARK LOGIC =================
         async function toggleBookmark(eventId) {
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
             let isBookmarked = myBookmarks.has(eventId);
@@ -799,26 +818,17 @@
         async function copyNaddr(kind, pubkey, identifier) {
             try {
                 const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                
-                let naddr = nostrTools.nip19.naddrEncode({ 
-                    kind: parseInt(kind), 
-                    pubkey: pubkey, 
-                    identifier: identifier 
-                });
-                
+                let naddr = nostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
                 navigator.clipboard.writeText(`nostr:${naddr}`);
                 alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
-            } catch (e) { 
-                console.error(e);
-                alert('> ERROR: Failed to encode NIP-19 naddr.'); 
-            }
+            } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
         }
 
         function fetchMyAvatarAndBookmarks() {
             if (!currentUserPubkey) return;
             RELAYS.forEach(url => {
                 let sock = new WebSocket(url);
-                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-data", {kinds:[0, 30003], authors:[currentUserPubkey]}]));
+                sock.onopen = () => sock.send(JSON.stringify(["REQ", "my-data", {kinds:[0, 3, 30003], authors:[currentUserPubkey]}]));
                 sock.onmessage = (e) => {
                     let d = JSON.parse(e.data);
                     if (d[0] === "EVENT" && d[2]) {
@@ -837,7 +847,6 @@
                                 };
                                 
                                 saveProfileToCache(currentUserPubkey, profileCache[currentUserPubkey]);
-                                
                                 if (meta.picture) userAvatarBox.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
                                 updatePostUI(currentUserPubkey);
                             } catch(err){}
@@ -850,6 +859,21 @@
                                 document.querySelectorAll('.bookmark-btn').forEach(btn => {
                                     let id = btn.getAttribute('data-id');
                                     btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save';
+                                });
+                            }
+                        }
+                        // MENANGKAP DAFTAR FOLLOW (KIND 3)
+                        if (d[2].kind === 3) {
+                            if (!myContactEvent || d[2].created_at > myContactEvent.created_at) {
+                                myContactEvent = d[2];
+                                d[2].tags.forEach(t => { if (t[0] === 'p') myFollowing.add(t[1]); });
+                                
+                                localStorage.setItem('phosphor_following', JSON.stringify(Array.from(myFollowing)));
+                                
+                                // Segarkan class postingan yang sudah ter-render di DOM
+                                document.querySelectorAll('.post-card').forEach(card => {
+                                    let author = card.dataset.author;
+                                    if (myFollowing.has(author)) card.classList.add('is-followed');
                                 });
                             }
                         }
@@ -873,28 +897,17 @@
         
         function openRawModal(eventId) {
             let ev = eventsCache[eventId];
-            if (ev) {
-                rawEventContent.textContent = JSON.stringify(ev, null, 2);
-                rawModal.style.display = 'flex';
-            }
+            if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; }
         }
         function closeRawModal() { rawModal.style.display = 'none'; }
         
         function copyRawJson() {
-            let textToCopy = rawEventContent.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("> SUCCESS: Raw JSON copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("> ERROR: Failed to copy to clipboard.");
-            });
+            navigator.clipboard.writeText(rawEventContent.textContent).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); })
+            .catch(err => { alert("> ERROR: Failed to copy to clipboard."); });
         }
 
         function openQuoteModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) {
-                alert('> ERROR: Not logged in! Login to quote.');
-                return;
-            }
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to quote.'); return; }
             let ev = eventsCache[eventId];
             if (!ev) return;
             quoteTargetEvent = ev;
@@ -994,7 +1007,15 @@
                     onlineCount++;
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    socket.send(JSON.stringify(["REQ", "feed-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]));
+                    
+                    let followingAuthors = Array.from(myFollowing);
+                    if (followingAuthors.length > 0) {
+                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
+                    }
+                    
+                    if (globalSubscribed) {
+                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 1301, 30023, 20000], "limit": 40 }]));
+                    }
                 };
 
                 socket.onerror = function() { relayStatusMap[url] = false; };
@@ -1133,9 +1154,15 @@
 
             let card = document.createElement('div');
             card.id = `post-${ev.id}`;
+            // PENYIMPANAN DATASET UNTUK FILTER TAB
+            card.dataset.time = ev.created_at;
+            card.dataset.author = ev.pubkey;
+            if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
             
             if (ev.kind === 30023) {
                 card.className = 'post-card article-card';
+                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed'); // append class for filtering
+                
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
                 ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
@@ -1171,6 +1198,7 @@
             }
             else if (ev.kind === 1301) {
                 card.className = 'post-card activity-card';
+                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
                 
                 let actTitle = "Workout"; let actType = "Activity";
                 let actDist = "0"; let actDistUnit = "km";
@@ -1185,7 +1213,6 @@
                     if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
                 });
 
-                // --- NEW LOGIC FOR PACE/SPEED ---
                 let paceSpeedLabel = "Avg Pace";
                 let paceSpeedValue = "0:00 /km";
                 
@@ -1197,7 +1224,7 @@
                         if (timeParts.length === 3) {
                             totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
                         } else if (timeParts.length === 2) {
-                            totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); // MM:SS fallback
+                            totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); 
                         }
 
                         if (totalSeconds > 0) {
@@ -1228,7 +1255,6 @@
                         }
                     }
                 } catch(e) {}
-                // --------------------------------
 
                 let iconStr = "[A]";
                 let tLower = actType.toLowerCase();
@@ -1294,6 +1320,8 @@
             }
             else {
                 card.className = isPulse ? 'post-card pulse-card' : 'post-card';
+                if (myFollowing.has(ev.pubkey)) card.classList.add('is-followed');
+                
                 let contentHtml = ""; let mediaHtml = "";
                 let contentText = ev.content;
 
@@ -1360,7 +1388,18 @@
                 `;
             }
 
-            postsContainer.prepend(card);
+            // Pemasukan berdasarkan kronologi
+            let children = postsContainer.children;
+            let inserted = false;
+            for (let i = 0; i < children.length; i++) {
+                if (parseInt(children[i].dataset.time) < ev.created_at) {
+                    postsContainer.insertBefore(card, children[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) postsContainer.appendChild(card);
+            
             updateMetricsUI(ev.id);
         }
 
@@ -1372,13 +1411,8 @@
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
 
             let tags = [["client", "Phosphor"]];
-            
-            if (pulseToggle.checked) {
-                tags.push(["expiration", String(Math.floor(Date.now() / 1000) + 86400)]);
-            }
-            if (nsfwToggle.checked) {
-                tags.push(["content-warning", "NSFW"]);
-            }
+            if (pulseToggle.checked) tags.push(["expiration", String(Math.floor(Date.now() / 1000) + 86400)]);
+            if (nsfwToggle.checked) tags.push(["content-warning", "NSFW"]);
 
             let difficulty = parseInt(powSlider.value) || 0;
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: tags, content: contentText, pubkey: currentUserPubkey };
@@ -1408,13 +1442,8 @@
                 
                 eventsCache[signedEvent.id] = signedEvent; 
                 renderPost(signedEvent);
-            } catch (err) { 
-                alert('> ERROR: Failed to broadcast.'); 
-                console.error(err);
-            } finally {
-                broadcastBtn.textContent = '> BROADCAST_EVENT';
-                broadcastBtn.disabled = false;
-            }
+            } catch (err) { alert('> ERROR: Failed to broadcast.'); } 
+            finally { broadcastBtn.textContent = '> BROADCAST_EVENT'; broadcastBtn.disabled = false; }
         });
 
         sendQuoteBtn.addEventListener('click', async function() {
@@ -1441,7 +1470,6 @@
 
             try {
                 sendEditBtn.textContent = '> SIGNING...';
-                
                 let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
                 let signedDelEvent = await window.nostr.signEvent(delEvent);
                 
@@ -1458,7 +1486,6 @@
                 });
                 
                 alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
-                
                 let oldCard = document.getElementById(`post-${editTargetEvent.id}`);
                 if (oldCard) oldCard.remove();
                 
@@ -1466,10 +1493,7 @@
                 sendEditBtn.textContent = '> UPDATE_EVENT';
                 eventsCache[signedNewEvent.id] = signedNewEvent; 
                 renderPost(signedNewEvent);
-            } catch (err) { 
-                alert('> ERROR: Failed to update event.'); 
-                sendEditBtn.textContent = '> UPDATE_EVENT'; 
-            }
+            } catch (err) { alert('> ERROR: Failed to update event.'); sendEditBtn.textContent = '> UPDATE_EVENT'; }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);
