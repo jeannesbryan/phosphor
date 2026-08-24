@@ -6,6 +6,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 
 ## 🚀 Key Features
 *   **Minimalist Timeline:** Fetch Text Note feeds (NIP-01) in real-time without lag.
+*   **Timeline Tabs & Filtering:** Toggle seamlessly between a curated Following timeline (instantly filtered via lightweight CSS selectors based on your Kind 3 follow list) and a live Global stream.
 *   **Aggressive Local Caching:** Utilizes IndexedDB to cache user profiles locally, drastically reducing redundant relay queries and providing instant timeline rendering.
 *   **Proof of Work (NIP-13):** Native support for adjusting computational difficulty (up to Level 16) directly from the composer to prevent network spam, utilizing an asynchronous event loop that doesn't freeze your browser.
 *   **Notifications & Mentions:** Dedicated hub to monitor network signals, replies, mentions, reposts, and telemetry reactions targeting your node.
