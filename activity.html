@@ -138,7 +138,6 @@
         </div>
     </div>
 
-    <!-- Modals (Exactly as in compose.html) -->
     <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal">
         <div class="modal-content-box" style="max-width: 450px;">
@@ -146,16 +145,30 @@
             
             <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
                 <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
+            <!-- NIP-07 Login -->
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension.</p>
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
                 <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
             </div>
 
+            <!-- NIP-46 Bunker Login -->
+            <div id="viewBunker" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
+                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                </div>
+                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
+            </div>
+
+            <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
                     <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
@@ -167,7 +180,9 @@
                 <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
             </div>
 
+            <!-- NCRYPTSEC Login -->
             <div id="viewNcryptsec" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
                 <div style="margin-bottom: 10px;">
                     <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
                     <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
@@ -189,6 +204,7 @@
     <div id="unlockModal">
         <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
             <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
+            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory to broadcast activities.</p>
             <div style="margin-bottom: 15px;">
                 <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
             </div>
@@ -253,7 +269,7 @@
         }
 
         async function checkLocalSessions() {
-            let rawHex = sessionStorage.getItem('phosphor_privkey_temp');
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
             let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
             
             if (rawHex && currentUserPubkey) {
@@ -270,28 +286,177 @@
 
         function switchLoginTab(tab) {
             document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
             document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabBunker').style.border = "none";
             document.getElementById('tabNsec').style.border = "none";
             document.getElementById('tabNcryptsec').style.border = "none";
             
             if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').style.border = "1px solid currentColor"; }
+            else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').style.border = "1px solid currentColor"; }
             else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').style.border = "1px solid currentColor"; }
             else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').style.border = "1px solid currentColor"; }
         }
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
+        
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
-        document.getElementById('extLoginBtn').addEventListener('click', async () => { location.reload(); });
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { location.reload(); });
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { location.reload(); });
-        document.getElementById('unlockBtn').addEventListener('click', async () => { location.reload(); });
+        
+        document.getElementById('extLoginBtn').addEventListener('click', async () => {
+            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
+                try {
+                    currentUserPubkey = await window.nostr.getPublicKey();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                    localStorage.removeItem('phosphor_privkey');
+                    localStorage.removeItem('phosphor_ncryptsec');
+                    localStorage.removeItem('phosphor_bunker_uri');
+                    sessionStorage.removeItem('phosphor_privkey_temp');
+                    location.reload();
+                } catch (err) { alert('> ERROR: Login failed.'); }
+            } else { alert('> WARNING: NIP-07 extension not found.'); }
+        });
+
+        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
+            let uri = document.getElementById('bunkerInput').value.trim();
+            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
+            
+            try {
+                let urlObj = new URL(uri);
+                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
+                
+                currentUserPubkey = targetPubkey;
+                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                localStorage.setItem('phosphor_bunker_uri', uri);
+                localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_ncryptsec');
+                sessionStorage.removeItem('phosphor_privkey_temp');
+                
+                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
+                document.getElementById('loginModal').style.display = 'none';
+                setTimeout(() => location.reload(), 500);
+            } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); }
+        });
+
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('nsecInput').value.trim();
+            let pass = document.getElementById('nsecPassword').value;
+            
+            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
+            
+            let btn = document.getElementById('nsecLoginBtn');
+            try {
+                btn.textContent = '> PROCESSING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes;
+                if (input.startsWith('nsec1')) {
+                    let decoded = nostrTools.nip19.decode(input);
+                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
+                    skBytes = decoded.data;
+                } else {
+                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                }
+                
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                let ncryptsec = nip49.encrypt(skBytes, pass);
+                
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
+                localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
+                location.reload();
+            } catch(e) {
+                alert('> ERROR: Invalid key format or processing failed.');
+                btn.textContent = '> ENCRYPT & LOGIN';
+            }
+        });
+
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
+            let input = document.getElementById('ncryptsecInput').value.trim();
+            let pass = document.getElementById('ncryptsecPassword').value;
+            
+            if(!input || !pass) return alert('> ERROR: Key and password required.');
+            
+            let btn = document.getElementById('ncryptsecLoginBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes = nip49.decrypt(input, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                localStorage.setItem('phosphor_ncryptsec', input);
+                localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
+
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                alert('> SECURE DECRYPTION SUCCESSFUL.');
+                location.reload();
+            } catch(e) {
+                alert('> ERROR: Decryption failed. Incorrect password?');
+                btn.textContent = '> DECRYPT & LOGIN';
+            }
+        });
+
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
+            let pass = document.getElementById('unlockPassword').value;
+            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
+            
+            if(!pass) return alert('> ERROR: Password required.');
+
+            let btn = document.getElementById('unlockBtn');
+            try {
+                btn.textContent = '> DECRYPTING...';
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                
+                let skBytes = nip49.decrypt(ncryptsec, pass);
+                let pubkeyHex = nostrTools.getPublicKey(skBytes);
+                
+                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                
+                currentUserPubkey = pubkeyHex;
+                localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                
+                document.getElementById('unlockModal').style.display = 'none';
+                alert('> SESSION UNLOCKED.');
+                location.reload();
+            } catch(e) {
+                alert('> ERROR: Decryption failed. Incorrect password?');
+                btn.textContent = '> DECRYPT';
+            }
+        });
         
         function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp');
+            localStorage.removeItem('phosphor_pubkey');
+            localStorage.removeItem('phosphor_privkey');
+            localStorage.removeItem('phosphor_ncryptsec');
+            localStorage.removeItem('phosphor_bunker_uri');
+            sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
         }
+        
         logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
@@ -358,7 +523,7 @@
             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
-        // Fungsi baru untuk kalkulasi Pace/Speed dinamis
+        // New function for dynamic Pace/Speed calculation
         function updatePaceSpeedDisplay(distanceKm, durationSeconds, exerciseType) {
             let exercise = exerciseType.toLowerCase();
             let displayStat = "";
@@ -390,7 +555,7 @@
             document.getElementById('valPaceSpeed').innerText = displayStat;
         }
 
-        // Listener jika user mengganti jenis olahraga setelah file diupload
+        // Listener for activity type changes after file upload
         activityTypeSelect.addEventListener('change', function() {
             if (parsedActivityData) {
                 updatePaceSpeedDisplay(parsedActivityData.distanceRaw, parsedActivityData.durationRaw, this.value);
@@ -413,7 +578,7 @@
                     return;
                 }
 
-                // Ambil atribut creator dari <gpx> tag
+                // Get creator attribute from <gpx> tag
                 const gpxNode = xmlDoc.getElementsByTagName("gpx")[0];
                 const clientName = gpxNode ? (gpxNode.getAttribute("creator") || "Unknown Client") : "Unknown Client";
                 document.getElementById('detectedClient').value = clientName;
@@ -462,7 +627,7 @@
                 document.getElementById('valElevation').innerText = parsedActivityData.elevation + " m";
                 document.getElementById('valTimestamp').innerText = startTime.toLocaleString();
                 
-                // Panggil logika update pace/speed
+                // Trigger pace/speed update logic
                 updatePaceSpeedDisplay(totalDistance, durationSeconds, activityTypeSelect.value);
 
                 statsPreview.classList.remove('hidden');
@@ -504,7 +669,7 @@
                 ["distance", parsedActivityData.distance, "km"],
                 ["duration", parsedActivityData.duration],
                 ["elevation_gain", parsedActivityData.elevation, "m"],
-                ["client", clientApp] // <-- Sudah Dinamis!
+                ["client", clientApp] // <-- Now Dynamic!
             ];
 
             let rawEvent = {

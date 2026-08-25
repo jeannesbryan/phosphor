@@ -137,6 +137,7 @@
             
             <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
                 <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
@@ -145,6 +146,16 @@
             <div id="viewExt">
                 <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
                 <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+            </div>
+
+            <!-- NIP-46 Bunker Login -->
+            <div id="viewBunker" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
+                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                </div>
+                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
             </div>
 
             <!-- NSEC Login -->
@@ -297,15 +308,20 @@
 
         function switchLoginTab(tab) {
             document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
             document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabBunker').style.border = "none";
             document.getElementById('tabNsec').style.border = "none";
             document.getElementById('tabNcryptsec').style.border = "none";
             
             if (tab === 'ext') {
                 document.getElementById('viewExt').classList.remove('hidden');
                 document.getElementById('tabExt').style.border = "1px solid currentColor";
+            } else if (tab === 'bunker') {
+                document.getElementById('viewBunker').classList.remove('hidden');
+                document.getElementById('tabBunker').style.border = "1px solid currentColor";
             } else if (tab === 'nsec') {
                 document.getElementById('viewNsec').classList.remove('hidden');
                 document.getElementById('tabNsec').style.border = "1px solid currentColor";
@@ -338,10 +354,34 @@
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                     localStorage.removeItem('phosphor_privkey');
                     localStorage.removeItem('phosphor_ncryptsec');
+                    localStorage.removeItem('phosphor_bunker_uri');
                     sessionStorage.removeItem('phosphor_privkey_temp');
                     location.reload();
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
+        });
+
+        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
+            let uri = document.getElementById('bunkerInput').value.trim();
+            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
+            
+            try {
+                let urlObj = new URL(uri);
+                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
+                
+                currentUserPubkey = targetPubkey;
+                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                localStorage.setItem('phosphor_bunker_uri', uri);
+                localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_ncryptsec');
+                sessionStorage.removeItem('phosphor_privkey_temp');
+                
+                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
+                document.getElementById('loginModal').style.display = 'none';
+                setTimeout(() => location.reload(), 500);
+            } catch (e) {
+                alert('> ERROR: Failed to parse Bunker URI.');
+            }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
@@ -376,6 +416,7 @@
                 
                 localStorage.setItem('phosphor_ncryptsec', ncryptsec);
                 localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
@@ -408,6 +449,7 @@
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 localStorage.setItem('phosphor_ncryptsec', input);
                 localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
 
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
@@ -458,6 +500,7 @@
             localStorage.removeItem('phosphor_pubkey');
             localStorage.removeItem('phosphor_privkey');
             localStorage.removeItem('phosphor_ncryptsec');
+            localStorage.removeItem('phosphor_bunker_uri');
             sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
         }
