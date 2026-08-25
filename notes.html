@@ -135,14 +135,25 @@
             
             <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
                 <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
-            <!-- NIP-07 Login (Default) -->
+            <!-- NIP-07 Login -->
             <div id="viewExt">
                 <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
                 <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+            </div>
+
+            <!-- NIP-46 Bunker Login -->
+            <div id="viewBunker" class="hidden">
+                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
+                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                </div>
+                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
             </div>
 
             <!-- NSEC Login -->
@@ -201,14 +212,21 @@
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
+    <!-- QUOTE MODAL (WITH MEDIA UPLOAD) -->
     <div id="quoteModal">
         <div class="modal-content-box">
             <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
             <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
             <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="closeQuoteModal()">[CANCEL]</button>
-                <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> BROADCAST_QUOTE</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
+                    <button id="uploadQuoteMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn modal-btn" onclick="closeQuoteModal()" style="font-size: 0.8em; padding: 5px 10px;">[CANCEL]</button>
+                    <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;">> BROADCAST_QUOTE</button>
+                </div>
             </div>
         </div>
     </div>
@@ -351,6 +369,8 @@
         const quoteTargetPreview = document.getElementById('quoteTargetPreview');
         const quoteContentInput = document.getElementById('quoteContentInput');
         const sendQuoteBtn = document.getElementById('sendQuoteBtn');
+        const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn');
+        const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
         
         const editModal = document.getElementById('editModal');
         const editContentInput = document.getElementById('editContentInput');
@@ -364,7 +384,7 @@
 
         async function loadConfig() {
             try {
-                await initDB(); // <-- INISIALISASI INDEXEDDB
+                await initDB(); // <-- INITIALIZE INDEXEDDB
                 let res = await fetch('config.json');
                 let config = await res.json();
                 
@@ -412,15 +432,20 @@
 
         function switchLoginTab(tab) {
             document.getElementById('viewExt').classList.add('hidden');
+            document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
             document.getElementById('tabExt').style.border = "none";
+            document.getElementById('tabBunker').style.border = "none";
             document.getElementById('tabNsec').style.border = "none";
             document.getElementById('tabNcryptsec').style.border = "none";
             
             if (tab === 'ext') {
                 document.getElementById('viewExt').classList.remove('hidden');
                 document.getElementById('tabExt').style.border = "1px solid currentColor";
+            } else if (tab === 'bunker') {
+                document.getElementById('viewBunker').classList.remove('hidden');
+                document.getElementById('tabBunker').style.border = "1px solid currentColor";
             } else if (tab === 'nsec') {
                 document.getElementById('viewNsec').classList.remove('hidden');
                 document.getElementById('tabNsec').style.border = "1px solid currentColor";
@@ -453,10 +478,34 @@
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                     localStorage.removeItem('phosphor_privkey');
                     localStorage.removeItem('phosphor_ncryptsec');
+                    localStorage.removeItem('phosphor_bunker_uri');
                     sessionStorage.removeItem('phosphor_privkey_temp');
                     location.reload();
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
+        });
+
+        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
+            let uri = document.getElementById('bunkerInput').value.trim();
+            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
+            
+            try {
+                let urlObj = new URL(uri);
+                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
+                
+                currentUserPubkey = targetPubkey;
+                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
+                localStorage.setItem('phosphor_bunker_uri', uri);
+                localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_ncryptsec');
+                sessionStorage.removeItem('phosphor_privkey_temp');
+                
+                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
+                document.getElementById('loginModal').style.display = 'none';
+                setTimeout(() => location.reload(), 500);
+            } catch (e) {
+                alert('> ERROR: Failed to parse Bunker URI.');
+            }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
@@ -491,6 +540,7 @@
                 
                 localStorage.setItem('phosphor_ncryptsec', ncryptsec);
                 localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
                 
                 alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
@@ -523,6 +573,7 @@
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 localStorage.setItem('phosphor_ncryptsec', input);
                 localStorage.removeItem('phosphor_privkey');
+                localStorage.removeItem('phosphor_bunker_uri');
 
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
@@ -573,6 +624,7 @@
             localStorage.removeItem('phosphor_pubkey');
             localStorage.removeItem('phosphor_privkey');
             localStorage.removeItem('phosphor_ncryptsec');
+            localStorage.removeItem('phosphor_bunker_uri');
             sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
         }
@@ -583,6 +635,66 @@
         });
 
         // ================= END AUTH LOGIC =================
+        
+        // ================= MEDIA UPLOAD LOGIC =================
+        async function handleMediaUpload(files, btnElement, textareaElement) {
+            if (!files.length) return;
+            
+            if (files.length > 4) {
+                alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
+                files = files.slice(0, 4);
+            }
+
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
+            
+            try {
+                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
+                blossomUrl = blossomUrl.replace(/\/$/, '');
+                let uploadEndpoint = blossomUrl + '/upload';
+                
+                for (let i = 0; i < files.length; i++) {
+                    let file = files[i];
+                    btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
+                    
+                    let arrayBuffer = await file.arrayBuffer();
+                    let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                    let hashArray = Array.from(new Uint8Array(hashBuffer));
+                    let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    
+                    let nowTimestamp = Math.floor(Date.now() / 1000);
+                    
+                    let authEvent = {
+                        kind: 24242,
+                        created_at: nowTimestamp,
+                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
+                        content: "Phosphor Blossom Auth",
+                        pubkey: currentUserPubkey
+                    };
+                    
+                    let signedAuth = await window.nostr.signEvent(authEvent);
+                    let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                    
+                    let response = await fetch(uploadEndpoint, {
+                        method: 'PUT',
+                        headers: { 'Authorization': 'Nostr ' + authBase64 },
+                        body: file
+                    });
+                    
+                    if (response.ok) {
+                        let data = await response.json();
+                        textareaElement.value += (textareaElement.value ? '\n' : '') + data.url;
+                    } else { 
+                        let errText = await response.text();
+                        alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
+                    }
+                }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); } 
+            finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
+        }
+        
+        uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click());
+        quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
+
 
         // ================= UTILITIES & COPY FUNCTIONS =================
         async function toggleBookmark(eventId) {
@@ -822,7 +934,7 @@
             let info = profileCache[pubkey];
             if (!info || info.pending) return;
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = info.handleLine; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; });
             document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
                 if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
             });
@@ -912,9 +1024,14 @@
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
-                                    let rawName = meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`;
+                                    let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
+                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
+                                    let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${rawName} ✓ ${domainPart}` : rawName;
+                                    
+                                    let handleLineStr = domainPart 
+                                        ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green, #00ff41); text-decoration:none;">${domainPart}</a>` 
+                                        : rawName;
                                     
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
@@ -923,7 +1040,7 @@
                                         pending: false
                                     };
                                     
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SIMPAN KE CACHE LOKAL
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SAVE TO LOCAL CACHE
 
                                     if (ev.pubkey === currentUserPubkey && meta.picture) {
                                         myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
@@ -934,7 +1051,7 @@
                             
                             if (ev.kind === 1 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
-                                    requestProfileInfo(ev.pubkey); // <-- CEK CACHE LOKAL DULU
+                                    requestProfileInfo(ev.pubkey); // <-- CHECK LOCAL CACHE FIRST
                                 }
                             }
 
@@ -1013,7 +1130,7 @@
                     <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
                     <div>
                         <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong class="author-${ev.pubkey}" style="font-size: 1.1em;">${escapeHtml(info.name)}</strong></a><br>
-                        <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${publishedAt}</span>
+                        <span class="dim-text" style="font-size: 0.8em; opacity: 0.7;"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${publishedAt}</span>
                     </div>
                 </div>
                 
@@ -1107,7 +1224,7 @@
                 <div class="post-main">
                     <div class="post-header">
                         <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handleLine)}</span> · ${timeStr}</span>
+                        <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
                     </div>
                     ${pulseBadgeHtml}
                     ${contentHtml}

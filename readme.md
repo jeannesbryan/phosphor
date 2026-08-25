@@ -11,7 +11,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Proof of Work (NIP-13):** Native support for adjusting computational difficulty (up to Level 16) directly from the composer to prevent network spam, utilizing an asynchronous event loop that doesn't freeze your browser.
 *   **Notifications & Mentions:** Dedicated hub to monitor network signals, replies, mentions, reposts, and telemetry reactions targeting your node.
 *   **Secure Bookmarks (NIP-51):** Save and organize your favorite posts, articles, and threads locally via decentralized lists synced securely across your relays.
-*   **Versatile Authentication:** Supports NIP-07 browser extensions (nos2x, Alby), Secure Encrypted Keys (NIP-49 / ncryptsec), and Raw Private Keys (nsec/hex) using an internal client-side signer powered by `nostr-tools`.
+*   **Versatile Authentication:** Supports NIP-07 browser extensions (nos2x, Alby), Secure Encrypted Keys (NIP-49 / ncryptsec), NIP-46 Remote Signers (Bunker URI), and Raw Private Keys (nsec/hex) using an internal client-side signer powered by `nostr-tools`.
 *   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.
 *   **Dynamic Configuration:** Multi-relay lists and Blossom servers are easily managed externally via a `config.json` file.
 *   **Event Deletion & Editing:** Full support for replacing Long-form content (NIP-33) and editing regular Notes via Event Deletion signals (NIP-09).

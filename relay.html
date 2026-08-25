@@ -300,7 +300,7 @@
             if (cached) {
                 profileCache[pubkey] = {
                     name: cached.name,
-                    handleLine: cached.handleLine,
+                    handleLine: cached.handleLine || cached.handle || `@${pubkey.substring(0, 8)}`,
                     picture: cached.picture,
                     pending: false
                 };
@@ -1045,7 +1045,7 @@
             if (!info || info.pending) return;
             
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; });
             document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { 
                 if (info.picture) {
                     el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; 
@@ -1437,7 +1437,7 @@
                     ${repostHeader}
                     <div class="post-header">
                         <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${info.handleLine}</span> · ${timeStr}</span>
+                        <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${info.handleLine || info.handle || `@${targetEv.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
                     </div>
                     ${pulseBadgeHtml}
                     ${contentHtml}
