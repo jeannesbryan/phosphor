@@ -48,21 +48,21 @@
         </header>
 
         <!-- Composer Card -->
-        <div class="t-editor-card hidden" id="composerCard">
-            <div class="d-flex">
-                <div class="t-avatar" id="userAvatarBox">[P]</div>
-                <div class="t-feed-main">
-                    <textarea id="postContentInput" class="t-editor-textarea" rows="3" placeholder="What's happening on the network?"></textarea>
-                    <div class="t-editor-toolbar justify-content-between mt-2">
+        <div class="border-dashed p-3 mb-4 bg-surface hidden" id="composerCard">
+            <div class="d-flex gap-3">
+                <div class="t-avatar" id="userAvatarBox" title="View Avatar" style="cursor:pointer;" onclick="if(this.querySelector('img')) openLightbox(this.querySelector('img').src)">[P]</div>
+                <div style="flex: 1; min-width: 0;">
+                    <textarea id="postContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-2" rows="3" placeholder="What's happening on the network?"></textarea>
+                    
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 mt-2" style="border-top: 1px dashed var(--t-green);">
                         <div class="d-flex gap-2">
                             <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple class="d-none">
-                            <button id="uploadMediaBtn" class="t-editor-btn" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
+                            <button id="uploadMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                         </div>
-                        <div class="d-flex gap-2 align-items-center flex-wrap">
-                            <a href="compose.html" class="t-editor-btn" title="Compose Long-form Article">[COMPOSE]</a>
-                            <a href="activity.html" class="t-editor-btn" title="Broadcast Activity Tracker">[ACTIVITY]</a>
-                            <span class="text-muted">|</span>
-                            <button id="broadcastBtn" class="t-editor-btn text-success">[PUBLISH]</button>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <a href="compose.html" class="t-btn t-btn-sm ghost" style="text-decoration:none;" title="Compose Long-form Article">[COMPOSE]</a>
+                            <a href="activity.html" class="t-btn t-btn-sm ghost" style="text-decoration:none;" title="Broadcast Activity Tracker">[ACTIVITY]</a>
+                            <button id="broadcastBtn" class="t-btn t-btn-sm">[PUBLISH]</button>
                         </div>
                     </div>
                 </div>
@@ -450,6 +450,12 @@
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+        
+        // Listener tombol Logout
+        logoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            logoutFully();
+        });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
@@ -1133,7 +1139,9 @@
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
             let blurClass = isNSFW ? 't-spoiler' : '';
-            let nsfwBadgeHtml = isNSFW ? `<div class="t-badge danger mb-2">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
+            
+            // Badge disamakan warna hijau sukses
+            let nsfwBadgeHtml = isNSFW ? `<div class="t-badge text-success mb-2">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
             let card = document.createElement('div');
             card.id = `post-${renderId}`;
@@ -1148,8 +1156,10 @@
                 repostHtml = `<div class="text-success fs-small mb-2">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
             }
             
+            // Semua feed card menjadi seragam t-feed-card biasa (hijau) tanpa modifikasi border-warning/success
+            card.className = 't-feed-card';
+            
             if (ev.kind === 30023) {
-                card.className = 't-feed-card border-warning';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
@@ -1187,7 +1197,6 @@
                 `;
             }
             else if (ev.kind === 1301) {
-                card.className = 't-feed-card border-success';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let actTitle = "Workout"; let actType = "Activity";
@@ -1312,7 +1321,6 @@
                 `;
             }
             else {
-                card.className = isPulse ? 't-feed-card border-warning' : 't-feed-card';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let contentHtml = ""; let mediaHtml = "";
@@ -1353,7 +1361,8 @@
                     contentHtml = `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>`;
                 }
 
-                let pulseBadge = isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
+                // Ubah lencana pulse ke class hijau sukses
+                let pulseBadge = isPulse ? `<div class="t-badge text-success mb-2">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>

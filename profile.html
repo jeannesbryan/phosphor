@@ -14,7 +14,6 @@
     <link rel="manifest" href="/assets/site.webmanifest">
     
     <style>
-        /* Sisa logic spesifik untuk UI Profile Phosphor */
         .hidden { display: none !important; }
         
         .profile-banner { width: 100%; height: 120px; overflow: hidden; background: rgba(0,255,65,0.03); display: flex; align-items: center; justify-content: center; }
@@ -32,16 +31,18 @@
 <body class="t-crt">
     <div class="t-container">
         <header class="mb-4">
-            <nav class="t-navbar m-0">
-                <div class="t-nav-brand">> PHOSPHOR</div>
-                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
-                    <a href="index.html">[TIMELINE]</a>
-                    <a href="profile.html" class="text-success font-bold">[PROFILE]</a>
-                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
-                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
-                    <a href="#" id="navLoginBtn" class="hidden">[LOGIN]</a>
-                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
-                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
+            <nav class="d-flex justify-content-between align-items-start t-border-bottom pb-3 m-0 flex-wrap gap-3">
+                <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
+                <div class="d-flex flex-column align-items-end gap-2" style="flex: 1; min-width: 250px;">
+                    <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                        <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
+                        <a href="profile.html" class="text-success font-bold" style="text-decoration:none;">[PROFILE]</a>
+                        <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
+                        <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                        <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                        <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                        <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
+                    </div>
                     <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
                 </div>
             </nav>
@@ -54,7 +55,7 @@
             </div>
             
             <div class="d-flex align-items-center gap-3 mb-3">
-                <div class="t-avatar profile-avatar-lg" id="profileAvatarBox" title="View Avatar" style="cursor:pointer;">[...]</div>
+                <div class="t-avatar profile-avatar-lg" id="profileAvatarBox" title="View Avatar" style="cursor:pointer;" onclick="if(profileAvatarUrl) openLightbox(profileAvatarUrl)">[...]</div>
                 <div style="min-width: 0; flex: 1;">
                     <h2 id="profileName" class="m-0 text-break">User Name</h2>
                     <div class="text-muted fs-small mt-1 text-break" id="profileHandle">@handle</div>
@@ -66,19 +67,17 @@
 
             <div class="d-flex flex-column gap-1 fs-small opacity-75 mb-3 text-break">
                 <div id="profileLightning" class="hidden text-warning">⚡ <span id="lndText"></span></div>
-                <div id="profileWebsite" class="hidden">🔗 <a href="#" id="webLink" target="_blank" class="text-success"></a></div>
+                <div id="profileWebsite" class="hidden">🔗 <a href="#" id="webLink" target="_blank" class="text-success" style="text-decoration:none;"></a></div>
                 <div id="profileNip05Container"><strong>NIP-05:</strong> -</div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 t-border-top pt-3 fs-small">
-                <div class="d-flex gap-3 align-items-center">
-                    <button class="t-btn ghost p-0" onclick="openFollowingModal()">Following: <strong id="followingCountText" class="text-success">0</strong></button>
-                    <span class="text-muted">|</span>
-                    <button class="t-btn ghost p-0" onclick="openFollowersModal()">Followers: <strong id="followersCountText" class="text-success">0</strong></button>
-                    <span class="text-muted">|</span>
-                    <button class="t-btn ghost p-0" onclick="openMutedModal()">Muted: <strong id="mutedCountText" class="text-success">0</strong></button>
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-3 mt-3" style="border-top: 1px dashed var(--t-green);">
+                <div class="d-flex gap-3 align-items-center flex-wrap">
+                    <button class="t-btn t-btn-sm ghost px-2" onclick="openFollowingModal()">[FOLLOWING: <span id="followingCountText" class="text-success font-bold">0</span>]</button>
+                    <button class="t-btn t-btn-sm ghost px-2" onclick="openFollowersModal()">[FOLLOWERS: <span id="followersCountText" class="text-success font-bold">0</span>]</button>
+                    <button class="t-btn t-btn-sm ghost px-2" onclick="openMutedModal()">[MUTED: <span id="mutedCountText" class="text-success font-bold">0</span>]</button>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <button id="shareProfileBtn" class="t-btn t-btn-sm hidden" onclick="shareProfileUrl()" title="Share Profile URL">[SHARE_URL]</button>
                     <button id="broadcastProfileBtn" class="t-btn t-btn-sm hidden" title="Broadcast Profile">* BROADCAST_METADATA</button>
                     <button id="muteBtn" class="t-btn t-btn-sm danger hidden" onclick="toggleMute()">[MUTE]</button>
@@ -97,8 +96,7 @@
         </section>
     </div>
 
-    <!-- Modals (Menggunakan struktur .t-modal standar terminal.css) -->
-    
+    <!-- Modals -->
     <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 450px;">
@@ -1450,7 +1448,7 @@
                 let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
 
                 if (targetEv.kind === 30023) {
-                    card.className = 't-feed-card border-warning';
+                    card.className = 't-feed-card';
                     let title = "Untitled Article"; let summary = ""; let coverImg = "";
                     targetEv.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
@@ -1484,7 +1482,7 @@
                     `;
                 } 
                 else if (targetEv.kind === 1301) {
-                    card.className = 't-feed-card border-success';
+                    card.className = 't-feed-card';
                     
                     let actTitle = "Workout"; let actType = "Activity";
                     let actDist = "0"; let actDistUnit = "km";
@@ -1572,8 +1570,8 @@
                                 </div>
                             </div>
                             
-                            <div class="t-activity-metrics mb-4 mt-2">
-                                <div class="t-metric-box w-100 mb-4">
+                            <div class="t-activity-metrics mb-3 mt-2">
+                                <div class="t-metric-box w-100 mb-2">
                                     <div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div>
                                     <span class="t-metric-lbl text-success">Distance</span>
                                 </div>
@@ -1609,7 +1607,7 @@
                     `;
                 }
                 else if (isPulse) {
-                    card.className = 't-feed-card border-warning';
+                    card.className = 't-feed-card';
                     let contentText = targetEv.content; 
                     let mediaElements = [];
                     
