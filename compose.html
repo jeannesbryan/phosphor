@@ -14,211 +14,167 @@
     <link rel="manifest" href="/assets/site.webmanifest">
     
     <style>
-        .container { max-width: 800px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
         .hidden { display: none !important; }
-        
-        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none !important; color: inherit; }
-        nav a:hover { color: var(--t-green, #00ff41); }
-        
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
-        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        .editor-section { border: 2px dashed currentColor; padding: 20px; margin-bottom: 20px; }
-        .editor-title { font-weight: bold; margin-bottom: 20px; font-size: 1.2em; text-transform: uppercase; }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-label { display: block; margin-bottom: 5px; font-weight: bold; opacity: 0.9; font-size: 0.9em; }
-        .form-hint { font-size: 0.75em; opacity: 0.6; margin-left: 5px; font-weight: normal; }
-        
-        .sys-input, .sys-textarea { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: 1px solid currentColor; padding: 10px; font-family: inherit; outline: none; word-wrap: break-word; overflow-wrap: anywhere; }
-        .sys-input:focus, .sys-textarea:focus { border-color: var(--t-green, #00ff41); box-shadow: 0 0 5px rgba(0,255,65,0.2); }
-        .sys-input { border-style: dashed; border-top: none; border-left: none; border-right: none; }
-        
-        .toolbar { display: flex; gap: 5px; border: 1px dashed currentColor; border-bottom: none; padding: 5px; background: rgba(0,255,65,0.02); flex-wrap: wrap; }
-        .toolbar-btn { background: transparent; color: inherit; border: 1px solid transparent; cursor: pointer; font-family: inherit; padding: 4px 8px; font-size: 0.9em; font-weight: bold; }
-        .toolbar-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); border: 1px solid currentColor; }
-        
-        #articleContent { min-height: 400px; resize: vertical; border-top: none; line-height: 1.5; font-size: 1.05em; }
-        
-        .action-row { display: flex; justify-content: flex-end; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
-        .action-btn { background: transparent; color: inherit; border: 1px solid currentColor; cursor: pointer; font-family: inherit; padding: 8px 15px; text-decoration: none; font-weight: bold; font-size: 1em; text-transform: uppercase; }
-        .action-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        #relayModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
-        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
-        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
-        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
-        .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
+        #articleContent { min-height: 400px; resize: vertical; line-height: 1.5; font-size: 1.05em; }
     </style>
 </head>
-<body class="terminal t-crt">
-    <div class="container">
-        <header>
-            <h1>> Phosphor</h1>
-            <nav>
-                <a href="index.html">[ TIMELINE ]</a>
-                <a href="profile.html">[ PROFILE ]</a>
-                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
-                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
-                <a href="compose.html" style="color: var(--t-green, #00ff41);">[ COMPOSE ]</a>
-                <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
-                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
-                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+<body class="t-crt">
+    <div class="t-container">
+        <header class="mb-4">
+            <nav class="t-navbar m-0">
+                <div class="t-nav-brand">> PHOSPHOR</div>
+                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
+                    <a href="index.html">[TIMELINE]</a>
+                    <a href="profile.html">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
+                    <a href="compose.html" class="text-success">[COMPOSE]</a>
+                    <a href="#" id="navLoginBtn" class="hidden">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
+                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                </div>
             </nav>
         </header>
 
-        <div style="margin-bottom: 15px;">
-            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
+        <div class="mb-3">
+            <a href="#" onclick="history.back(); return false;" class="text-muted" style="text-decoration: none;" title="Go back">&lt;-- [ BACK ]</a>
         </div>
 
-        <div class="editor-section hidden" id="editorContainer">
-            <div class="editor-title">> LONG_FORM_EDITOR <span style="opacity: 0.5; font-size: 0.7em; font-weight: normal;">(NIP-23)</span></div>
+        <div class="t-feed-card border-dashed hidden mb-4" id="editorContainer">
+            <div class="t-card-header mb-4">> LONG_FORM_EDITOR <span class="text-muted fs-small fw-normal">(NIP-23)</span></div>
 
-            <div class="form-group">
-                <label class="form-label" for="articleTitle">TITLE <span style="color: var(--t-green, #00ff41);">*</span></label>
-                <input type="text" id="articleTitle" class="sys-input" placeholder="Enter an eye-catching title...">
+            <div class="mb-3">
+                <label class="t-form-label" for="articleTitle">TITLE <span class="text-success">*</span></label>
+                <input type="text" id="articleTitle" class="t-input" placeholder="Enter an eye-catching title...">
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="articleSlug">IDENTIFIER (d tag) <span style="color: var(--t-green, #00ff41);">*</span> <span class="form-hint">Auto-generated from title, unique slug for updates.</span></label>
-                <input type="text" id="articleSlug" class="sys-input" placeholder="e.g., my-awesome-article">
+            <div class="mb-3">
+                <label class="t-form-label" for="articleSlug">IDENTIFIER (d tag) <span class="text-success">*</span> <span class="text-muted fs-small fw-normal ml-2">Auto-generated from title, unique slug for updates.</span></label>
+                <input type="text" id="articleSlug" class="t-input" placeholder="e.g., my-awesome-article">
             </div>
 
-            <div class="form-group" style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div class="d-flex gap-3 flex-wrap mb-3">
                 <div style="flex: 1; min-width: 250px;">
-                    <label class="form-label" for="articleCover">COVER IMAGE URL <span class="form-hint">Optional</span></label>
-                    <input type="url" id="articleCover" class="sys-input" placeholder="https://...">
+                    <label class="t-form-label" for="articleCover">COVER IMAGE URL <span class="text-muted fs-small fw-normal ml-2">Optional</span></label>
+                    <input type="url" id="articleCover" class="t-input" placeholder="https://...">
                 </div>
                 <div style="flex: 1; min-width: 250px;">
-                    <label class="form-label" for="articleTags">TOPICS / TAGS <span class="form-hint">Comma separated (e.g., linux, nostr)</span></label>
-                    <input type="text" id="articleTags" class="sys-input" placeholder="technology, cyberpunk, guide">
+                    <label class="t-form-label" for="articleTags">TOPICS / TAGS <span class="text-muted fs-small fw-normal ml-2">Comma separated (e.g., linux, nostr)</span></label>
+                    <input type="text" id="articleTags" class="t-input" placeholder="technology, cyberpunk, guide">
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="form-label" for="articleSummary">SUMMARY <span class="form-hint">Optional short description for timeline card.</span></label>
-                <input type="text" id="articleSummary" class="sys-input" placeholder="A brief summary of what this article is about...">
+            <div class="mb-3">
+                <label class="t-form-label" for="articleSummary">SUMMARY <span class="text-muted fs-small fw-normal ml-2">Optional short description for timeline card.</span></label>
+                <input type="text" id="articleSummary" class="t-input" placeholder="A brief summary of what this article is about...">
             </div>
 
-            <div class="form-group" style="margin-top: 25px;">
-                <label class="form-label">CONTENT <span style="color: var(--t-green, #00ff41);">*</span> <span class="form-hint">Markdown supported.</span></label>
-                <div class="toolbar">
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('**', '**')" title="Bold">[B]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('*', '*')" title="Italic">[I]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('~~', '~~')" title="Strikethrough">[S]</button>
-                    <span style="opacity: 0.3;">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('[', '](https://)')" title="Link">[LINK]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n> ', '')" title="Quote">[QUOTE]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('`', '`')" title="Inline Code">[`]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n```\n', '\n```\n')" title="Code Block">[CODE]</button>
-                    <span style="opacity: 0.3;">|</span>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n- ', '')" title="Unordered List">[UL]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n1. ', '')" title="Ordered List">[OL]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n## ', '')" title="Heading 2">[H2]</button>
-                    <button type="button" class="toolbar-btn" onclick="insertMarkdown('\n### ', '')" title="Heading 3">[H3]</button>
+            <div class="mb-4 mt-4">
+                <label class="t-form-label mb-2 d-block">CONTENT <span class="text-success">*</span> <span class="text-muted fs-small fw-normal ml-2">Markdown supported.</span></label>
+                <div class="d-flex gap-2 flex-wrap mb-2 p-2 border-dashed bg-surface">
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('**', '**')" title="Bold">[B]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('*', '*')" title="Italic">[I]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('~~', '~~')" title="Strikethrough">[S]</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('[', '](https://)')" title="Link">[LINK]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n> ', '')" title="Quote">[QUOTE]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('`', '`')" title="Inline Code">[`]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n```\n', '\n```\n')" title="Code Block">[CODE]</button>
+                    <span class="text-muted">|</span>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n- ', '')" title="Unordered List">[UL]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n1. ', '')" title="Ordered List">[OL]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n## ', '')" title="Heading 2">[H2]</button>
+                    <button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n### ', '')" title="Heading 3">[H3]</button>
                 </div>
-                <textarea id="articleContent" class="sys-textarea" placeholder="Start typing your transmission here..."></textarea>
+                <textarea id="articleContent" class="t-editor-textarea" placeholder="Start typing your transmission here..."></textarea>
             </div>
 
-            <div class="action-row">
-                <button type="button" class="action-btn" style="border-style: dashed; opacity: 0.7;" onclick="history.back()">[ CANCEL ]</button>
-                <button type="button" id="publishBtn" class="action-btn">> BROADCAST_ARTICLE</button>
+            <div class="d-flex justify-content-end gap-3 flex-wrap mt-4">
+                <button type="button" class="t-btn ghost" onclick="history.back()">[ CANCEL ]</button>
+                <button type="button" id="publishBtn" class="t-btn">> BROADCAST_ARTICLE</button>
             </div>
         </div>
     </div>
 
     <!-- Modals -->
     <!-- AUTH/LOGIN MODAL -->
-    <div id="loginModal">
-        <div class="modal-content-box" style="max-width: 450px;">
-            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+    <div id="loginModal" class="t-modal">
+        <div class="t-modal-content" style="max-width: 450px;">
+            <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
             
-            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
-                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
-                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
-                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
-                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            <div class="d-flex gap-2 mb-3 t-border-bottom pb-2 flex-wrap">
+                <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
-            <!-- NIP-07 Login (Default) -->
+            <!-- NIP-07 Login -->
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
-                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
 
             <!-- NIP-46 Bunker Login -->
             <div id="viewBunker" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
-                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
-                </div>
-                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
+                <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <label class="t-form-label">bunker://...</label>
+                <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                <button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button>
             </div>
 
             <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
-                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
-                </div>
-                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
+                <label class="t-form-label">nsec or hex</label>
+                <input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex">
+                <label class="t-form-label">password</label>
+                <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
+                <button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button>
             </div>
 
             <!-- NCRYPTSEC Login -->
             <div id="viewNcryptsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
-                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
-                </div>
-                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
+                <label class="t-form-label">ncryptsec</label>
+                <input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1...">
+                <label class="t-form-label">password</label>
+                <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
+                <button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button>
             </div>
 
-            <div style="text-align: right; margin-top: 15px;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            <div class="text-right mt-4">
+                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
             </div>
         </div>
     </div>
 
     <!-- UNLOCK MODAL -->
-    <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
-            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory to compose articles.</p>
-            <div style="margin-bottom: 15px;">
-                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
-                <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+    <div id="unlockModal" class="t-modal">
+        <div class="t-modal-content border-success" style="max-width: 400px;">
+            <div class="t-card-header text-success">> SESSION_LOCKED</div>
+            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory to compose articles.</p>
+            <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2">
+                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Relay Modal -->
-    <div id="relayModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" style="margin-bottom: 15px;">
-                <p style="opacity: 0.5;">Checking network connections...</p>
+    <div id="relayModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" class="mb-3">
+                <p class="text-muted">Checking network connections...</p>
             </div>
-            <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            <div class="text-right">
+                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -311,23 +267,24 @@
             document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
-            document.getElementById('tabExt').style.border = "none";
-            document.getElementById('tabBunker').style.border = "none";
-            document.getElementById('tabNsec').style.border = "none";
-            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            document.getElementById('tabExt').classList.add('ghost');
+            document.getElementById('tabBunker').classList.add('ghost');
+            document.getElementById('tabNsec').classList.add('ghost');
+            document.getElementById('tabNcryptsec').classList.add('ghost');
             
             if (tab === 'ext') {
                 document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').style.border = "1px solid currentColor";
+                document.getElementById('tabExt').classList.remove('ghost');
             } else if (tab === 'bunker') {
                 document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').style.border = "1px solid currentColor";
+                document.getElementById('tabBunker').classList.remove('ghost');
             } else if (tab === 'nsec') {
                 document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNsec').classList.remove('ghost');
             } else if (tab === 'ncryptsec') {
                 document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNcryptsec').classList.remove('ghost');
             }
         }
 
@@ -545,8 +502,8 @@
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor; opacity: 0.6;">[OFFLINE]</span>';
-                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
+                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
+                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';

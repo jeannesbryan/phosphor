@@ -14,244 +14,171 @@
     <link rel="manifest" href="/assets/site.webmanifest">
     
     <style>
-        .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
         .hidden { display: none !important; }
         
-        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; }
-        nav a { text-decoration: none !important; color: inherit; }
-        nav a:hover { color: var(--t-green, #00ff41); }
+        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed var(--t-green); padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
+        .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
 
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
-        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        .header-box { border: 2px dashed currentColor; padding: 15px; margin-bottom: 20px; text-align: center; background: rgba(0,255,65,0.02); }
-        .relay-title { font-size: 1.5em; font-weight: bold; word-break: break-all; color: var(--t-green, #00ff41); }
-        .relay-subtitle { font-size: 0.85em; opacity: 0.7; margin-top: 5px; }
-
-        .feed-container { display: flex; flex-direction: column; gap: 15px; }
-        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; background: transparent; }
-        
-        .avatar-box { width: 48px; height: 48px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 1.2em; overflow: hidden; background: var(--bg-base); }
-        .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
-        
-        .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
-        .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
-        .author-line { font-size: 1.1em; font-weight: bold; }
-        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; word-break: break-all; }
-        .post-header a { text-decoration: none; color: inherit; }
-        .post-header a:hover { color: var(--t-green, #00ff41); }
-        
-        .post-content { margin-bottom: 12px; line-height: 1.4; word-break: break-word; overflow-wrap: anywhere; }
-        
-        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed currentColor; padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
-        .nostr-embed-link:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
-        .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
-
-        /* ACTIVITY TRACKER STYLES */
-        .activity-card { border: 2px dashed var(--t-green, #00ff41); background: rgba(0,255,65,0.02); }
-        .activity-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; }
-        .activity-icon { font-size: 1.5em; border: 1px solid currentColor; padding: 5px 10px; background: var(--bg-base); }
-        .activity-title { font-size: 1.2em; font-weight: bold; text-transform: uppercase; }
-        .activity-type { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
-        .activity-metrics { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
-        .metric-box { display: flex; flex-direction: column; }
-        .metric-value { font-size: 1.4em; font-weight: bold; }
-        .metric-value.large { font-size: 2.5em; color: var(--t-green, #00ff41); line-height: 1; }
-        .metric-unit { font-size: 0.5em; opacity: 0.8; font-weight: normal; vertical-align: baseline; }
-        .metric-label { font-size: 0.7em; opacity: 0.6; text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
-
-        .post-media { margin-top: 10px; margin-bottom: 12px; max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
-        .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; }
-        .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
-        
-        .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
-
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
-        .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none; display: inline-block; }
-        .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
-        
-        .post-footer-meta { text-align: right; font-style: italic; opacity: 0.5; font-size: 0.8em; margin-top: 5px; }
-
-        textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
-        textarea.sys-input { resize: vertical; }
-        
-        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent; color: inherit; border: 1px dashed currentColor; text-decoration: none; }
-        .modal-btn:hover { background: var(--t-green, #00ff41); color: var(--bg-base); }
-
-        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
-        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
-        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
-        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
+        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
 </head>
-<body class="terminal t-crt">
-    <div class="container">
-        <header>
-            <h1>> Phosphor</h1>
-            <nav>
-                <a href="index.html">[ TIMELINE ]</a>
-                <a href="profile.html">[ PROFILE ]</a>
-                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[ BOOKMARKS ]</a>
-                <a href="notifications.html" id="navNotifBtn" class="hidden">[ NOTIFICATIONS ]</a>
-                <a href="#" id="navLoginBtn" class="hidden">[ LOGIN ]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: var(--t-green, #00ff41); border-bottom: 1px dashed currentColor;">[ UNLOCK SESSION ]</a>
-                <a href="#" id="logoutBtn" class="hidden">[ LOGOUT ]</a>
-                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[ RELAYS: CONNECTING... ]</button>
+<body class="t-crt">
+    <div class="t-container">
+        <header class="mb-4">
+            <nav class="t-navbar m-0">
+                <div class="t-nav-brand">> PHOSPHOR</div>
+                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
+                    <a href="index.html">[TIMELINE]</a>
+                    <a href="profile.html">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn" class="hidden">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
+                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                </div>
             </nav>
         </header>
 
-        <div style="margin-bottom: 15px;">
-            <a href="#" onclick="history.back(); return false;" style="text-decoration: none; opacity: 0.7;" title="Go back">&lt;-- [ BACK ]</a>
+        <div class="mb-3">
+            <a href="#" onclick="history.back(); return false;" class="text-muted" style="text-decoration: none;" title="Go back">&lt;-- [ BACK ]</a>
         </div>
 
-        <div class="header-box">
-            <div>> TARGET_NODE_STREAM</div>
-            <div class="relay-title" id="displayDomain">...</div>
-            <div class="relay-subtitle" id="displayWsUrl">Establishing persistent link...</div>
+        <div class="border-dashed p-3 mb-4 text-center bg-surface">
+            <div class="text-muted fs-small mb-2">> TARGET_NODE_STREAM</div>
+            <div class="font-bold fs-4 text-success" id="displayDomain" style="word-break: break-all;">...</div>
+            <div class="fs-small opacity-75 mt-2" id="displayWsUrl">Establishing persistent link...</div>
         </div>
 
-        <div class="feed-container" id="feedContainer">
-            <p style="opacity: 0.5;">[ Waiting for relay transmission... ]</p>
+        <div class="d-flex flex-column gap-3" id="feedContainer">
+            <p class="text-muted text-center">[ Waiting for relay transmission... ]</p>
         </div>
     </div>
 
-    <!-- Modals -->
+    <!-- Modals (Menggunakan struktur .t-modal standar terminal.css) -->
+    
     <!-- AUTH/LOGIN MODAL -->
-    <div id="loginModal">
-        <div class="modal-content-box" style="max-width: 450px;">
-            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+    <div id="loginModal" class="t-modal">
+        <div class="t-modal-content" style="max-width: 450px;">
+            <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
             
-            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
-                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
-                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
-                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
-                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            <div class="d-flex gap-2 mb-3 t-border-bottom pb-2 flex-wrap">
+                <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
-            <!-- NIP-07 Login -->
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
-                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
 
-            <!-- NIP-46 Bunker Login -->
             <div id="viewBunker" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
-                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
-                </div>
-                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
+                <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <label class="t-form-label">bunker://...</label>
+                <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                <button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button>
             </div>
 
-            <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
-                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
-                </div>
-                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
+                <label class="t-form-label">nsec or hex</label>
+                <input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex">
+                <label class="t-form-label">password</label>
+                <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
+                <button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button>
             </div>
 
-            <!-- NCRYPTSEC Login -->
             <div id="viewNcryptsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
-                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
-                </div>
-                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
+                <label class="t-form-label">ncryptsec</label>
+                <input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1...">
+                <label class="t-form-label">password</label>
+                <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
+                <button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button>
             </div>
 
-            <div style="text-align: right; margin-top: 15px;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            <div class="text-right mt-4">
+                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
             </div>
         </div>
     </div>
 
     <!-- UNLOCK MODAL -->
-    <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: currentColor;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: var(--t-green, #00ff41);">> SESSION_LOCKED</div>
-            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter password to unlock.</p>
-            <div style="margin-bottom: 15px;">
-                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
-                <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="margin-right: 10px;">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+    <div id="unlockModal" class="t-modal">
+        <div class="t-modal-content border-success" style="max-width: 400px;">
+            <div class="t-card-header text-success">> SESSION_LOCKED</div>
+            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter password to unlock.</p>
+            <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2">
+                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="lightboxModal" onclick="this.style.display='none'">
+    <!-- Lightbox Modal -->
+    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'">
+        <span class="t-lightbox-close">&times;</span>
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
-    <!-- QUOTE MODAL (WITH MEDIA UPLOAD) -->
-    <div id="quoteModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
-            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
-            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
-                    <button id="uploadQuoteMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
+    <!-- QUOTE MODAL -->
+    <div id="quoteModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> QUOTE_REPLY</div>
+            <div id="quoteTargetPreview" class="text-muted fs-small mb-3 p-2 border-dashed bg-surface overflow-hidden" style="max-height: 80px;"></div>
+            <textarea id="quoteContentInput" class="t-editor-textarea" rows="3" placeholder="Write quote response..."></textarea>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
+                    <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="action-btn modal-btn" onclick="closeQuoteModal()" style="font-size: 0.8em; padding: 5px 10px;">[CANCEL]</button>
-                    <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;">> BROADCAST_QUOTE</button>
+                <div class="d-flex gap-2">
+                    <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
+                    <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
                 </div>
             </div>
         </div>
     </div>
     
-    <div id="editModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 10px;">> EDIT_TRANSMISSION</div>
-            <textarea id="editContentInput" class="sys-input" rows="4" placeholder="Update your note..."></textarea>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="closeEditModal()">[CANCEL]</button>
-                <button id="sendEditBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> UPDATE_EVENT</button>
+    <!-- Edit Modal -->
+    <div id="editModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> EDIT_TRANSMISSION</div>
+            <textarea id="editContentInput" class="t-editor-textarea" rows="4" placeholder="Update your note..."></textarea>
+            <div class="d-flex justify-content-between mt-3">
+                <button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button>
+                <button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button>
             </div>
         </div>
     </div>
 
-    <div id="relayModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" style="margin-bottom: 15px;">
-                <p style="opacity: 0.5;">Checking network connections...</p>
+    <!-- Relay Modal -->
+    <div id="relayModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" class="mb-3">
+                <p class="text-muted">Checking network connections...</p>
             </div>
-            <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            <div class="text-right">
+                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
 
     <!-- Raw Data Modal -->
-    <div id="rawModal">
-        <div class="modal-content-box" style="width: 95%; max-width: 600px;">
-            <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
-            <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
-                <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
+    <div id="rawModal" class="t-modal">
+        <div class="t-modal-content" style="max-width: 650px;">
+            <div class="t-card-header">> RAW_EVENT_DATA</div>
+            <pre id="rawEventContent" class="t-code" style="max-height: 60vh;"></pre>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="t-btn" onclick="copyRawJson()">[COPY]</button>
+                <button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -369,7 +296,7 @@
             if (!targetDomain) {
                 displayDomain.textContent = "UNKNOWN_NODE";
                 displayWsUrl.textContent = "Error: Missing ?domain= parameter in URL.";
-                feedContainer.innerHTML = '<p style="color:currentColor;">[ ERROR: No target relay specified ]</p>';
+                feedContainer.innerHTML = '<p class="text-danger">[ ERROR: No target relay specified ]</p>';
                 return;
             }
 
@@ -397,8 +324,8 @@
         function probeRelays(list, index) {
             if (index >= list.length) {
                 displayWsUrl.textContent = `[ ERROR: No active WebSocket found on ${targetDomain} ]`;
-                displayWsUrl.style.color = "#ff4141";
-                feedContainer.innerHTML = '<p style="color:#ff4141;">[ CONNECTION ABORTED ]</p>';
+                displayWsUrl.classList.add('text-danger');
+                feedContainer.innerHTML = '<p class="text-danger text-center">[ CONNECTION ABORTED ]</p>';
                 return;
             }
             
@@ -416,7 +343,7 @@
                 ws.close();
                 targetWsUrl = testUrl;
                 displayWsUrl.textContent = `[ CONNECTED: ${targetWsUrl} ]`;
-                displayWsUrl.style.color = "var(--t-green, #00ff41)";
+                displayWsUrl.classList.add('text-success');
                 startRelayConnection();
             };
             
@@ -485,23 +412,24 @@
             document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
-            document.getElementById('tabExt').style.border = "none";
-            document.getElementById('tabBunker').style.border = "none";
-            document.getElementById('tabNsec').style.border = "none";
-            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            document.getElementById('tabExt').classList.add('ghost');
+            document.getElementById('tabBunker').classList.add('ghost');
+            document.getElementById('tabNsec').classList.add('ghost');
+            document.getElementById('tabNcryptsec').classList.add('ghost');
             
             if (tab === 'ext') {
                 document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').style.border = "1px solid currentColor";
+                document.getElementById('tabExt').classList.remove('ghost');
             } else if (tab === 'bunker') {
                 document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').style.border = "1px solid currentColor";
+                document.getElementById('tabBunker').classList.remove('ghost');
             } else if (tab === 'nsec') {
                 document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNsec').classList.remove('ghost');
             } else if (tab === 'ncryptsec') {
                 document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNcryptsec').classList.remove('ghost');
             }
         }
 
@@ -869,9 +797,9 @@
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: currentColor;">[OFFLINE]</span>';
+                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
                 let currentTarget = (url === targetWsUrl) ? " > [TARGET_STREAM]" : "";
-                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}<span style="opacity:0.6;">${currentTarget}</span></span> ${statusBadge}</div>`;
+                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}<span class="text-muted">${currentTarget}</span></span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';
@@ -1119,7 +1047,7 @@
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
                                     
                                     let handleLineStr = domainPart 
-                                        ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green, #00ff41); text-decoration:none;">${domainPart}</a>` 
+                                        ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" class="text-success" style="text-decoration:none;">${domainPart}</a>` 
                                         : rawName;
                                     
                                     profileCache[ev.pubkey] = {
@@ -1305,7 +1233,7 @@
                 try {
                     targetEv = JSON.parse(ev.content); 
                     let reposterInfo = profileCache[ev.pubkey] || { name: ev.pubkey.substring(0, 8) };
-                    repostHeader = `<div style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px; border-bottom: 1px dashed currentColor; padding-bottom: 4px;">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${ev.pubkey}" style="color:inherit; text-decoration:none;" class="author-${ev.pubkey}">${escapeHtml(reposterInfo.name)}</a></div>`;
+                    repostHeader = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${ev.pubkey}" class="text-success author-${ev.pubkey}" style="text-decoration:none;">${escapeHtml(reposterInfo.name)}</a></div>`;
                 } catch(e) { 
                     return; 
                 } 
@@ -1344,33 +1272,35 @@
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
                 contentHtml = `
-                    <div class="activity-header" style="margin-top: 10px;">
-                        <div class="activity-icon">${iconStr}</div>
+                    <div class="t-activity-header mt-3">
+                        <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
                         <div>
-                            <div class="activity-title">${escapeHtml(parsed.actTitle)}</div>
-                            <div class="activity-type">${escapeHtml(parsed.actType)}</div>
+                            <h4 class="t-activity-title text-success m-0">${escapeHtml(parsed.actTitle)}</h4>
+                            <span class="t-activity-type text-success">${escapeHtml(parsed.actType)}</span>
                         </div>
                     </div>
                     
-                    <div class="activity-metrics">
-                        <div class="metric-box" style="flex: 1 1 100%;">
-                            <div class="metric-value large">${escapeHtml(parsed.actDist)} <span class="metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
-                            <div class="metric-label">Distance</div>
+                    <div class="t-activity-metrics mb-4 mt-2">
+                        <div class="t-metric-box w-100 mb-4">
+                            <div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
+                            <span class="t-metric-lbl text-success">Distance</span>
                         </div>
-                        <div class="metric-box" style="margin-right: 20px;">
-                            <div class="metric-value">${escapeHtml(parsed.actDur)}</div>
-                            <div class="metric-label">Duration</div>
-                        </div>
-                        <div class="metric-box" style="margin-right: 20px;">
-                            <div class="metric-value">${escapeHtml(parsed.paceSpeedValue)}</div>
-                            <div class="metric-label">${escapeHtml(parsed.paceSpeedLabel)}</div>
-                        </div>
-                        <div class="metric-box">
-                            <div class="metric-value">${escapeHtml(parsed.actEle)} <span class="metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
-                            <div class="metric-label">${eleLabel}</div>
+                        <div class="d-flex gap-4 flex-wrap">
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div>
+                                <span class="t-metric-lbl text-success">Duration</span>
+                            </div>
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.paceSpeedValue)}</div>
+                                <span class="t-metric-lbl text-success">${escapeHtml(parsed.paceSpeedLabel)}</span>
+                            </div>
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actEle)} <span class="t-metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
+                                <span class="t-metric-lbl text-success">${eleLabel}</span>
+                            </div>
                         </div>
                     </div>
-                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="json-payload" style="margin-top: 10px;">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (targetEv.content.trim() ? `<div class="post-content">${escapeHtml(targetEv.content)}</div>` : '')}
+                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (targetEv.content.trim() ? `<div class="t-feed-content">${escapeHtml(targetEv.content)}</div>` : '')}
                 `;
             } else if (isArticle) {
                 let articleTitle = "Untitled Article";
@@ -1388,32 +1318,39 @@
                 let minutes = Math.ceil(words / 200);
 
                 contentHtml = `
-                    <div style="margin-top:10px; border-left: 2px solid var(--t-green, #00ff41); padding-left: 10px;">
-                        <div style="font-weight:bold; font-size:1.2em;">${escapeHtml(articleTitle)}</div>
-                        <div style="font-size:0.85em; opacity:0.7; margin-bottom:10px;">${minutes} min read · NIP-23 Long Form</div>
-                        <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="action-btn" style="border: 1px solid currentColor; display:inline-block;">> READ_ARTICLE</a>
+                    <div class="t-border-left pl-2 mt-2 mb-2" style="border-left-color: var(--t-green);">
+                        <div class="font-bold fs-3">${escapeHtml(articleTitle)}</div>
+                        <div class="fs-small opacity-75 mb-2">${minutes} min read · NIP-23 Long Form</div>
+                        <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="t-btn t-btn-sm">> READ_ARTICLE</a>
                     </div>
                 `;
             } else if (parsed.isJsonPayload) {
-                contentHtml = `<pre class="json-payload">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
+                contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = targetEv.content || "";
+                let mediaElements = [];
                 
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                     let lowerExt = ext.toLowerCase();
                     if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                        mediaHtml += `<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`;
+                        mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`);
                     } else {
-                        mediaHtml += `<div class="post-media" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`;
+                        mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
                     }
                     return "";
                 });
+                
+                if (mediaElements.length > 1) {
+                    mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
+                } else if (mediaElements.length === 1) {
+                    mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
+                }
                 
                 contentText = escapeHtml(contentText.trim());
                 
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                     let href = url.replace(/&amp;/g, '&');
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
                 });
                 
                 contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
@@ -1421,38 +1358,38 @@
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
                 
-                contentHtml = `<div class="post-content">${contentText}</div>`;
+                contentHtml = `<div class="t-feed-content">${contentText}</div>`;
             }
 
             let card = document.createElement('div');
-            card.className = parsed.isSportActivity ? 'post-card activity-card' : (isPulse ? 'post-card pulse-card' : 'post-card');
+            card.className = parsed.isSportActivity ? 't-feed-card border-success' : (isPulse ? 't-feed-card border-warning' : 't-feed-card');
             card.id = `reply-${ev.id}`; 
             
-            let pulseBadgeHtml = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : "";
+            let pulseBadgeHtml = isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : "";
             let eventTypeStr = isArticle ? 'long_form_article' : (parsed.isSportActivity ? 'activity_telemetry' : (isPulse ? 'pulse_event' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note')));
 
             card.innerHTML = `
-                <a href="profile.html?pubkey=${targetEv.pubkey}" class="avatar-box avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                <div class="post-main">
+                <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                <div class="t-feed-main">
                     ${repostHeader}
-                    <div class="post-header">
-                        <span class="author-line"><a href="profile.html?pubkey=${targetEv.pubkey}"><strong class="author-${targetEv.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                        <span class="dim-text meta-line"><span class="handle-${targetEv.pubkey}">${info.handleLine || info.handle || `@${targetEv.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
+                    <div class="t-feed-header">
+                        <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-feed-author author-${targetEv.pubkey}">${escapeHtml(info.name)}</a>
+                        <span class="t-feed-meta"><span class="handle-${targetEv.pubkey}">${info.handleLine || info.handle || `@${targetEv.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
                     </div>
                     ${pulseBadgeHtml}
                     ${contentHtml}
                     ${mediaHtml}
-                    <div class="post-actions">
-                        <a href="thread.html?id=${targetEv.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
-                        <button id="bm-btn-${targetEv.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
-                        <button class="action-btn" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
-                        <button class="action-btn" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
-                        <button class="action-btn" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
-                        <button class="action-btn" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
-                        <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
-                        <button class="action-btn edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${targetEv.id}')">[edit]</button>
+                    <div class="t-feed-actions mt-2">
+                        <a href="thread.html?id=${targetEv.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
+                        <button id="bm-btn-${targetEv.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
+                        <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
+                        <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                        <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
+                        <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                        <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
+                        <button class="t-feed-btn text-success edit-btn edit-btn-${targetEv.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${targetEv.id}')">[edit]</button>
                     </div>
-                    <div class="post-footer-meta">> ${eventTypeStr} / via ${escapeHtml(parsed.clientName)}</div>
+                    <div class="text-right fs-small text-muted mt-2">> ${eventTypeStr} / via ${escapeHtml(parsed.clientName)}</div>
                 </div>
             `;
             

@@ -19,175 +19,70 @@
     <link rel="manifest" href="/assets/site.webmanifest">
     
     <style>
-        html { scroll-behavior: smooth; }
-        
-        .container { max-width: 700px; margin: 0 auto; padding: 15px; box-sizing: border-box; }
+        /* Hanya menyisakan logic spesifik dan sedikit helper untuk Phosphor */
         .hidden { display: none !important; }
+        .feed-mode-following .t-feed-card:not(.is-followed) { display: none !important; }
         
-        .post-card { display: flex; border: 1px solid currentColor; padding: 15px; margin-bottom: 15px; background: transparent; }
+        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed var(--t-green); padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
+        .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
         
-        .avatar-box { width: 48px; height: 48px; border: 1px dashed currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; font-size: 1.1em; overflow: hidden; background: var(--bg-base); }
-        .avatar-box img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
-        
-        .post-main { margin-left: 15px; flex-grow: 1; min-width: 0; }
-        .post-header { margin-bottom: 8px; display: flex; flex-direction: column; }
-        .author-line { font-size: 1.1em; font-weight: bold; }
-        .meta-line { font-size: 0.8em; opacity: 0.7; margin-top: 2px; word-break: break-all; }
-        .post-header a { text-decoration: none; color: inherit; }
-        .post-header a:hover { color: var(--t-green, #00ff41); }
-        
-        .post-content { margin-bottom: 12px; line-height: 1.4; word-break: break-word; overflow-wrap: anywhere; }
-        
-        .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed currentColor; padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
-        .nostr-embed-link:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        .article-card { border: 2px solid currentColor; }
-        .article-title { font-size: 1.25em; font-weight: bold; margin-bottom: 8px; line-height: 1.3; }
-        .article-summary { opacity: 0.85; margin-bottom: 12px; font-size: 0.95em; line-height: 1.4; word-break: break-all; overflow-wrap: anywhere; }
-
-        /* ACTIVITY TRACKER STYLES */
-        .activity-card { border: 2px dashed var(--t-green, #00ff41); background: rgba(0,255,65,0.02); }
-        .activity-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; }
-        .activity-icon { font-size: 1.5em; border: 1px solid currentColor; padding: 5px 10px; background: var(--bg-base); }
-        .activity-title { font-size: 1.2em; font-weight: bold; text-transform: uppercase; }
-        .activity-type { font-size: 0.8em; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
-        .activity-metrics { display: flex; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; }
-        .metric-box { display: flex; flex-direction: column; }
-        .metric-value { font-size: 1.4em; font-weight: bold; }
-        .metric-value.large { font-size: 2.5em; color: var(--t-green, #00ff41); line-height: 1; }
-        .metric-unit { font-size: 0.5em; opacity: 0.8; font-weight: normal; vertical-align: baseline; }
-        .metric-label { font-size: 0.7em; opacity: 0.6; text-transform: uppercase; margin-top: 5px; letter-spacing: 1px; }
-
-        .pulse-card { border: 2px dashed currentColor; background: rgba(0,255,65,0.01); }
-        .pulse-badge { font-size: 0.75em; opacity: 0.8; margin-bottom: 4px; display: inline-block; border: 1px solid currentColor; padding: 2px 6px; }
-
-        .media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
-        .post-media { max-width: 250px; height: 160px; border: 1px dashed currentColor; padding: 3px; overflow: hidden; cursor: pointer; background: rgba(0,255,65,0.02); }
-        .media-grid .post-media { max-width: 100%; height: 100%; aspect-ratio: 16/9; margin: 0; }
-        .post-media img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.3); display: block; transition: transform 0.2s; }
-        .post-media:hover img { transform: scale(1.03); }
-
-        .post-video { width: 100%; max-width: 350px; margin-top: 10px; margin-bottom: 12px; border: 1px dashed currentColor; display: block; background: rgba(0,255,65,0.02); }
-        .json-payload { font-size: 0.8em; overflow-x: auto; background: rgba(0,255,65,0.05); padding: 10px; border: 1px dashed currentColor; margin-bottom: 12px; }
-        
-        .nsfw-blur { filter: blur(15px) grayscale(1) !important; cursor: pointer !important; transition: filter 0.3s ease; }
-        .nsfw-blur:hover { filter: blur(10px) grayscale(0.5) !important; }
-
-        #lightboxModal, #quoteModal, #relayModal, #rawModal, #editModal, #loginModal, #unlockModal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); justify-content: center; align-items: center; }
-        #lightboxModal { cursor: zoom-out; }
-        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green, #00ff41); }
-        
-        .modal-content-box { background: var(--bg-base, #030303); border: 2px solid currentColor; padding: 20px; width: 90%; max-width: 550px; box-sizing: border-box; }
-
-        .post-actions { display: flex; justify-content: flex-start; gap: 12px; max-width: 500px; margin-top: 10px; flex-wrap: wrap; }
-        .action-btn { background: transparent !important; border: none; color: inherit; cursor: pointer; font-family: inherit; padding: 5px 8px; text-decoration: none !important; display: inline-block; }
-        .action-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
-        
-        .client-tag { text-align: right; font-style: italic; opacity: 0.4; font-size: 0.8em; margin-top: 5px; }
-
-        .composer-card { border: 2px dashed currentColor; padding: 15px; margin-bottom: 25px; display: flex; flex-direction: column; }
-        textarea.sys-input, input.sys-input { width: 100%; box-sizing: border-box; background: transparent; color: inherit; border: none; border-bottom: 1px dashed currentColor; padding: 10px 0; font-family: inherit; margin-bottom: 10px; outline: none; }
-        textarea.sys-input { resize: vertical; }
-        
-        /* UNIFIED COMPOSER BUTTONS (Fixes Size Inconsistency) */
-        .composer-btn {
-            border: 1px solid currentColor;
-            background: transparent;
-            color: inherit;
-            font-family: inherit;
-            font-size: 0.8em;
-            padding: 6px 12px;
-            cursor: pointer;
-            text-decoration: none !important;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            box-sizing: border-box;
-            line-height: 1.2;
-            height: auto;
-            margin: 0;
-            text-transform: uppercase;
-        }
-        .composer-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
-        
-        .modal-btn { width: auto; padding: 5px 10px; margin: 0; cursor: pointer; background: transparent !important; color: inherit; border: 1px dashed currentColor; font-family: inherit; }
-        .modal-btn:hover { background: var(--t-green, #00ff41) !important; color: var(--bg-base, #030303) !important; }
-        
-        nav { display: flex; gap: 15px; border-bottom: 1px solid currentColor; padding-bottom: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;}
-        nav a { text-decoration: none !important; color: inherit; }
-        nav a:hover { color: var(--t-green, #00ff41); text-decoration: none !important; }
-        
-        .auth-status { font-size: 0.8em; opacity: 0.9; margin-left: auto; background: transparent; border: 1px dashed currentColor; padding: 4px 8px; cursor: pointer; font-family: inherit; color: inherit; text-decoration: none !important; }
-        .auth-status:hover { background: var(--t-green, #00ff41); color: var(--bg-base, #030303); }
-
-        .relay-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed currentColor; font-size: 0.9em; }
-
-        .composer-tools { border: 1px dashed currentColor; padding: 10px; margin-top: 10px; background: rgba(0,255,65,0.02); display: flex; flex-direction: column; gap: 10px; }
-        .composer-switches { display: flex; gap: 20px; flex-wrap: wrap; }
-
-        /* TABS STYLING */
-        .t-tabs-wrapper { margin-bottom: 20px; }
-        .t-tabs-header { display: flex; gap: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 5px; }
-        .t-tab-btn { background: transparent; border: none; color: inherit; cursor: pointer; font-family: inherit; font-size: 1.1em; opacity: 0.5; padding: 5px 10px; font-weight: bold; }
-        .t-tab-btn.active { opacity: 1; border-bottom: 2px solid var(--t-green, #00ff41); color: var(--t-green, #00ff41); }
-        .t-tab-btn:hover { color: var(--t-green, #00ff41); opacity: 1; }
-        
-        /* CSS FILTER MAGIC FOR FOLLOWING TAB */
-        .feed-mode-following .post-card:not(.is-followed) { display: none !important; }
+        #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
 </head>
-<body class="terminal t-crt">
-    <div class="container">
-        <header>
-            <h1>> Phosphor</h1>
-            <nav>
-                <a href="index.html" style="color: var(--t-green, #00ff41);">[TIMELINE]</a>
-                <a href="profile.html">[PROFILE]</a>
-                <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
-                <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
-                <a href="#" id="navLoginBtn">[LOGIN]</a>
-                <a href="#" id="navUnlockBtn" class="hidden" style="color: #ff4141; border-bottom: 1px dashed #ff4141;">[UNLOCK SESSION]</a>
-                <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
-                <button id="relayStatusBtn" class="auth-status" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+<body class="t-crt">
+    <div class="t-container">
+        <header class="mb-4">
+            <nav class="t-navbar m-0">
+                <div class="t-nav-brand">> PHOSPHOR</div>
+                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
+                    <a href="index.html" class="text-success font-bold">[TIMELINE]</a>
+                    <a href="profile.html">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
+                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                </div>
             </nav>
         </header>
 
         <!-- Composer Card -->
-        <div class="composer-card hidden" id="composerCard">
-            <div style="display: flex;">
-                <div class="avatar-box" id="userAvatarBox">[P]</div>
-                <div class="post-main">
-                    <textarea id="postContentInput" class="sys-input" rows="3" placeholder="What's happening on the network?"></textarea>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 5px; flex-wrap: wrap; gap: 10px;">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
-                            <button id="uploadMediaBtn" class="composer-btn" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
+        <div class="t-editor-card hidden" id="composerCard">
+            <div class="d-flex">
+                <div class="t-avatar" id="userAvatarBox">[P]</div>
+                <div class="t-feed-main">
+                    <textarea id="postContentInput" class="t-editor-textarea" rows="3" placeholder="What's happening on the network?"></textarea>
+                    <div class="t-editor-toolbar justify-content-between mt-2">
+                        <div class="d-flex gap-2">
+                            <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple class="d-none">
+                            <button id="uploadMediaBtn" class="t-editor-btn" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <a href="compose.html" class="composer-btn" title="Compose Long-form Article">[COMPOSE]</a>
-                            <a href="activity.html" class="composer-btn" title="Broadcast Activity Tracker">[ACTIVITY]</a>
-                            <span style="opacity: 0.5;">|</span>
-                            <button id="broadcastBtn" class="composer-btn">[PUBLISH]</button>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <a href="compose.html" class="t-editor-btn" title="Compose Long-form Article">[COMPOSE]</a>
+                            <a href="activity.html" class="t-editor-btn" title="Broadcast Activity Tracker">[ACTIVITY]</a>
+                            <span class="text-muted">|</span>
+                            <button id="broadcastBtn" class="t-editor-btn text-success">[PUBLISH]</button>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Protocol Config Panel -->
-            <div class="composer-tools">
-                <div class="composer-switches">
-                    <label class="t-checkbox-label" title="Auto-delete post from timeline after 24 Hours">
+            <div class="border-dashed p-2 mt-3 bg-surface d-flex flex-column gap-2">
+                <div class="d-flex gap-4 flex-wrap">
+                    <label class="t-checkbox-label m-0" title="Auto-delete post from timeline after 24 Hours">
                         <input type="checkbox" id="pulseToggle">
                         <span class="t-checkmark"></span> 24H_PULSE
                     </label>
-                    <label class="t-checkbox-label" title="Mark content as Not Safe For Work">
+                    <label class="t-checkbox-label m-0" title="Mark content as Not Safe For Work">
                         <input type="checkbox" id="nsfwToggle">
                         <span class="t-checkmark"></span> NSFW Tag
                     </label>
                 </div>
-                <div style="border-top: 1px dashed currentColor; padding-top: 10px; margin-top: 5px;">
-                    <label class="t-form-label" style="display:block; margin-bottom:5px;">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
-                    <input type="range" min="0" max="16" value="0" class="t-range" style="width:100%;" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
+                <div class="t-border-top pt-2 mt-1">
+                    <label class="t-form-label">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
+                    <input type="range" min="0" max="16" value="0" class="t-range w-100" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
                 </div>
             </div>
         </div>
@@ -202,148 +97,134 @@
 
         <section id="feed">
             <div id="posts-container" class="feed-mode-following"></div>
-            <p id="noMoreText" style="text-align: center; opacity: 0.5;">[ Listening to Network Multi-Relays... ]</p>
+            <p id="noMoreText" class="text-center text-muted opacity-50">[ Listening to Network Multi-Relays... ]</p>
         </section>
     </div>
 
-    <!-- Modals -->
+    <!-- Modals (Menggunakan struktur .t-modal standar terminal.css) -->
+    
     <!-- AUTH/LOGIN MODAL -->
-    <div id="loginModal">
-        <div class="modal-content-box" style="max-width: 450px;">
-            <div style="font-weight: bold; margin-bottom: 12px;">> AUTHENTICATION_PROTOCOL</div>
+    <div id="loginModal" class="t-modal">
+        <div class="t-modal-content" style="max-width: 450px;">
+            <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
             
-            <div style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px dashed currentColor; padding-bottom: 10px; flex-wrap: wrap;">
-                <button class="action-btn" id="tabExt" style="border: 1px solid currentColor;" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
-                <button class="action-btn" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
-                <button class="action-btn" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
-                <button class="action-btn" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
+            <div class="d-flex gap-2 mb-3 t-border-bottom pb-2 flex-wrap">
+                <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
+                <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
 
-            <!-- NIP-07 Login -->
             <div id="viewExt">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
-                <button id="extLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> AUTHORIZE_EXTENSION</button>
+                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
+                <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
             
-            <!-- NIP-46 Bunker Login -->
             <div id="viewBunker" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">bunker://...</label>
-                    <input type="text" id="bunkerInput" class="sys-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
-                </div>
-                <button id="bunkerLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> CONNECT_BUNKER</button>
+                <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
+                <label class="t-form-label">bunker://...</label>
+                <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
+                <button id="bunkerLoginBtn" class="t-btn w-100">> CONNECT_BUNKER</button>
             </div>
 
-            <!-- NSEC Login -->
             <div id="viewNsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC.</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">nsec or hex</label>
-                    <input type="password" id="nsecInput" class="sys-input" placeholder="nsec1... or hex">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="nsecPassword" class="sys-input" placeholder="Enter password to encrypt">
-                </div>
-                <button id="nsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> ENCRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC.</p>
+                <label class="t-form-label">nsec or hex</label>
+                <input type="password" id="nsecInput" class="t-input" placeholder="nsec1... or hex">
+                <label class="t-form-label">password</label>
+                <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
+                <button id="nsecLoginBtn" class="t-btn w-100">> ENCRYPT & LOGIN</button>
             </div>
 
-            <!-- NCRYPTSEC Login -->
             <div id="viewNcryptsec" class="hidden">
-                <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 10px;">Login using an encrypted private key (NIP-49).</p>
-                <div style="margin-bottom: 10px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">ncryptsec</label>
-                    <input type="text" id="ncryptsecInput" class="sys-input" placeholder="ncryptsec1...">
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; font-size: 0.8em; margin-bottom: 4px;">password</label>
-                    <input type="password" id="ncryptsecPassword" class="sys-input" placeholder="Enter decryption password">
-                </div>
-                <button id="ncryptsecLoginBtn" class="action-btn" style="border: 1px solid currentColor; width: 100%;">> DECRYPT & LOGIN</button>
+                <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
+                <label class="t-form-label">ncryptsec</label>
+                <input type="text" id="ncryptsecInput" class="t-input" placeholder="ncryptsec1...">
+                <label class="t-form-label">password</label>
+                <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
+                <button id="ncryptsecLoginBtn" class="t-btn w-100">> DECRYPT & LOGIN</button>
             </div>
 
-            <div style="text-align: right; margin-top: 15px;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
+            <div class="text-right mt-4">
+                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
             </div>
         </div>
     </div>
 
     <!-- UNLOCK MODAL -->
-    <div id="unlockModal">
-        <div class="modal-content-box" style="max-width: 400px; border-color: #ff4141;">
-            <div style="font-weight: bold; margin-bottom: 12px; color: #ff4141;">> SESSION_LOCKED</div>
-            <p style="opacity: 0.8; font-size: 0.9em; margin-bottom: 15px;">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
-            <div style="margin-bottom: 15px;">
-                <input type="password" id="unlockPassword" class="sys-input" placeholder="Enter password...">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <button class="action-btn modal-btn" onclick="document.getElementById('unlockModal').style.display='none'" style="opacity: 0.6;">[CANCEL]</button>
-                <div>
-                    <button class="action-btn modal-btn" onclick="logoutFully()" style="border-color: #ff4141; color: #ff4141; margin-right: 10px;">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> DECRYPT</button>
+    <div id="unlockModal" class="t-modal">
+        <div class="t-modal-content border-danger" style="max-width: 400px;">
+            <div class="t-card-header text-danger">> SESSION_LOCKED</div>
+            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2">
+                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Lightbox Modal -->
-    <div id="lightboxModal" onclick="this.style.display='none'">
+    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'">
+        <span class="t-lightbox-close">&times;</span>
         <img id="lightboxImg" src="" alt="Zoomed Image">
     </div>
 
     <!-- Quote Modal -->
-    <div id="quoteModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 10px;">> QUOTE_REPLY</div>
-            <div id="quoteTargetPreview" style="font-size: 0.9em; opacity: 0.7; border-left: 2px dashed currentColor; padding-left: 10px; margin-bottom: 12px; max-height: 80px; overflow: hidden;"></div>
-            <textarea id="quoteContentInput" class="sys-input" rows="3" placeholder="Write quote response..."></textarea>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 10px;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple style="display: none;">
-                    <button id="uploadQuoteMediaBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
+    <div id="quoteModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> QUOTE_REPLY</div>
+            <div id="quoteTargetPreview" class="text-muted fs-small mb-3 p-2 border-dashed bg-surface overflow-hidden" style="max-height: 80px;"></div>
+            <textarea id="quoteContentInput" class="t-editor-textarea" rows="3" placeholder="Write quote response..."></textarea>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
+                    <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                    <button class="action-btn modal-btn" onclick="closeQuoteModal()" style="font-size: 0.8em; padding: 5px 10px;">[CANCEL]</button>
-                    <button id="sendQuoteBtn" class="action-btn modal-btn" style="border: 1px solid currentColor; font-size: 0.8em; padding: 5px 10px;">> BROADCAST_QUOTE</button>
+                <div class="d-flex gap-2">
+                    <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
+                    <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Edit Modal -->
-    <div id="editModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 10px;">> EDIT_TRANSMISSION</div>
-            <textarea id="editContentInput" class="sys-input" rows="4" placeholder="Update your note..."></textarea>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="closeEditModal()">[CANCEL]</button>
-                <button id="sendEditBtn" class="action-btn modal-btn" style="border: 1px solid currentColor;">> UPDATE_EVENT</button>
+    <div id="editModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> EDIT_TRANSMISSION</div>
+            <textarea id="editContentInput" class="t-editor-textarea" rows="4" placeholder="Update your note..."></textarea>
+            <div class="d-flex justify-content-between mt-3">
+                <button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button>
+                <button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button>
             </div>
         </div>
     </div>
 
     <!-- Relay Modal -->
-    <div id="relayModal">
-        <div class="modal-content-box">
-            <div style="font-weight: bold; margin-bottom: 12px;">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" style="margin-bottom: 15px;">
-                <p style="opacity: 0.5;">Checking network connections...</p>
+    <div id="relayModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
+            <div id="relayListContainer" class="mb-3">
+                <p class="text-muted">Checking network connections...</p>
             </div>
-            <div style="text-align: right;">
-                <button class="action-btn modal-btn" onclick="closeRelayModal()">[CLOSE]</button>
+            <div class="text-right">
+                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
 
     <!-- Raw Event Modal -->
-    <div id="rawModal">
-        <div class="modal-content-box" style="width: 95%; max-width: 600px;">
-            <div style="font-weight: bold; margin-bottom: 12px;">> RAW_EVENT_DATA</div>
-            <pre id="rawEventContent" class="json-payload" style="max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word;"></pre>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
-                <button class="action-btn modal-btn" onclick="copyRawJson()">[COPY]</button>
-                <button class="action-btn modal-btn" onclick="closeRawModal()">[CLOSE]</button>
+    <div id="rawModal" class="t-modal">
+        <div class="t-modal-content" style="max-width: 650px;">
+            <div class="t-card-header">> RAW_EVENT_DATA</div>
+            <pre id="rawEventContent" class="t-code" style="max-height: 60vh;"></pre>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="t-btn" onclick="copyRawJson()">[COPY]</button>
+                <button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button>
             </div>
         </div>
     </div>
@@ -410,16 +291,15 @@
 
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         
-        // FOLLOWING SYSTEM (Set & Cache)
         let myFollowing = new Set();
         let storedFollowing = localStorage.getItem('phosphor_following');
         if (storedFollowing) {
             try { JSON.parse(storedFollowing).forEach(p => myFollowing.add(p)); } catch(e){}
         }
-        if (currentUserPubkey) myFollowing.add(currentUserPubkey); // Always include oneself
+        if (currentUserPubkey) myFollowing.add(currentUserPubkey); 
         
         let globalSubscribed = false;
-        let activeTab = 'following'; // default tab
+        let activeTab = 'following'; 
 
         let profileCache = {};
         let eventsCache = {};
@@ -436,7 +316,7 @@
 
         let myBookmarks = new Set();
         let myBookmarkEvent = null;
-        let myContactEvent = null; // Kind 3 cache
+        let myContactEvent = null; 
 
         const navLoginBtn = document.getElementById('navLoginBtn');
         const navUnlockBtn = document.getElementById('navUnlockBtn');
@@ -511,10 +391,8 @@
                 container.classList.add('feed-mode-global');
                 container.classList.remove('feed-mode-following');
 
-                // If global not yet subscribed, request from relays now
                 if (!globalSubscribed) {
                     globalSubscribed = true;
-                    // REQUEST KIND 6 & 16 SO REPOSTS ARE ALSO FETCHED
                     let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]);
                     activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 }
@@ -549,23 +427,24 @@
             document.getElementById('viewBunker').classList.add('hidden');
             document.getElementById('viewNsec').classList.add('hidden');
             document.getElementById('viewNcryptsec').classList.add('hidden');
-            document.getElementById('tabExt').style.border = "none";
-            document.getElementById('tabBunker').style.border = "none";
-            document.getElementById('tabNsec').style.border = "none";
-            document.getElementById('tabNcryptsec').style.border = "none";
+            
+            document.getElementById('tabExt').classList.add('ghost');
+            document.getElementById('tabBunker').classList.add('ghost');
+            document.getElementById('tabNsec').classList.add('ghost');
+            document.getElementById('tabNcryptsec').classList.add('ghost');
             
             if (tab === 'ext') {
                 document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').style.border = "1px solid currentColor";
+                document.getElementById('tabExt').classList.remove('ghost');
             } else if (tab === 'bunker') {
                 document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').style.border = "1px solid currentColor";
+                document.getElementById('tabBunker').classList.remove('ghost');
             } else if (tab === 'nsec') {
                 document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNsec').classList.remove('ghost');
             } else if (tab === 'ncryptsec') {
                 document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').style.border = "1px solid currentColor";
+                document.getElementById('tabNcryptsec').classList.remove('ghost');
             }
         }
 
@@ -584,7 +463,7 @@
                     sessionStorage.removeItem('phosphor_privkey_temp');
                     
                     updateAuthState();
-                    myFollowing.add(currentUserPubkey); // Always include oneself
+                    myFollowing.add(currentUserPubkey);
                     fetchMyAvatarAndBookmarks();
                     document.getElementById('loginModal').style.display = 'none';
                     alert('> CONNECTION SUCCESSFUL. RELOADING CONFIG...');
@@ -737,8 +616,6 @@
             sessionStorage.removeItem('phosphor_privkey_temp');
             location.reload();
         }
-
-        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
@@ -956,7 +833,6 @@
                                 });
                             }
                         }
-                        // CAPTURE FOLLOW LIST (KIND 3)
                         if (d[2].kind === 3) {
                             if (!myContactEvent || d[2].created_at > myContactEvent.created_at) {
                                 myContactEvent = d[2];
@@ -964,8 +840,7 @@
                                 
                                 localStorage.setItem('phosphor_following', JSON.stringify(Array.from(myFollowing)));
                                 
-                                // Refresh post classes already rendered in DOM
-                                document.querySelectorAll('.post-card').forEach(card => {
+                                document.querySelectorAll('.t-feed-card').forEach(card => {
                                     let author = card.dataset.author;
                                     if (myFollowing.has(author)) card.classList.add('is-followed');
                                 });
@@ -1025,8 +900,8 @@
             let htmlContent = "";
             RELAYS.forEach(url => {
                 let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span style="color: var(--t-green, #00ff41);">[ONLINE]</span>' : '<span style="color: #ff4141;">[OFFLINE]</span>';
-                htmlContent += `<div class="relay-item"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
+                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
+                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
             });
             relayListContainer.innerHTML = htmlContent;
             relayModal.style.display = 'flex';
@@ -1104,12 +979,10 @@
                     
                     let followingAuthors = Array.from(myFollowing);
                     if (followingAuthors.length > 0) {
-                        // REQUEST KIND 6 & 16
                         socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
                     }
                     
                     if (globalSubscribed) {
-                        // REQUEST KIND 6 & 16
                         socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]));
                     }
                 };
@@ -1175,7 +1048,6 @@
                                 eventsCache[ev.id] = ev; 
                                 renderPost(ev);
                             } 
-                            // CATCH AND EXTRACT JSON FOR REPOST EVENTS (KIND 6 & 16)
                             else if (ev.kind === 6 || ev.kind === 16) {
                                 try {
                                     let innerEv = JSON.parse(ev.content);
@@ -1183,7 +1055,7 @@
                                         if (!profileCache[innerEv.pubkey]) requestProfileInfo(innerEv.pubkey);
                                         if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
                                         eventsCache[innerEv.id] = innerEv; 
-                                        renderPost(innerEv, ev); // Pass original event along with reposter context
+                                        renderPost(innerEv, ev); 
                                     }
                                 } catch(e) {}
                             }
@@ -1260,8 +1132,8 @@
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-            let blurClass = isNSFW ? 'nsfw-blur' : '';
-            let nsfwBadgeHtml = isNSFW ? `<div class="pulse-badge" style="border-color:#ff4141; color:#ff4141;">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
+            let blurClass = isNSFW ? 't-spoiler' : '';
+            let nsfwBadgeHtml = isNSFW ? `<div class="t-badge danger mb-2">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
             let card = document.createElement('div');
             card.id = `post-${renderId}`;
@@ -1273,49 +1145,49 @@
             let repostHtml = "";
             if (repostEv) {
                 let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
-                repostHtml = `<div style="font-size: 0.85em; opacity: 0.9; margin-bottom: 8px; color: var(--t-green, #00ff41);">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" style="color:inherit; text-decoration:none;" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
+                repostHtml = `<div class="text-success fs-small mb-2">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
             }
             
             if (ev.kind === 30023) {
-                card.className = 'post-card article-card';
+                card.className = 't-feed-card border-warning';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
                 ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
-                let coverHtml = coverImg ? `<div class="post-media ${blurClass}" onclick="if(this.classList.contains('nsfw-blur')){this.classList.remove('nsfw-blur'); event.stopPropagation();} else {openLightbox('${coverImg}');}"><img src="${coverImg}" alt="Cover Article"></div>` : "";
+                let coverHtml = coverImg ? `<div class="t-media-item w-100 ${blurClass}" onclick="if(this.classList.contains('t-spoiler')){this.classList.remove('t-spoiler'); event.stopPropagation();} else {openLightbox('${coverImg}');}"><img src="${coverImg}" alt="Cover Article"></div>` : "";
                 let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
-                let finalSummaryHtml = `<div class="article-summary ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>`;
+                let finalSummaryHtml = `<div class="t-feed-content mt-2 ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>`;
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="post-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>
+                    <div class="t-feed-main">
                         ${repostHtml}
-                        <div class="post-header">
-                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        <div class="t-feed-header">
+                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
+                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${nsfwBadgeHtml}
-                        <div class="article-title ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${escapeHtml(title)}</div>
+                        <div class="font-bold fs-3 mb-2 ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${escapeHtml(title)}</div>
                         ${coverHtml}
                         ${finalSummaryHtml}
-                        <div class="post-actions">
-                            <a href="notes.html?${articleTargetParam}" class="action-btn" title="Read Article" style="text-decoration:none;">[read]</a>
-                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                            <button class="action-btn" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
-                            <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                            <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
-                            <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" style="text-decoration: none;" title="Edit Article">[edit]</a>
+                        <div class="t-feed-actions">
+                            <a href="notes.html?${articleTargetParam}" class="t-feed-btn text-success" title="Read Article">[read]</a>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                            <a href="compose.html?d=${escapeHtml(dTagValue)}&author=${ev.pubkey}" class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Article">[edit]</a>
                         </div>
-                        <div class="client-tag">> long_form / via ${escapeHtml(clientName)}</div>
+                        <div class="text-right fs-small text-muted mt-2">> long_form / via ${escapeHtml(clientName)}</div>
                     </div>
                 `;
             }
             else if (ev.kind === 1301) {
-                card.className = 'post-card activity-card';
+                card.className = 't-feed-card border-success';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let actTitle = "Workout"; let actType = "Activity";
@@ -1382,93 +1254,95 @@
                 let contentText = escapeHtml(ev.content.trim());
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                     let href = url.replace(/&amp;/g, '&');
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
                 });
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="post-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>
+                    <div class="t-feed-main">
                         ${repostHtml}
-                        <div class="post-header">
-                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        <div class="t-feed-header">
+                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author text-success font-bold author-${ev.pubkey}">${escapeHtml(info.name)}</a>
+                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${nsfwBadgeHtml}
                         
-                        <div class="activity-header">
-                            <div class="activity-icon">${iconStr}</div>
+                        <div class="t-activity-header mt-3">
+                            <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
                             <div>
-                                <div class="activity-title">${escapeHtml(actTitle)}</div>
-                                <div class="activity-type">${escapeHtml(actType)}</div>
+                                <h4 class="t-activity-title text-success m-0">${escapeHtml(actTitle)}</h4>
+                                <span class="t-activity-type text-success">${escapeHtml(actType)}</span>
                             </div>
                         </div>
                         
-                        <div class="activity-metrics">
-                            <div class="metric-box" style="flex: 1 1 100%;">
-                                <div class="metric-value large">${escapeHtml(actDist)} <span class="metric-unit">${escapeHtml(actDistUnit)}</span></div>
-                                <div class="metric-label">Distance</div>
+                        <div class="t-activity-metrics mb-4 mt-2">
+                            <div class="t-metric-box w-100 mb-4">
+                                <div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div>
+                                <span class="t-metric-lbl text-success">Distance</span>
                             </div>
-                            <div class="metric-box" style="margin-right: 20px;">
-                                <div class="metric-value">${escapeHtml(actDur)}</div>
-                                <div class="metric-label">Duration</div>
-                            </div>
-                            <div class="metric-box" style="margin-right: 20px;">
-                                <div class="metric-value">${escapeHtml(paceSpeedValue)}</div>
-                                <div class="metric-label">${escapeHtml(paceSpeedLabel)}</div>
-                            </div>
-                            <div class="metric-box">
-                                <div class="metric-value">${escapeHtml(actEle)} <span class="metric-unit">${escapeHtml(actEleUnit)}</span></div>
-                                <div class="metric-label">Elevation Gain</div>
+                            <div class="d-flex gap-4 flex-wrap">
+                                <div class="t-metric-box">
+                                    <div class="t-metric-val fs-2">${escapeHtml(actDur)}</div>
+                                    <span class="t-metric-lbl text-success">Duration</span>
+                                </div>
+                                <div class="t-metric-box">
+                                    <div class="t-metric-val fs-2">${escapeHtml(paceSpeedValue)}</div>
+                                    <span class="t-metric-lbl text-success">${escapeHtml(paceSpeedLabel)}</span>
+                                </div>
+                                <div class="t-metric-box">
+                                    <div class="t-metric-val fs-2">${escapeHtml(actEle)} <span class="t-metric-unit">${escapeHtml(actEleUnit)}</span></div>
+                                    <span class="t-metric-lbl text-success">Elevation Gain</span>
+                                </div>
                             </div>
                         </div>
 
-                        ${contentText ? `<div class="post-content ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${contentText}</div>` : ''}
+                        ${contentText ? `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>` : ''}
                         
-                        <div class="post-actions">
-                            <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
-                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                            <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                            <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                        <div class="t-feed-actions w-100 mt-2">
+                            <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                         </div>
-                        <div class="client-tag">> tracker_data / via ${escapeHtml(clientName)}</div>
+                        <div class="text-right fs-small text-muted mt-2">> tracker_data / via ${escapeHtml(clientName)}</div>
                     </div>
                 `;
             }
             else {
-                card.className = isPulse ? 'post-card pulse-card' : 'post-card';
+                card.className = isPulse ? 't-feed-card border-warning' : 't-feed-card';
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let contentHtml = ""; let mediaHtml = "";
                 let contentText = ev.content;
 
                 if (isJsonPayload) {
-                    contentHtml = `<pre class="json-payload">${escapeHtml(parsedJsonContent)}</pre>`;
+                    contentHtml = `<pre class="t-code mt-2 mb-3 ${blurClass}">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
                     let mediaElements = [];
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                            mediaElements.push(`<video controls class="post-video"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
+                            mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
                         } else {
-                            mediaElements.push(`<div class="post-media" onclick="if(this.parentNode.classList.contains('nsfw-blur')) return; openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
+                            mediaElements.push(`<div class="t-media-item" onclick="if(this.parentNode.classList.contains('t-spoiler')) return; openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
                         }
                         return "";
                     });
                     
                     if (mediaElements.length > 1) {
-                        mediaHtml = `<div class="media-grid ${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements.join('')}</div>`;
+                        mediaHtml = `<div class="t-media-grid ${blurClass}" onclick="this.classList.remove('t-spoiler'); event.stopPropagation();">${mediaElements.join('')}</div>`;
                     } else if (mediaElements.length === 1) {
-                        mediaHtml = `<div class="${blurClass}" onclick="this.classList.remove('nsfw-blur'); event.stopPropagation();">${mediaElements[0]}</div>`;
+                        mediaHtml = `<div class="${blurClass}" onclick="this.classList.remove('t-spoiler'); event.stopPropagation();">${mediaElements[0]}</div>`;
                     }
                     
                     contentText = escapeHtml(contentText.trim());
 
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
                         let href = url.replace(/&amp;/g, '&');
-                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green, #00ff41); text-decoration: underline; word-break: break-all;">${url}</a>`;
+                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
                     });
 
                     contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
@@ -1476,39 +1350,38 @@
                         return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                     });
 
-                    contentHtml = `<div class="post-content ${blurClass}" onclick="this.classList.remove('nsfw-blur'); this.style.cursor='text';">${contentText}</div>`;
+                    contentHtml = `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>`;
                 }
 
-                let pulseBadge = isPulse ? `<div class="pulse-badge">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
+                let pulseBadge = isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="avatar-box avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="post-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>
+                    <div class="t-feed-main">
                         ${repostHtml}
-                        <div class="post-header">
-                            <span class="author-line"><a href="profile.html?pubkey=${ev.pubkey}"><strong class="author-${ev.pubkey}">${escapeHtml(info.name)}</strong></a></span>
-                            <span class="dim-text meta-line"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        <div class="t-feed-header">
+                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
+                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${pulseBadge}
                         ${nsfwBadgeHtml}
                         ${contentHtml}
                         ${mediaHtml}
-                        <div class="post-actions">
-                            <a href="thread.html?id=${ev.id}" class="action-btn" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
-                            <button id="bm-btn-${ev.id}" class="action-btn bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                            <button class="action-btn" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                            <button class="action-btn" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                            <button class="action-btn" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                            <button class="action-btn" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
-                            <button class="action-btn edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
+                        <div class="t-feed-actions">
+                            <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                            <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                         </div>
-                        <div class="client-tag">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
+                        <div class="text-right fs-small text-muted mt-2">> ${isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note')} / via ${escapeHtml(clientName)}</div>
                     </div>
                 `;
             }
 
-            // Chronological insertion
             let evTime = repostEv ? repostEv.created_at : ev.created_at;
             let children = postsContainer.children;
             let inserted = false;
