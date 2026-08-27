@@ -31,21 +31,22 @@
 <body class="t-crt">
     <div class="t-container">
         <header class="mb-4">
-            <nav class="d-flex justify-content-between align-items-start t-border-bottom pb-3 m-0 flex-wrap gap-3">
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
                 <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
-                <div class="d-flex flex-column align-items-end gap-2" style="flex: 1; min-width: 250px;">
-                    <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
-                        <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
-                        <a href="profile.html" class="text-success font-bold" style="text-decoration:none;">[PROFILE]</a>
-                        <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
-                        <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
-                        <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
-                        <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
-                        <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
-                    </div>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                    <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
+                    <a href="profile.html" class="text-success font-bold" style="text-decoration:none;">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
-            </nav>
+            </div>
+            <!-- Relay Button dipisah ke baris sendiri dan di-flex ke kanan -->
+            <div class="d-flex justify-content-end t-border-bottom pb-3 m-0">
+                <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            </div>
         </header>
 
         <!-- PROFILE DATA CARD -->
@@ -71,11 +72,11 @@
                 <div id="profileNip05Container"><strong>NIP-05:</strong> -</div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-4 mt-3" style="border-top: 1px dashed var(--t-green);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1.5rem;">
                 <div class="d-flex gap-3 align-items-center flex-wrap">
-                    <span class="text-success" style="cursor:pointer;" onclick="openFollowingModal()">[FOLLOWING: <span id="followingCountText" class="font-bold">0</span>]</span>
-                    <span class="text-success" style="cursor:pointer;" onclick="openFollowersModal()">[FOLLOWERS: <span id="followersCountText" class="font-bold">0</span>]</span>
-                    <span class="text-success" style="cursor:pointer;" onclick="openMutedModal()">[MUTED: <span id="mutedCountText" class="font-bold">0</span>]</span>
+                    <button class="t-btn t-btn-sm ghost" onclick="openFollowingModal()">[FOLLOWING: <span id="followingCountText" class="font-bold">0</span>]</button>
+                    <button class="t-btn t-btn-sm ghost" onclick="openFollowersModal()">[FOLLOWERS: <span id="followersCountText" class="font-bold">0</span>]</button>
+                    <button class="t-btn t-btn-sm ghost" onclick="openMutedModal()">[MUTED: <span id="mutedCountText" class="font-bold">0</span>]</button>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
                     <button id="shareProfileBtn" class="t-btn t-btn-sm hidden" onclick="shareProfileUrl()" title="Share Profile URL">[SHARE_URL]</button>

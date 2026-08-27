@@ -31,21 +31,22 @@
 <body class="t-crt">
     <div class="t-container">
         <header class="mb-4">
-            <nav class="d-flex justify-content-between align-items-start t-border-bottom pb-3 m-0 flex-wrap gap-3">
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
                 <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
-                <div class="d-flex flex-column align-items-end gap-2" style="flex: 1; min-width: 250px;">
-                    <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
-                        <a href="index.html" class="text-success font-bold" style="text-decoration:none;">[TIMELINE]</a>
-                        <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
-                        <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
-                        <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
-                        <a href="#" id="navLoginBtn" style="text-decoration:none; color:inherit;">[LOGIN]</a>
-                        <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
-                        <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
-                    </div>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                    <a href="index.html" class="text-success font-bold" style="text-decoration:none;">[TIMELINE]</a>
+                    <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
-            </nav>
+            </div>
+            <!-- Relay Button dipisah ke baris sendiri dan di-flex ke kanan -->
+            <div class="d-flex justify-content-end t-border-bottom pb-3 m-0">
+                <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            </div>
         </header>
 
         <!-- Composer Card -->
@@ -53,9 +54,10 @@
             <div class="d-flex gap-3">
                 <div class="t-avatar" id="userAvatarBox" title="View Avatar" style="cursor:pointer;" onclick="if(this.querySelector('img')) openLightbox(this.querySelector('img').src)">[P]</div>
                 <div style="flex: 1; min-width: 0;">
-                    <textarea id="postContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-2" rows="3" placeholder="What's happening on the network?"></textarea>
+                    <textarea id="postContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-3" rows="3" placeholder="What's happening on the network?"></textarea>
                     
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-3 mt-3" style="border-top: 1px dashed var(--t-green);">
+                    <!-- Diberi margin-top dan padding-top ekstra agar tidak mepet border putus-putus -->
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1rem;">
                         <div class="d-flex gap-2">
                             <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple class="d-none">
                             <button id="uploadMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
@@ -70,7 +72,7 @@
             </div>
             
             <!-- Protocol Config Panel -->
-            <div class="border-dashed p-2 mt-3 bg-surface d-flex flex-column gap-2">
+            <div class="border-dashed p-3 mt-4 bg-surface d-flex flex-column gap-3">
                 <div class="d-flex gap-4 flex-wrap">
                     <label class="t-checkbox-label m-0" title="Auto-delete post from timeline after 24 Hours">
                         <input type="checkbox" id="pulseToggle">
@@ -81,8 +83,9 @@
                         <span class="t-checkmark"></span> NSFW Tag
                     </label>
                 </div>
-                <div class="t-border-top pt-3 mt-3">
-                    <label class="t-form-label">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
+                <!-- Margin-top dan padding-top ekstra untuk Proof of Work -->
+                <div style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <label class="t-form-label mb-3" style="display: block;">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
                     <input type="range" min="0" max="16" value="0" class="t-range w-100" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
                 </div>
             </div>
