@@ -23,20 +23,24 @@
 </head>
 <body class="t-crt">
     <div class="t-container">
+        <!-- HEADER SINKRON DENGAN INDEX -->
         <header class="mb-4">
-            <nav class="t-navbar m-0">
-                <div class="t-nav-brand">> PHOSPHOR</div>
-                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
-                    <a href="index.html">[TIMELINE]</a>
-                    <a href="profile.html">[PROFILE]</a>
-                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden text-success">[BOOKMARKS]</a>
-                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
-                    <a href="#" id="navLoginBtn" class="hidden">[LOGIN]</a>
-                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
-                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
+                <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
+                <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                    <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
+                    <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden text-success" style="text-decoration:none;">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
-            </nav>
+            </div>
+            <!-- Relay Button dipisah ke baris sendiri -->
+            <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;">
+                <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            </div>
         </header>
 
         <div class="mb-3">
@@ -55,8 +59,7 @@
         </section>
     </div>
 
-    <!-- Modals (Standar terminal.css) -->
-    
+    <!-- Modals -->
     <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 450px;">
@@ -111,11 +114,11 @@
             <div class="t-card-header text-success">> SESSION_LOCKED</div>
             <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2">
-                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
                 </div>
             </div>
         </div>
@@ -138,7 +141,7 @@
                     <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
                     <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
                     <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
                 </div>
@@ -151,7 +154,7 @@
         <div class="t-modal-content">
             <div class="t-card-header">> EDIT_TRANSMISSION</div>
             <textarea id="editContentInput" class="t-editor-textarea" rows="4" placeholder="Update your note..."></textarea>
-            <div class="d-flex justify-content-between mt-3">
+            <div class="d-flex justify-content-between mt-3 flex-wrap gap-2">
                 <button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button>
                 <button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button>
             </div>
@@ -1121,7 +1124,7 @@
             card.id = `post-${ev.id}`;
             
             if (ev.kind === 30023) {
-                card.className = 't-feed-card border-info';
+                card.className = 't-feed-card border-info mb-4';
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
                 ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
 
@@ -1129,8 +1132,8 @@
                 let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="t-feed-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
                         <div class="t-feed-header">
                             <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
@@ -1138,7 +1141,7 @@
                         <div class="font-bold fs-3 mb-2">${escapeHtml(title)}</div>
                         ${coverHtml ? `<div class="mt-2 mb-3">${coverHtml}</div>` : ''}
                         <div class="fs-small opacity-75 mb-3" style="word-break: break-all;">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
-                        <div class="t-feed-actions mt-2">
+                        <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="notes.html?${articleTargetParam}" class="t-feed-btn text-success" title="Read Article" style="text-decoration:none;">[read]</a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="t-feed-btn text-success" title="Copy naddr link" onclick="copyNaddr('30023', '${ev.pubkey}', '${escapeHtml(dTagValue)}')">[c] naddr</button>
@@ -1154,7 +1157,7 @@
                 `;
             } 
             else if (parsed.isSportActivity) {
-                card.className = 't-feed-card border-success';
+                card.className = 't-feed-card border-success mb-4';
                 let iconStr = "[A]";
                 let tLower = parsed.actType.toLowerCase();
                 
@@ -1199,14 +1202,14 @@
                 `;
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="t-feed-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
                         <div class="t-feed-header">
                             <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${contentHtml}
-                        <div class="t-feed-actions mt-2">
+                        <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
@@ -1222,7 +1225,7 @@
                 `;
             }
             else if (isPulse) {
-                card.className = 't-feed-card border-warning';
+                card.className = 't-feed-card border-warning mb-4';
                 let contentText = ev.content; let mediaElements = [];
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                     let lowerExt = ext.toLowerCase();
@@ -1251,8 +1254,8 @@
                 });
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="t-feed-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
                         <div class="t-feed-header">
                             <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
@@ -1260,7 +1263,7 @@
                         <div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>
                         <div class="t-feed-content">${contentText}</div>
                         ${mediaHtml}
-                        <div class="t-feed-actions mt-2">
+                        <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
                             <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
@@ -1273,7 +1276,7 @@
                 `;
             } 
             else {
-                card.className = 't-feed-card';
+                card.className = 't-feed-card mb-4';
                 let contentHtml = ""; let mediaHtml = ""; let mediaElements = [];
                 
                 if (parsed.isJsonPayload) {
@@ -1309,15 +1312,15 @@
                 }
 
                 card.innerHTML = `
-                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                    <div class="t-feed-main">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
                         <div class="t-feed-header">
                             <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${contentHtml}
                         ${mediaHtml}
-                        <div class="t-feed-actions mt-2">
+                        <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>

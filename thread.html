@@ -26,20 +26,24 @@
 </head>
 <body class="t-crt">
     <div class="t-container">
+        <!-- HEADER SINKRON DENGAN INDEX & PROFILE -->
         <header class="mb-4">
-            <nav class="t-navbar m-0">
-                <div class="t-nav-brand">> PHOSPHOR</div>
-                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
-                    <a href="index.html">[TIMELINE]</a>
-                    <a href="profile.html">[PROFILE]</a>
-                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
-                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
-                    <a href="#" id="navLoginBtn" class="hidden">[LOGIN]</a>
-                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
-                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
+                <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
+                <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                    <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
+                    <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
+                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
+                    <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                    <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                    <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                    <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
-            </nav>
+            </div>
+            <!-- Relay Button dipisah ke baris sendiri dan di-flex ke kanan -->
+            <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;">
+                <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            </div>
         </header>
 
         <div class="mb-3">
@@ -54,12 +58,15 @@
         <div class="t-border-bottom my-4 opacity-50"></div>
 
         <!-- REPLY COMPOSER -->
-        <div class="t-feed-card mb-4 hidden border-dashed" id="replyComposer" style="display: flex;">
-            <div class="t-avatar" id="myReplyAvatar">[P]</div>
-            <div class="t-feed-main">
-                <textarea id="replyContentInput" class="t-editor-textarea mb-2" rows="2" placeholder="Write thread reply..."></textarea>
-                <div class="text-right">
-                    <button id="sendReplyBtn" class="t-btn">> POST_REPLY</button>
+        <div class="border-dashed p-3 mb-4 bg-surface hidden" id="replyComposer">
+            <div class="d-flex gap-3">
+                <div class="t-avatar" id="myReplyAvatar" title="View Avatar">[P]</div>
+                <div style="flex: 1; min-width: 0;">
+                    <textarea id="replyContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-3" rows="3" placeholder="Write thread reply..."></textarea>
+                    
+                    <div class="d-flex justify-content-end align-items-center flex-wrap gap-2" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1rem;">
+                        <button id="sendReplyBtn" class="t-btn t-btn-sm">> POST_REPLY</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -127,15 +134,15 @@
 
     <!-- UNLOCK MODAL -->
     <div id="unlockModal" class="t-modal">
-        <div class="t-modal-content border-success" style="max-width: 400px;">
-            <div class="t-card-header text-success">> SESSION_LOCKED</div>
+        <div class="t-modal-content border-danger" style="max-width: 400px;">
+            <div class="t-card-header text-danger">> SESSION_LOCKED</div>
             <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2">
-                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
                 </div>
             </div>
         </div>
@@ -158,7 +165,7 @@
                     <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
                     <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
                     <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
                 </div>
@@ -171,7 +178,7 @@
         <div class="t-modal-content">
             <div class="t-card-header">> EDIT_TRANSMISSION</div>
             <textarea id="editContentInput" class="t-editor-textarea" rows="4" placeholder="Update your note..."></textarea>
-            <div class="d-flex justify-content-between mt-3">
+            <div class="d-flex justify-content-between mt-3 flex-wrap gap-2">
                 <button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button>
                 <button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button>
             </div>
@@ -1136,40 +1143,38 @@
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
 
                 contentHtml = `
-                    <div class="t-feed-card border-success mt-3 mb-4">
-                        <div class="t-activity-header">
-                            <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
-                            <div>
-                                <h4 class="t-activity-title text-success m-0">${escapeHtml(parsed.actTitle)}</h4>
-                                <span class="t-activity-type text-success">${escapeHtml(parsed.actType)}</span>
-                            </div>
+                    <div class="t-activity-header mt-3">
+                        <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
+                        <div>
+                            <h4 class="t-activity-title text-success m-0">${escapeHtml(parsed.actTitle)}</h4>
+                            <span class="t-activity-type text-success">${escapeHtml(parsed.actType)}</span>
                         </div>
-                        
-                        <div class="t-activity-metrics mb-3 mt-2">
-                            <div class="t-metric-box w-100 mb-4">
-                                <div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
-                                <span class="t-metric-lbl text-success">Distance</span>
-                            </div>
-                            <div class="d-flex gap-4 flex-wrap">
-                                <div class="t-metric-box">
-                                    <div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div>
-                                    <span class="t-metric-lbl text-success">Duration</span>
-                                </div>
-                                <div class="t-metric-box">
-                                    <div class="t-metric-val fs-2">${escapeHtml(parsed.paceSpeedValue)}</div>
-                                    <span class="t-metric-lbl text-success">${escapeHtml(parsed.paceSpeedLabel)}</span>
-                                </div>
-                                <div class="t-metric-box">
-                                    <div class="t-metric-val fs-2">${escapeHtml(parsed.actEle)} <span class="t-metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
-                                    <span class="t-metric-lbl text-success">${eleLabel}</span>
-                                </div>
-                            </div>
-                        </div>
-                        ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="fs-4 mt-3">${escapeHtml(ev.content)}</div>` : '')}
                     </div>
+                    
+                    <div class="t-activity-metrics mb-3 mt-3">
+                        <div class="t-metric-box w-100 mb-3">
+                            <div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
+                            <span class="t-metric-lbl text-success">Distance</span>
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap">
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div>
+                                <span class="t-metric-lbl text-success">Duration</span>
+                            </div>
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.paceSpeedValue)}</div>
+                                <span class="t-metric-lbl text-success">${escapeHtml(parsed.paceSpeedLabel)}</span>
+                            </div>
+                            <div class="t-metric-box">
+                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actEle)} <span class="t-metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
+                                <span class="t-metric-lbl text-success">${eleLabel}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="t-feed-content mt-3">${escapeHtml(ev.content)}</div>` : '')}
                 `;
             } else if (parsed.isJsonPayload) {
-                contentHtml = `<pre class="t-code my-3">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
+                contentHtml = `<pre class="t-code mt-3">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
                 contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
@@ -1194,35 +1199,35 @@
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
-                contentHtml = `<div class="fs-3 my-3" style="line-height: 1.6; word-wrap: break-word;">${contentText}</div>`;
+                contentHtml = `<div class="fs-4 my-3" style="line-height: 1.6; word-wrap: break-word;">${contentText}</div>`;
             }
 
             let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
 
             mainPostContainer.innerHTML = `
-                <div class="t-feed-card ${isPulse ? 'border-warning' : 'border-info'} t-border-bottom pb-4 mb-4" style="background: var(--bg-base);">
-                    <div class="d-flex align-items-center gap-3 mb-3">
-                        <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; width: 64px; height: 64px; font-size: 1.5em;">${avatarHtml}</a>
-                        <div>
-                            <a href="profile.html?pubkey=${ev.pubkey}" style="text-decoration:none; color:inherit;"><strong class="author-${ev.pubkey} fs-3">${escapeHtml(info.name)}</strong></a><br>
-                            <span class="text-muted fs-small"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
+                <div class="t-feed-card mb-4" style="border: 1px dashed var(--t-green); padding: 1.5rem; background: var(--bg-base);">
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; width: 64px; height: 64px; font-size: 1.5em; margin-right: 15px;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
+                        <div class="t-feed-header mb-2">
+                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author text-success font-bold author-${ev.pubkey}" style="font-size: 1.3rem;">${escapeHtml(info.name)}</a>
+                            <span class="t-feed-meta d-block mt-1"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
                         </div>
+                        ${isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
+                        ${contentHtml}
+                        ${mediaHtml}
+                        <div class="t-feed-actions d-flex flex-wrap gap-2 mt-4" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem;">
+                            <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                            <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
+                        </div>
+                        <div class="text-right fs-small text-muted mt-3">> ${footerType} / via ${escapeHtml(parsed.clientName)}</div>
                     </div>
-                    ${isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
-                    ${contentHtml}
-                    ${mediaHtml}
-                    <div class="t-feed-actions mt-4">
-                        <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
-                        <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
-                        <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
-                        <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
-                        <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
-                        <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                        <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
-                        <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
-                        <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
-                    </div>
-                    <div class="text-right fs-small text-muted mt-3">> ${footerType} / via ${escapeHtml(parsed.clientName)}</div>
                 </div>
             `;
             updateMetricsUI(ev.id);
@@ -1268,11 +1273,11 @@
                     </div>
                     
                     <div class="t-activity-metrics mb-3 mt-2">
-                        <div class="t-metric-box w-100 mb-4">
+                        <div class="t-metric-box w-100 mb-3">
                             <div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
                             <span class="t-metric-lbl text-success">Distance</span>
                         </div>
-                        <div class="d-flex gap-4 flex-wrap">
+                        <div class="d-flex gap-3 flex-wrap">
                             <div class="t-metric-box">
                                 <div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div>
                                 <span class="t-metric-lbl text-success">Duration</span>
@@ -1287,7 +1292,7 @@
                             </div>
                         </div>
                     </div>
-                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="t-feed-content">${escapeHtml(ev.content)}</div>` : '')}
+                    ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : ((ev.content || "").trim() ? `<div class="t-feed-content mt-2">${escapeHtml(ev.content)}</div>` : '')}
                 `;
             } else if (parsed.isJsonPayload) {
                 contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
@@ -1315,18 +1320,18 @@
                     let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
                     return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
                 });
-                contentHtml = `<div class="t-feed-content">${contentText}</div>`;
+                contentHtml = `<div class="t-feed-content mt-2">${contentText}</div>`;
             }
 
             let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
             
             let card = document.createElement('div');
-            card.className = parsed.isSportActivity ? 't-feed-card border-success' : (isPulse ? 't-feed-card border-warning' : 't-feed-card');
+            card.className = parsed.isSportActivity ? 't-feed-card border-success mb-3' : (isPulse ? 't-feed-card border-warning mb-3' : 't-feed-card mb-3');
             card.id = `reply-${ev.id}`;
 
             card.innerHTML = `
                 <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
-                <div class="t-feed-main">
+                <div class="t-feed-main" style="min-width: 0; flex: 1;">
                     <div class="t-feed-header">
                         <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                         <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
@@ -1334,7 +1339,7 @@
                     ${isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
                     ${contentHtml}
                     ${mediaHtml}
-                    <div class="t-feed-actions mt-2">
+                    <div class="t-feed-actions d-flex flex-wrap gap-2 mt-3">
                         <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
                         <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                         <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
