@@ -19,7 +19,6 @@
     <link rel="manifest" href="/assets/site.webmanifest">
     
     <style>
-        /* Hanya menyisakan logic spesifik dan sedikit helper untuk Phosphor */
         .hidden { display: none !important; }
         .feed-mode-following .t-feed-card:not(.is-followed) { display: none !important; }
         
@@ -32,17 +31,19 @@
 <body class="t-crt">
     <div class="t-container">
         <header class="mb-4">
-            <nav class="t-navbar m-0">
-                <div class="t-nav-brand">> PHOSPHOR</div>
-                <div class="t-nav-menu d-flex align-items-center flex-wrap gap-3">
-                    <a href="index.html" class="text-success font-bold">[TIMELINE]</a>
-                    <a href="profile.html">[PROFILE]</a>
-                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden">[BOOKMARKS]</a>
-                    <a href="notifications.html" id="navNotifBtn" class="hidden">[NOTIFICATIONS]</a>
-                    <a href="#" id="navLoginBtn">[LOGIN]</a>
-                    <a href="#" id="navUnlockBtn" class="hidden text-danger t-border-bottom">[UNLOCK SESSION]</a>
-                    <a href="#" id="logoutBtn" class="hidden">[LOGOUT]</a>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+            <nav class="d-flex justify-content-between align-items-start t-border-bottom pb-3 m-0 flex-wrap gap-3">
+                <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
+                <div class="d-flex flex-column align-items-end gap-2" style="flex: 1; min-width: 250px;">
+                    <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
+                        <a href="index.html" class="text-success font-bold" style="text-decoration:none;">[TIMELINE]</a>
+                        <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
+                        <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
+                        <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
+                        <a href="#" id="navLoginBtn" style="text-decoration:none; color:inherit;">[LOGIN]</a>
+                        <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
+                        <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
+                    </div>
+                    <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
                 </div>
             </nav>
         </header>
@@ -54,7 +55,7 @@
                 <div style="flex: 1; min-width: 0;">
                     <textarea id="postContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-2" rows="3" placeholder="What's happening on the network?"></textarea>
                     
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 mt-2" style="border-top: 1px dashed var(--t-green);">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-3 mt-3" style="border-top: 1px dashed var(--t-green);">
                         <div class="d-flex gap-2">
                             <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple class="d-none">
                             <button id="uploadMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
@@ -80,7 +81,7 @@
                         <span class="t-checkmark"></span> NSFW Tag
                     </label>
                 </div>
-                <div class="t-border-top pt-2 mt-1">
+                <div class="t-border-top pt-3 mt-3">
                     <label class="t-form-label">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
                     <input type="range" min="0" max="16" value="0" class="t-range w-100" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
                 </div>
@@ -157,11 +158,11 @@
             <div class="t-card-header text-danger">> SESSION_LOCKED</div>
             <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2">
-                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
                 </div>
             </div>
         </div>
@@ -1140,7 +1141,6 @@
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
             let blurClass = isNSFW ? 't-spoiler' : '';
             
-            // Badge disamakan warna hijau sukses
             let nsfwBadgeHtml = isNSFW ? `<div class="t-badge text-success mb-2">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
             let card = document.createElement('div');
@@ -1153,10 +1153,9 @@
             let repostHtml = "";
             if (repostEv) {
                 let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
-                repostHtml = `<div class="text-success fs-small mb-2">> REPOSTED_BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}">${escapeHtml(rpInfo.name)}</a></div>`;
+                repostHtml = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}" style="color:inherit; text-decoration:none;">${escapeHtml(rpInfo.name)}</a></div>`;
             }
             
-            // Semua feed card menjadi seragam t-feed-card biasa (hijau) tanpa modifikasi border-warning/success
             card.className = 't-feed-card';
             
             if (ev.kind === 30023) {
@@ -1284,12 +1283,12 @@
                             </div>
                         </div>
                         
-                        <div class="t-activity-metrics mb-4 mt-2">
-                            <div class="t-metric-box w-100 mb-4">
+                        <div class="t-activity-metrics mb-2 mt-2">
+                            <div class="t-metric-box w-100 mb-2">
                                 <div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div>
                                 <span class="t-metric-lbl text-success">Distance</span>
                             </div>
-                            <div class="d-flex gap-4 flex-wrap">
+                            <div class="d-flex gap-3 flex-wrap">
                                 <div class="t-metric-box">
                                     <div class="t-metric-val fs-2">${escapeHtml(actDur)}</div>
                                     <span class="t-metric-lbl text-success">Duration</span>
@@ -1361,7 +1360,6 @@
                     contentHtml = `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>`;
                 }
 
-                // Ubah lencana pulse ke class hijau sukses
                 let pulseBadge = isPulse ? `<div class="t-badge text-success mb-2">> 24H_PULSE / ${escapeHtml(expTimeStr)}</div>` : "";
 
                 card.innerHTML = `

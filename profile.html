@@ -43,7 +43,7 @@
                         <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
                         <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                     </div>
-                    <button id="relayStatusBtn" class="t-btn t-btn-sm" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
+                    <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
                 </div>
             </nav>
         </header>
@@ -71,11 +71,11 @@
                 <div id="profileNip05Container"><strong>NIP-05:</strong> -</div>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-3 mt-3" style="border-top: 1px dashed var(--t-green);">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 pt-4 mt-3" style="border-top: 1px dashed var(--t-green);">
                 <div class="d-flex gap-3 align-items-center flex-wrap">
-                    <button class="t-btn t-btn-sm ghost px-2" onclick="openFollowingModal()">[FOLLOWING: <span id="followingCountText" class="text-success font-bold">0</span>]</button>
-                    <button class="t-btn t-btn-sm ghost px-2" onclick="openFollowersModal()">[FOLLOWERS: <span id="followersCountText" class="text-success font-bold">0</span>]</button>
-                    <button class="t-btn t-btn-sm ghost px-2" onclick="openMutedModal()">[MUTED: <span id="mutedCountText" class="text-success font-bold">0</span>]</button>
+                    <span class="text-success" style="cursor:pointer;" onclick="openFollowingModal()">[FOLLOWING: <span id="followingCountText" class="font-bold">0</span>]</span>
+                    <span class="text-success" style="cursor:pointer;" onclick="openFollowersModal()">[FOLLOWERS: <span id="followersCountText" class="font-bold">0</span>]</span>
+                    <span class="text-success" style="cursor:pointer;" onclick="openMutedModal()">[MUTED: <span id="mutedCountText" class="font-bold">0</span>]</span>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
                     <button id="shareProfileBtn" class="t-btn t-btn-sm hidden" onclick="shareProfileUrl()" title="Share Profile URL">[SHARE_URL]</button>
@@ -151,11 +151,11 @@
             <div class="t-card-header text-danger">> SESSION_LOCKED</div>
             <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <button class="t-btn ghost" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2">
-                    <button class="t-btn danger" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn">> DECRYPT</button>
+            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
+                <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
+                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
                 </div>
             </div>
         </div>
@@ -1575,7 +1575,7 @@
                                     <div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div>
                                     <span class="t-metric-lbl text-success">Distance</span>
                                 </div>
-                                <div class="d-flex gap-4 flex-wrap">
+                                <div class="d-flex gap-3 flex-wrap">
                                     <div class="t-metric-box">
                                         <div class="t-metric-val fs-2">${escapeHtml(actDur)}</div>
                                         <span class="t-metric-lbl text-success">Duration</span>
