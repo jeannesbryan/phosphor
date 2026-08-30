@@ -1135,7 +1135,8 @@
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
                     
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
+                    // FIX: Kinds 22 ditambahkan agar Phosphor menarik event video
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
                     
                     socket.send(JSON.stringify(["REQ", "target-followers-" + Math.random(), { "kinds": [3], "#p": [targetPubkey] }]));
 
@@ -1342,7 +1343,8 @@
                                 } catch(e){}
                             }
 
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            // FIX: Memasukkan ev.kind === 22 ke dalam antrean event untuk dirender
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!userEventsList.some(item => item.id === ev.id)) {
                                     userEventsList.push(ev);
                                     triggerDebouncedRender();
@@ -1447,7 +1449,56 @@
 
                 let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
 
-                if (targetEv.kind === 30023) {
+                // FIX: Menangani render untuk kind: 22 (Short-form Video)
+                if (targetEv.kind === 22) {
+                    card.className = 't-feed-card';
+                    
+                    let videoUrl = "";
+                    let mimeType = "video/mp4";
+                    
+                    targetEv.tags.forEach(t => {
+                        if (t[0] === "imeta") {
+                            t.forEach(val => {
+                                if (typeof val === 'string') {
+                                    if (val.startsWith("url ")) videoUrl = val.substring(4);
+                                    if (val.startsWith("m ")) mimeType = val.substring(2);
+                                }
+                            });
+                        }
+                    });
+                    
+                    let mediaHtml = "";
+                    if (videoUrl) {
+                        mediaHtml = `<video controls class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green);"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Video format not supported.</video>`;
+                    }
+                    
+                    let contentText = targetEv.content ? `<div class="t-feed-content mt-2">${escapeHtml(targetEv.content)}</div>` : "";
+
+                    card.innerHTML = `
+                        <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
+                        <div class="t-feed-main">
+                            ${repostHeader}
+                            <div class="t-feed-header">
+                                <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-feed-author author-${targetEv.pubkey}">${escapeHtml(authorName)}</a>
+                                <span class="t-feed-meta"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
+                            </div>
+                            <div class="t-badge mt-2">> SHORT_VIDEO / MEDIA</div>
+                            ${contentText}
+                            ${mediaHtml}
+                            <div class="t-feed-actions mt-2">
+                                <a href="thread.html?id=${targetEv.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
+                                <button id="bm-btn-${targetEv.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
+                                <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${targetEv.id}')">[t] <span id="metric-reposts-${targetEv.id}">0</span></button>
+                                <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${targetEv.id}')">[+] <span id="metric-likes-${targetEv.id}">0</span></button>
+                                <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${targetEv.id}')">[q]</button>
+                                <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${targetEv.id}')">[raw]</button>
+                                <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${targetEv.id}')">[link]</button>
+                            </div>
+                            <div class="text-right fs-small text-muted mt-2">> video_stream / via ${escapeHtml(clientName)}</div>
+                        </div>
+                    `;
+                }
+                else if (targetEv.kind === 30023) {
                     card.className = 't-feed-card';
                     let title = "Untitled Article"; let summary = ""; let coverImg = "";
                     targetEv.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });

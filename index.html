@@ -396,7 +396,8 @@
 
                 if (!globalSubscribed) {
                     globalSubscribed = true;
-                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]);
+                    // FIX: Kinds 22 ditambahkan ke global feed
+                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "limit": 40 }]);
                     activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 }
             }
@@ -988,11 +989,13 @@
                     
                     let followingAuthors = Array.from(myFollowing);
                     if (followingAuthors.length > 0) {
-                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
+                        // FIX: Kinds 22 ditambahkan ke following feed
+                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
                     }
                     
                     if (globalSubscribed) {
-                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 1301, 30023, 20000], "limit": 40 }]));
+                        // FIX: Kinds 22 ditambahkan ke global feed
+                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "limit": 40 }]));
                     }
                 };
 
@@ -1050,7 +1053,8 @@
                                 });
                             }
 
-                            if (ev.kind === 1 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            // FIX: Menangani render untuk kind: 22
+                            if (ev.kind === 1 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     requestProfileInfo(ev.pubkey);
                                 }
@@ -1159,8 +1163,58 @@
             }
             
             card.className = 't-feed-card';
-            
-            if (ev.kind === 30023) {
+
+            // FIX: Render khusus untuk Short-form Video (kind: 22)
+            if (ev.kind === 22) {
+                if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
+                
+                let videoUrl = "";
+                let mimeType = "video/mp4";
+                
+                ev.tags.forEach(t => {
+                    if (t[0] === "imeta") {
+                        t.forEach(val => {
+                            if (typeof val === 'string') {
+                                if (val.startsWith("url ")) videoUrl = val.substring(4);
+                                if (val.startsWith("m ")) mimeType = val.substring(2);
+                            }
+                        });
+                    }
+                });
+                
+                let mediaHtml = "";
+                if (videoUrl) {
+                    mediaHtml = `<video controls class="t-video-item w-100 mt-2 ${blurClass}" style="max-height: 500px; border: 1px dashed var(--t-green);" onclick="this.classList.remove('t-spoiler');"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Video format not supported.</video>`;
+                }
+                
+                let contentText = ev.content ? `<div class="t-feed-content mt-2 ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${escapeHtml(ev.content)}</div>` : "";
+
+                card.innerHTML = `
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>
+                    <div class="t-feed-main">
+                        ${repostHtml}
+                        <div class="t-feed-header">
+                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
+                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        </div>
+                        ${nsfwBadgeHtml}
+                        <div class="t-badge mt-2">> SHORT_VIDEO / MEDIA</div>
+                        ${contentText}
+                        ${mediaHtml}
+                        <div class="t-feed-actions mt-2">
+                            <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                        </div>
+                        <div class="text-right fs-small text-muted mt-2">> video_stream / via ${escapeHtml(clientName)}</div>
+                    </div>
+                `;
+            }
+            else if (ev.kind === 30023) {
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
                 let title = "Untitled Article"; let summary = ""; let coverImg = "";
