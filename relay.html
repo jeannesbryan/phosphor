@@ -997,7 +997,8 @@
                     relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
 
                     if (url === targetWsUrl) {
-                        socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 30023, 20000, 20001, 20002, 30311, 33400], "limit": 60 }]));
+                        // FIX 1: Menambahkan kind 22 pada request REQ "target-relay-feed"
+                        socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 22, 30023, 20000, 20001, 20002, 30311, 33400], "limit": 60 }]));
                     }
 
                     if (currentUserPubkey) {
@@ -1065,7 +1066,8 @@
                                 } catch(e){}
                             }
                             
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) {
+                            // FIX 2: Menambahkan kind 22 ke dalam filter profile cache check & network logic
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 22 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) {
                                 if (!profileCache[ev.pubkey]) {
                                     requestProfileInfo(ev.pubkey);
                                 }
@@ -1095,7 +1097,8 @@
                             }
 
                             if (data[1] === "target-relay-feed") {
-                                if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) {
+                                // FIX 2: Menambahkan kind 22 agar dimasukkan dalam pipeline render Event
+                                if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 22 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) {
                                     renderEvent(ev);
                                 }
                             }
@@ -1327,6 +1330,28 @@
                         <a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="t-btn t-btn-sm">> READ_ARTICLE</a>
                     </div>
                 `;
+            } else if (targetEv.kind === 22) {
+                // FIX 3: Tambahkan logika parsing tag 'imeta' khusus untuk menayangkan render video (kind 22)
+                let videoUrl = "";
+                let mimeType = "video/mp4";
+                
+                targetEv.tags.forEach(t => {
+                    if (t[0] === "imeta") {
+                        t.forEach(val => {
+                            if (typeof val === 'string') {
+                                if (val.startsWith("url ")) videoUrl = val.substring(4);
+                                if (val.startsWith("m ")) mimeType = val.substring(2);
+                            }
+                        });
+                    }
+                });
+                
+                if (videoUrl) {
+                    mediaHtml = `<video controls class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green);"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Video format not supported.</video>`;
+                }
+                
+                let contentText = targetEv.content ? `<div class="t-feed-content mt-2">${escapeHtml(targetEv.content)}</div>` : "";
+                contentHtml = `<div class="t-badge success mb-2">> SHORT_VIDEO / MEDIA</div>${contentText}`;
             } else if (parsed.isJsonPayload) {
                 contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
@@ -1369,7 +1394,9 @@
             card.id = `reply-${ev.id}`; 
             
             let pulseBadgeHtml = isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : "";
-            let eventTypeStr = isArticle ? 'long_form_article' : (parsed.isSportActivity ? 'activity_telemetry' : (isPulse ? 'pulse_event' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note')));
+            
+            // FIX 3: Update label tipe event saat footer di-render
+            let eventTypeStr = targetEv.kind === 22 ? 'short_video' : (isArticle ? 'long_form_article' : (parsed.isSportActivity ? 'activity_telemetry' : (isPulse ? 'pulse_event' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'))));
 
             // STRUKTUR BARU: Menambahkan flex: 1 pada t-feed-main dan flex-wrap pada t-feed-actions
             card.innerHTML = `
