@@ -15,15 +15,11 @@
     
     <style>
         .hidden { display: none !important; }
-        
         .profile-banner { width: 100%; height: 120px; overflow: hidden; background: rgba(0,255,65,0.03); display: flex; align-items: center; justify-content: center; }
         .profile-banner img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) sepia(0.5); }
-        
         .profile-avatar-lg { width: 80px; height: 80px; font-size: 1.8em; }
-        
         .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed var(--t-green); padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
         .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
-        
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
         .scrollable-list { max-height: 250px; overflow-y: auto; }
     </style>
@@ -97,55 +93,40 @@
     </div>
 
     <!-- Modals -->
-    <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 450px;">
             <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
-            
             <div class="d-flex gap-2 mb-3 t-border-bottom pb-3 flex-wrap">
                 <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
-
             <div id="viewExt">
-                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
                 <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
-
             <div id="viewBunker" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <label class="t-form-label">bunker://...</label>
                 <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
                 <button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button>
             </div>
-
             <div id="viewNsec" class="hidden">
-                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
-                <label class="t-form-label">nsec or hex</label>
+                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it.</p>
                 <input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex">
-                <label class="t-form-label">password</label>
                 <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
                 <button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button>
             </div>
-
             <div id="viewNcryptsec" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
-                <label class="t-form-label">ncryptsec</label>
                 <input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1...">
-                <label class="t-form-label">password</label>
                 <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
                 <button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button>
             </div>
-
-            <div class="text-right mt-4">
-                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
-            </div>
+            <div class="text-right mt-4"><button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button></div>
         </div>
     </div>
 
-    <!-- UNLOCK MODAL -->
     <div id="unlockModal" class="t-modal">
         <div class="t-modal-content border-danger" style="max-width: 400px;">
             <div class="t-card-header text-danger">> SESSION_LOCKED</div>
@@ -161,13 +142,8 @@
         </div>
     </div>
 
-    <!-- Lightbox Modal -->
-    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'">
-        <span class="t-lightbox-close">&times;</span>
-        <img id="lightboxImg" src="" alt="Zoomed Image">
-    </div>
+    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'"><span class="t-lightbox-close">&times;</span><img id="lightboxImg" src="" alt="Zoomed Image"></div>
 
-    <!-- QUOTE MODAL -->
     <div id="quoteModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> QUOTE_REPLY</div>
@@ -186,7 +162,6 @@
         </div>
     </div>
     
-    <!-- Edit Modal -->
     <div id="editModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> EDIT_TRANSMISSION</div>
@@ -198,59 +173,38 @@
         </div>
     </div>
 
-    <!-- Relay Modal -->
     <div id="relayModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" class="mb-3">
-                <p class="text-muted">Checking network connections...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
-            </div>
+            <div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div>
         </div>
     </div>
 
-    <!-- Following Modal -->
     <div id="followingModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> FOLLOWING_LIST (<span id="modalFollowingCount">0</span>)</div>
-            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="followingListContainer">
-                <p class="text-muted">Loading following list...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeFollowingModal()">[CLOSE]</button>
-            </div>
+            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="followingListContainer"><p class="text-muted">Loading following list...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeFollowingModal()">[CLOSE]</button></div>
         </div>
     </div>
 
-    <!-- Followers Modal -->
     <div id="followersModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> FOLLOWERS_LIST (<span id="modalFollowersCount">0</span>)</div>
-            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="followersListContainer">
-                <p class="text-muted">Loading followers data...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeFollowersModal()">[CLOSE]</button>
-            </div>
+            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="followersListContainer"><p class="text-muted">Loading followers data...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeFollowersModal()">[CLOSE]</button></div>
         </div>
     </div>
     
-    <!-- Muted Modal -->
     <div id="mutedModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> MUTED_LIST (<span id="modalMutedCount">0</span>)</div>
-            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="mutedListContainer">
-                <p class="text-muted">Loading muted data...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeMutedModal()">[CLOSE]</button>
-            </div>
+            <div class="scrollable-list border-dashed p-2 mb-3 bg-surface" id="mutedListContainer"><p class="text-muted">Loading muted data...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeMutedModal()">[CLOSE]</button></div>
         </div>
     </div>
 
-    <!-- Raw Event Modal -->
     <div id="rawModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 650px;">
             <div class="t-card-header">> RAW_EVENT_DATA</div>
@@ -263,56 +217,31 @@
     </div>
 
     <script>
-        // ================= INDEXED_DB LOCAL CACHING =================
         let db = null;
         function initDB() {
             return new Promise((resolve) => {
                 let request = indexedDB.open("PhosphorDB", 1);
-                request.onupgradeneeded = function(e) {
-                    let database = e.target.result;
-                    if (!database.objectStoreNames.contains("profiles")) {
-                        database.createObjectStore("profiles", { keyPath: "pubkey" });
-                    }
-                };
+                request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) database.createObjectStore("profiles", { keyPath: "pubkey" }); };
                 request.onsuccess = function(e) { db = e.target.result; resolve(true); };
-                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
+                request.onerror = function(e) { resolve(false); };
             });
         }
 
         function saveProfileToCache(pubkey, profileData) {
-            if (!db) return;
-            let tx = db.transaction("profiles", "readwrite");
-            let store = tx.objectStore("profiles");
-            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
+            if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
         }
 
         async function getProfileFromCache(pubkey) {
             if (!db) return null;
-            return new Promise((resolve) => {
-                let tx = db.transaction("profiles", "readonly");
-                let store = tx.objectStore("profiles");
-                let req = store.get(pubkey);
-                req.onsuccess = e => resolve(e.target.result);
-                req.onerror = () => resolve(null);
-            });
+            return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); });
         }
 
-        // Hybrid Profile Request: Checks memory, then IndexedDB, then network
         async function requestProfileInfo(pubkey) {
             if (followingProfilesCache[pubkey]) return;
-            
             followingProfilesCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
-            
             if (cached) {
-                followingProfilesCache[pubkey] = {
-                    name: cached.name,
-                    handle: cached.handle,
-                    picture: cached.picture,
-                    pending: false
-                };
-                
-                // Re-render UI Elements smoothly
+                followingProfilesCache[pubkey] = { name: cached.name, handle: cached.handle, picture: cached.picture, pending: false };
                 if (followingModal.style.display === 'flex') renderFollowingListUI();
                 if (followersModal.style.display === 'flex') renderFollowersListUI();
                 if (mutedModal.style.display === 'flex') renderMutedListUI();
@@ -322,209 +251,72 @@
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
             }
         }
-        // ==========================================================
 
-        let RELAYS = [];
-        let BLOSSOM_SERVERS = [];
-        
+        let RELAYS = []; let BLOSSOM_SERVERS = [];
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let targetPubkey = new URLSearchParams(window.location.search).get('pubkey');
         let isMyProfile = false;
+        let profileAvatarUrl = null; let profileNameTxt = "User Name"; let profileHandleTxt = "@handle"; let profileNip05Txt = ""; let myRawProfileData = null;
+        let quoteTargetEvent = null; let editTargetEvent = null;
+        let userEventsList = []; let relayStatusMap = {};
+        let currentDisplayLimit = 10; let debounceTimer = null;
+        let targetFollowingPubkeys = []; let targetFollowersPubkeys = []; let targetMutedPubkeys = [];
+        let myFollowingPubkeys = []; let myMutedPubkeys = []; let myMuteEvent = null;
+        let followingProfilesCache = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
+        let likedEvents = new Set(); let repostedEvents = new Set();
+        let myBookmarks = new Set(); let myBookmarkEvent = null;
 
-        let profileAvatarUrl = null;
-        let profileNameTxt = "User Name";
-        let profileHandleTxt = "@handle";
-        let profileNip05Txt = "";
-        let myRawProfileData = null;
-        
-        let quoteTargetEvent = null;
-        let editTargetEvent = null;
-        
-        let userEventsList = [];
-        let relayStatusMap = {};
-        
-        let currentDisplayLimit = 10;
-        let debounceTimer = null;
-        
-        let targetFollowingPubkeys = [];
-        let targetFollowersPubkeys = [];
-        let targetMutedPubkeys = [];
-        
-        let myFollowingPubkeys = [];
-        let myMutedPubkeys = [];
-        let myMuteEvent = null;
-        
-        let followingProfilesCache = {};
-
-        let metricsCache = {};
-        let pendingMetricsIds = new Set();
-        let metricsTimeout = null;
-        
-        let likedEvents = new Set();
-        let repostedEvents = new Set();
-
-        let myBookmarks = new Set();
-        let myBookmarkEvent = null;
-
-        const relayStatusBtn = document.getElementById('relayStatusBtn');
-        const navLoginBtn = document.getElementById('navLoginBtn');
-        const navUnlockBtn = document.getElementById('navUnlockBtn');
-        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
-        const navNotifBtn = document.getElementById('navNotifBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const profileName = document.getElementById('profileName');
-        const profileHandle = document.getElementById('profileHandle');
-        const profilePubkeyDisplay = document.getElementById('profilePubkeyDisplay');
-        const profileBio = document.getElementById('profileBio');
-        const profileAvatarBox = document.getElementById('profileAvatarBox');
-        const profileBannerBox = document.getElementById('profileBannerBox');
-        const profileLightning = document.getElementById('profileLightning');
-        const lndText = document.getElementById('lndText');
-        const profileWebsite = document.getElementById('profileWebsite');
-        const webLink = document.getElementById('webLink');
-        const profileNip05Container = document.getElementById('profileNip05Container');
-        const userPostsContainer = document.getElementById('user-posts-container');
-        const loadMoreBtn = document.getElementById('loadMoreBtn');
-        
-        const broadcastProfileBtn = document.getElementById('broadcastProfileBtn');
-        const shareProfileBtn = document.getElementById('shareProfileBtn');
-        const muteBtn = document.getElementById('muteBtn');
-        const followBtn = document.getElementById('followBtn');
-        
-        const followingCountText = document.getElementById('followingCountText');
-        const followersCountText = document.getElementById('followersCountText');
-        const mutedCountText = document.getElementById('mutedCountText');
-
-        const quoteModal = document.getElementById('quoteModal');
-        const quoteTargetPreview = document.getElementById('quoteTargetPreview');
-        const quoteContentInput = document.getElementById('quoteContentInput');
-        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-        const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn');
-        const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
-        
-        const editModal = document.getElementById('editModal');
-        const editContentInput = document.getElementById('editContentInput');
-        const sendEditBtn = document.getElementById('sendEditBtn');
-
-        const relayModal = document.getElementById('relayModal');
-        const relayListContainer = document.getElementById('relayListContainer');
-        
-        const followingModal = document.getElementById('followingModal');
-        const followingListContainer = document.getElementById('followingListContainer');
-        const modalFollowingCount = document.getElementById('modalFollowingCount');
-        
-        const followersModal = document.getElementById('followersModal');
-        const followersListContainer = document.getElementById('followersListContainer');
-        const modalFollowersCount = document.getElementById('modalFollowersCount');
-
-        const mutedModal = document.getElementById('mutedModal');
-        const mutedListContainer = document.getElementById('mutedListContainer');
-        const modalMutedCount = document.getElementById('modalMutedCount');
-
-        const rawModal = document.getElementById('rawModal');
-        const rawEventContent = document.getElementById('rawEventContent');
-
+        const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const profileName = document.getElementById('profileName'); const profileHandle = document.getElementById('profileHandle'); const profilePubkeyDisplay = document.getElementById('profilePubkeyDisplay'); const profileBio = document.getElementById('profileBio'); const profileAvatarBox = document.getElementById('profileAvatarBox'); const profileBannerBox = document.getElementById('profileBannerBox'); const profileLightning = document.getElementById('profileLightning'); const lndText = document.getElementById('lndText'); const profileWebsite = document.getElementById('profileWebsite'); const webLink = document.getElementById('webLink'); const profileNip05Container = document.getElementById('profileNip05Container'); const userPostsContainer = document.getElementById('user-posts-container'); const loadMoreBtn = document.getElementById('loadMoreBtn'); const broadcastProfileBtn = document.getElementById('broadcastProfileBtn'); const shareProfileBtn = document.getElementById('shareProfileBtn'); const muteBtn = document.getElementById('muteBtn'); const followBtn = document.getElementById('followBtn'); const followingCountText = document.getElementById('followingCountText'); const followersCountText = document.getElementById('followersCountText'); const mutedCountText = document.getElementById('mutedCountText'); const quoteModal = document.getElementById('quoteModal'); const quoteTargetPreview = document.getElementById('quoteTargetPreview'); const quoteContentInput = document.getElementById('quoteContentInput'); const sendQuoteBtn = document.getElementById('sendQuoteBtn'); const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn'); const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput'); const editModal = document.getElementById('editModal'); const editContentInput = document.getElementById('editContentInput'); const sendEditBtn = document.getElementById('sendEditBtn'); const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const followingModal = document.getElementById('followingModal'); const followingListContainer = document.getElementById('followingListContainer'); const modalFollowingCount = document.getElementById('modalFollowingCount'); const followersModal = document.getElementById('followersModal'); const followersListContainer = document.getElementById('followersListContainer'); const modalFollowersCount = document.getElementById('modalFollowersCount'); const mutedModal = document.getElementById('mutedModal'); const mutedListContainer = document.getElementById('mutedListContainer'); const modalMutedCount = document.getElementById('modalMutedCount'); const rawModal = document.getElementById('rawModal'); const rawEventContent = document.getElementById('rawEventContent');
         let activeSockets = [];
 
         async function loadConfig() {
             try {
                 await initDB(); 
-
-                let res = await fetch('config.json');
-                let config = await res.json();
-                
-                let savedRelays = localStorage.getItem('phosphor_user_relays');
-                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
-                
+                let res = await fetch('config.json'); let config = await res.json();
+                let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
                 BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
-                
-                await checkLocalSessions();
-                initProfile();
-            } catch (e) {
-                console.error("Failed to load config.json", e);
-                alert("> ERROR: Missing config.json");
-            }
+                await checkLocalSessions(); initProfile();
+            } catch (e) { alert("> ERROR: Missing config.json"); }
         }
 
-        // ================= AUTHENTICATION LOGIC =================
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
-            window.nostr = {
-                getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => {
-                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
-                }
-            };
+            window.nostr = { getPublicKey: async () => pubkeyHex, signEvent: async (eventTemplate) => { return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes); } };
         }
 
         async function checkLocalSessions() {
             let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
             let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
             if (rawHex && currentUserPubkey) {
                 try {
                     const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
                     let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
                     setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
-                } catch(e) { console.error("Failed to restore local session", e); }
-            } else if (savedNcryptsec && !window.nostr && !rawHex) {
-                currentUserPubkey = null;
-                localStorage.removeItem('phosphor_pubkey');
-            }
+                } catch(e) {}
+            } else if (savedNcryptsec && !window.nostr && !rawHex) { currentUserPubkey = null; localStorage.removeItem('phosphor_pubkey'); }
         }
 
         function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden');
-            document.getElementById('viewBunker').classList.add('hidden');
-            document.getElementById('viewNsec').classList.add('hidden');
-            document.getElementById('viewNcryptsec').classList.add('hidden');
-            
-            document.getElementById('tabExt').classList.add('ghost');
-            document.getElementById('tabBunker').classList.add('ghost');
-            document.getElementById('tabNsec').classList.add('ghost');
-            document.getElementById('tabNcryptsec').classList.add('ghost');
-            
-            if (tab === 'ext') {
-                document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').classList.remove('ghost');
-            } else if (tab === 'bunker') {
-                document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').classList.remove('ghost');
-            } else if (tab === 'nsec') {
-                document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').classList.remove('ghost');
-            } else if (tab === 'ncryptsec') {
-                document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').classList.remove('ghost');
-            }
+            document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost');
+            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } 
+            else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } 
+            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } 
+            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); }
         }
 
         navLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('loginModal').style.display = 'flex';
-            
+            e.preventDefault(); document.getElementById('loginModal').style.display = 'flex';
             let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            if(savedNcryptsec) {
-                switchLoginTab('ncryptsec');
-                document.getElementById('ncryptsecInput').value = savedNcryptsec;
-            }
+            if(savedNcryptsec) { switchLoginTab('ncryptsec'); document.getElementById('ncryptsecInput').value = savedNcryptsec; }
         });
-
-        navUnlockBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('unlockModal').style.display = 'flex';
-        });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
                 try {
                     currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    localStorage.removeItem('phosphor_privkey');
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    localStorage.removeItem('phosphor_bunker_uri');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                    location.reload();
+                    localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload();
                 } catch (err) { alert('> ERROR: Login failed.'); }
             } else { alert('> WARNING: NIP-07 extension not found.'); }
         });
@@ -532,622 +324,226 @@
         document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
             let uri = document.getElementById('bunkerInput').value.trim();
             if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
-            
             try {
-                let urlObj = new URL(uri);
-                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
-                
-                currentUserPubkey = targetPubkey;
-                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                localStorage.setItem('phosphor_bunker_uri', uri);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_ncryptsec');
-                sessionStorage.removeItem('phosphor_privkey_temp');
-                
-                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
-                document.getElementById('loginModal').style.display = 'none';
-                setTimeout(() => location.reload(), 500);
-            } catch (e) {
-                alert('> ERROR: Failed to parse Bunker URI.');
-            }
+                let urlObj = new URL(uri); let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
+                currentUserPubkey = targetPubkey; localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.setItem('phosphor_bunker_uri', uri); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp');
+                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.'); document.getElementById('loginModal').style.display = 'none'; setTimeout(() => location.reload(), 500);
+            } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim();
-            let pass = document.getElementById('nsecPassword').value;
-            
+            let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value;
             if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            
             let btn = document.getElementById('nsecLoginBtn');
             try {
-                btn.textContent = '> PROCESSING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
+                btn.textContent = '> PROCESSING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
                 let skBytes;
-                if (input.startsWith('nsec1')) {
-                    let decoded = nostrTools.nip19.decode(input);
-                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
-                    skBytes = decoded.data;
-                } else {
-                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                }
-                
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
+                if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format'); skBytes = decoded.data; } 
+                else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
+                let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
                 let ncryptsec = nip49.encrypt(skBytes, pass);
-                
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Invalid key format or processing failed.');
-                btn.textContent = '> ENCRYPT & LOGIN';
-            }
+                localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.'); location.reload();
+            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim();
-            let pass = document.getElementById('ncryptsecPassword').value;
-            
+            let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value;
             if(!input || !pass) return alert('> ERROR: Key and password required.');
-            
             let btn = document.getElementById('ncryptsecLoginBtn');
             try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(input, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                localStorage.setItem('phosphor_ncryptsec', input);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> SECURE DECRYPTION SUCCESSFUL.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT & LOGIN';
-            }
+                btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri');
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); btn.textContent = '> DECRYPT & LOGIN'; }
         });
 
         document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value;
-            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
+            let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
             if(!pass) return alert('> ERROR: Password required.');
-
             let btn = document.getElementById('unlockBtn');
             try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(ncryptsec, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                document.getElementById('unlockModal').style.display = 'none';
-                alert('> SESSION UNLOCKED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT';
-            }
+                btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
+                let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
+                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey);
+                currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex);
+                document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload();
+            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); btn.textContent = '> DECRYPT'; }
         });
 
-        function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey');
-            localStorage.removeItem('phosphor_privkey');
-            localStorage.removeItem('phosphor_ncryptsec');
-            localStorage.removeItem('phosphor_bunker_uri');
-            sessionStorage.removeItem('phosphor_privkey_temp');
-            location.reload();
-        }
+        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
+        logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logoutFully();
-        });
-
-        // ================= END AUTH LOGIC =================
-        
-        // ================= MEDIA UPLOAD LOGIC =================
         async function handleMediaUpload(files, btnElement, textareaElement) {
             if (!files.length) return;
-            
-            if (files.length > 4) {
-                alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
-                files = files.slice(0, 4);
-            }
-
+            if (files.length > 4) { alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.'); files = files.slice(0, 4); }
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            
             try {
-                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
-                blossomUrl = blossomUrl.replace(/\/$/, '');
-                let uploadEndpoint = blossomUrl + '/upload';
-                
+                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id'; blossomUrl = blossomUrl.replace(/\/$/, ''); let uploadEndpoint = blossomUrl + '/upload';
                 for (let i = 0; i < files.length; i++) {
-                    let file = files[i];
-                    btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
-                    
-                    let arrayBuffer = await file.arrayBuffer();
-                    let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-                    let hashArray = Array.from(new Uint8Array(hashBuffer));
-                    let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                    
+                    let file = files[i]; btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
+                    let arrayBuffer = await file.arrayBuffer(); let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer); let hashArray = Array.from(new Uint8Array(hashBuffer)); let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                     let nowTimestamp = Math.floor(Date.now() / 1000);
-                    
-                    let authEvent = {
-                        kind: 24242,
-                        created_at: nowTimestamp,
-                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
-                        content: "Phosphor Blossom Auth",
-                        pubkey: currentUserPubkey
-                    };
-                    
-                    let signedAuth = await window.nostr.signEvent(authEvent);
-                    let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
-                    
-                    let response = await fetch(uploadEndpoint, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Nostr ' + authBase64 },
-                        body: file
-                    });
-                    
-                    if (response.ok) {
-                        let data = await response.json();
-                        textareaElement.value += (textareaElement.value ? '\n' : '') + data.url;
-                    } else { 
-                        let errText = await response.text();
-                        alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
-                    }
+                    let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
+                    let signedAuth = await window.nostr.signEvent(authEvent); let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                    let response = await fetch(uploadEndpoint, { method: 'PUT', headers: { 'Authorization': 'Nostr ' + authBase64 }, body: file });
+                    if (response.ok) { let data = await response.json(); textareaElement.value += (textareaElement.value ? '\n' : '') + data.url; } 
+                    else { let errText = await response.text(); alert(`> ERROR: Server rejected ${file.name}. ` + errText); }
                 }
-            } catch (err) { alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); } 
-            finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server.'); } finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
         }
-        
         uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click());
         quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
 
-        // ================= BOOKMARK LOGIC =================
         async function toggleBookmark(eventId) {
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
             let isBookmarked = myBookmarks.has(eventId);
-            
             let tags = [["d", "bookmark"]];
-            if (myBookmarkEvent) {
-                myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
-            }
-            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } 
-            else { myBookmarks.delete(eventId); }
-            
+            if (myBookmarkEvent) myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
+            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } else { myBookmarks.delete(eventId); }
             let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
             try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                myBookmarkEvent = signedEvent;
+                let signedEvent = await window.nostr.signEvent(rawEvent); myBookmarkEvent = signedEvent;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
-                let btn = document.getElementById(`bm-btn-${eventId}`);
-                if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
+                let btn = document.getElementById(`bm-btn-${eventId}`); if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
             } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
         }
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-
             shareProfileBtn.classList.remove('hidden');
-
             if (isLocked) {
-                navLoginBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navUnlockBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                broadcastProfileBtn.classList.add('hidden');
-                muteBtn.classList.add('hidden');
-                
-                document.getElementById('unlockModal').style.display = 'flex';
+                navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden');
+                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); broadcastProfileBtn.classList.add('hidden'); muteBtn.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex';
             } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.remove('hidden');
-                navNotifBtn.classList.remove('hidden');
-                
-                if (isMyProfile) {
-                    broadcastProfileBtn.classList.remove('hidden');
-                } else {
-                    followBtn.classList.remove('hidden');
-                    muteBtn.classList.remove('hidden');
-                }
-                
-                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
-                document.getElementById('unlockModal').style.display = 'none';
+                navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden');
+                if (isMyProfile) broadcastProfileBtn.classList.remove('hidden'); else { followBtn.classList.remove('hidden'); muteBtn.classList.remove('hidden'); }
+                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden')); document.getElementById('unlockModal').style.display = 'none';
             } else {
-                navLoginBtn.classList.remove('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                broadcastProfileBtn.classList.add('hidden');
-                followBtn.classList.add('hidden');
-                muteBtn.classList.add('hidden');
+                navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); broadcastProfileBtn.classList.add('hidden'); followBtn.classList.add('hidden'); muteBtn.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
             }
         }
 
         async function copyNaddr(kind, pubkey, identifier) {
-            try {
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                
-                let naddr = nostrTools.nip19.naddrEncode({ 
-                    kind: parseInt(kind), 
-                    pubkey: pubkey, 
-                    identifier: identifier 
-                });
-                
-                navigator.clipboard.writeText(`nostr:${naddr}`);
-                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
-            } catch (e) { 
-                console.error(e);
-                alert('> ERROR: Failed to encode NIP-19 naddr.'); 
-            }
+            try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let naddr = nostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier }); navigator.clipboard.writeText(`nostr:${naddr}`); alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`); } 
+            catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
         }
+        function copyThreadLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
+        function shareProfileUrl() { let baseUrl = window.location.origin + window.location.pathname; let profileUrl = baseUrl + '?pubkey=' + targetPubkey; navigator.clipboard.writeText(profileUrl).then(() => { alert("> SUCCESS: Profile URL copied to clipboard!\n\n" + profileUrl); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
+        function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
         
-        function copyThreadLink(id) {
-            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
-            let threadUrl = baseUrl + 'thread.html?id=' + id;
-            navigator.clipboard.writeText(threadUrl);
-            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
-        }
-        
-        // ================= SHARE PROFILE URL =================
-        function shareProfileUrl() {
-            let baseUrl = window.location.origin + window.location.pathname;
-            let profileUrl = baseUrl + '?pubkey=' + targetPubkey;
-            navigator.clipboard.writeText(profileUrl).then(() => {
-                alert("> SUCCESS: Profile URL copied to clipboard!\n\n" + profileUrl);
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("> ERROR: Failed to copy to clipboard.");
-            });
-        }
-        
-        function copyRawJson() {
-            let textToCopy = rawEventContent.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("> SUCCESS: Raw JSON copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("> ERROR: Failed to copy to clipboard.");
-            });
-        }
-
         function timeAgo(unixTimestamp) {
-            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
-            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
+            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
             if (seconds < 60) return "Just now";
-            for (let i in intervals) {
-                let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
-            }
+            for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; }
             return "Just now";
         }
 
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
-        
-        function openRawModal(eventId) {
-            let ev = userEventsList.find(e => e.id === eventId);
-            if (ev) {
-                rawEventContent.textContent = JSON.stringify(ev, null, 2);
-                rawModal.style.display = 'flex';
-            }
-        }
+        function openRawModal(eventId) { let ev = userEventsList.find(e => e.id === eventId); if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
-
         function openQuoteModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) {
-                alert('> ERROR: Not logged in! Login to quote.');
-                return;
-            }
-            let ev = userEventsList.find(e => e.id === eventId);
-            if (!ev) return;
-            quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
-            quoteContentInput.value = "";
-            quoteModal.style.display = 'flex';
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to quote.'); return; }
+            let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
+            quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content; quoteContentInput.value = ""; quoteModal.style.display = 'flex';
         }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
-
         function openEditModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) return;
-            let ev = userEventsList.find(e => e.id === eventId);
-            if (!ev) return;
-            editTargetEvent = ev;
-            editContentInput.value = ev.content;
-            editModal.style.display = 'flex';
+            if (!currentUserPubkey || !window.nostr) return; let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
+            editTargetEvent = ev; editContentInput.value = ev.content; editModal.style.display = 'flex';
         }
         function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
-
-        function openRelayModal() {
-            let htmlContent = "";
-            RELAYS.forEach(url => {
-                let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
-                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
-            });
-            relayListContainer.innerHTML = htmlContent;
-            relayModal.style.display = 'flex';
-        }
+        function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; relayModal.style.display = 'flex'; }
         function closeRelayModal() { relayModal.style.display = 'none'; }
-        
         function openFollowingModal() { renderFollowingListUI(); followingModal.style.display = 'flex'; }
         function closeFollowingModal() { followingModal.style.display = 'none'; }
-
         function renderFollowingListUI() {
-            modalFollowingCount.textContent = targetFollowingPubkeys.length;
-            if (targetFollowingPubkeys.length === 0) {
-                followingListContainer.innerHTML = '<p class="text-muted">No following data found.</p>';
-                return;
-            }
-            let html = "";
-            targetFollowingPubkeys.forEach(pk => {
-                let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
-                html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small">
-                    <a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a>
-                    <span class="text-muted">${escapeHtml(info.handle)}</span>
-                </div>`;
-            });
-            followingListContainer.innerHTML = html;
+            modalFollowingCount.textContent = targetFollowingPubkeys.length; if (targetFollowingPubkeys.length === 0) { followingListContainer.innerHTML = '<p class="text-muted">No following data found.</p>'; return; }
+            let html = ""; targetFollowingPubkeys.forEach(pk => { let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` }; html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a><span class="text-muted">${escapeHtml(info.handle)}</span></div>`; }); followingListContainer.innerHTML = html;
         }
-
         function openFollowersModal() { renderFollowersListUI(); followersModal.style.display = 'flex'; }
         function closeFollowersModal() { followersModal.style.display = 'none'; }
-
         function renderFollowersListUI() {
-            modalFollowersCount.textContent = targetFollowersPubkeys.length;
-            if (targetFollowersPubkeys.length === 0) {
-                followersListContainer.innerHTML = '<p class="text-muted">No followers data found.</p>';
-                return;
-            }
-            let html = "";
-            targetFollowersPubkeys.forEach(pk => {
-                let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
-                html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small">
-                    <a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a>
-                    <span class="text-muted">${escapeHtml(info.handle)}</span>
-                </div>`;
-            });
-            followersListContainer.innerHTML = html;
+            modalFollowersCount.textContent = targetFollowersPubkeys.length; if (targetFollowersPubkeys.length === 0) { followersListContainer.innerHTML = '<p class="text-muted">No followers data found.</p>'; return; }
+            let html = ""; targetFollowersPubkeys.forEach(pk => { let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` }; html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a><span class="text-muted">${escapeHtml(info.handle)}</span></div>`; }); followersListContainer.innerHTML = html;
         }
-
         function openMutedModal() { renderMutedListUI(); mutedModal.style.display = 'flex'; }
         function closeMutedModal() { mutedModal.style.display = 'none'; }
-
         function renderMutedListUI() {
-            modalMutedCount.textContent = targetMutedPubkeys.length;
-            if (targetMutedPubkeys.length === 0) {
-                mutedListContainer.innerHTML = '<p class="text-muted">No muted users found.</p>';
-                return;
-            }
-            let html = "";
-            targetMutedPubkeys.forEach(pk => {
-                let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` };
-                html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small">
-                    <a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a>
-                    <span class="text-muted">${escapeHtml(info.handle)}</span>
-                </div>`;
-            });
-            mutedListContainer.innerHTML = html;
+            modalMutedCount.textContent = targetMutedPubkeys.length; if (targetMutedPubkeys.length === 0) { mutedListContainer.innerHTML = '<p class="text-muted">No muted users found.</p>'; return; }
+            let html = ""; targetMutedPubkeys.forEach(pk => { let info = followingProfilesCache[pk] || { name: `Node_${pk.substring(0,6)}`, handle: `@${pk.substring(0,8)}` }; html += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><a href="profile.html?pubkey=${pk}" class="font-bold text-success" style="text-decoration:none;">${escapeHtml(info.name)}</a><span class="text-muted">${escapeHtml(info.handle)}</span></div>`; }); mutedListContainer.innerHTML = html;
         }
 
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
-
-        function updateMetricsUI(id) {
-            let m = metricsCache[id];
-            let er = document.getElementById(`metric-replies-${id}`);
-            let et = document.getElementById(`metric-reposts-${id}`);
-            let el = document.getElementById(`metric-likes-${id}`);
-            if(er) er.textContent = m.replies;
-            if(et) et.textContent = m.reposts;
-            if(el) el.textContent = m.likes;
-        }
-
+        function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; }
         function requestMetrics(eventId) {
-            pendingMetricsIds.add(eventId);
-            clearTimeout(metricsTimeout);
-            metricsTimeout = setTimeout(() => {
-                let ids = Array.from(pendingMetricsIds);
-                if(ids.length === 0) return;
-                let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
-                pendingMetricsIds.clear();
-            }, 1500);
+            pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout);
+            metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500);
         }
 
         async function likeEvent(eventId) {
-            let ev = userEventsList.find(e => e.id === eventId);
-            if (!ev) return;
+            let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
-
             let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId);
-            } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId); } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
         }
 
         async function repostEvent(eventId) {
-            let ev = userEventsList.find(e => e.id === eventId);
-            if (!ev) return;
+            let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
             if (!confirm('> Repost this content to your timeline?')) return;
-
-            let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
-            let dTag = ev.tags.find(t => t[0] === 'd');
-            if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
-
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId);
-                alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
-            } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
+            let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey }; let dTag = ev.tags.find(t => t[0] === 'd'); if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId); alert(`> SUCCESS: Reposted to ${sentCount} relays!`); } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
         }
 
         async function toggleFollow() {
-            if (!currentUserPubkey || !window.nostr) return;
-            
-            followBtn.textContent = '...'; 
-
-            let isFollowing = myFollowingPubkeys.includes(targetPubkey);
-            let newFollowing = [...myFollowingPubkeys];
-            
-            if (isFollowing) {
-                newFollowing = newFollowing.filter(pk => pk !== targetPubkey);
-            } else {
-                if (!newFollowing.includes(targetPubkey)) newFollowing.push(targetPubkey);
-            }
-            
-            let tags = newFollowing.map(pk => ["p", pk]);
-            let rawEvent = { kind: 3, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
-                myFollowingPubkeys = newFollowing;
-                followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
-                alert(`> SUCCESS: Network contact list updated!`);
-            } catch(e) { 
-                alert('> ERROR: Failed to update contact list.'); 
-                followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; 
-            }
+            if (!currentUserPubkey || !window.nostr) return; followBtn.textContent = '...'; 
+            let isFollowing = myFollowingPubkeys.includes(targetPubkey); let newFollowing = [...myFollowingPubkeys];
+            if (isFollowing) { newFollowing = newFollowing.filter(pk => pk !== targetPubkey); } else { if (!newFollowing.includes(targetPubkey)) newFollowing.push(targetPubkey); }
+            let tags = newFollowing.map(pk => ["p", pk]); let rawEvent = { kind: 3, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); myFollowingPubkeys = newFollowing; followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; alert(`> SUCCESS: Network contact list updated!`); } catch(e) { followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; }
         }
 
         async function toggleMute() {
-            if (!currentUserPubkey || !window.nostr) return;
-            
-            muteBtn.textContent = '...'; 
-
-            let isMuted = myMutedPubkeys.includes(targetPubkey);
-            let tags = [];
-            
-            if (myMuteEvent) {
-                myMuteEvent.tags.forEach(t => {
-                    if (t[0] !== 'p' || t[1] !== targetPubkey) {
-                        tags.push(t);
-                    }
-                });
-            }
-            
-            if (!isMuted) {
-                tags.push(["p", targetPubkey]);
-                myMutedPubkeys.push(targetPubkey);
-            } else {
-                myMutedPubkeys = myMutedPubkeys.filter(pk => pk !== targetPubkey);
-            }
-            
+            if (!currentUserPubkey || !window.nostr) return; muteBtn.textContent = '...'; 
+            let isMuted = myMutedPubkeys.includes(targetPubkey); let tags = [];
+            if (myMuteEvent) { myMuteEvent.tags.forEach(t => { if (t[0] !== 'p' || t[1] !== targetPubkey) { tags.push(t); } }); }
+            if (!isMuted) { tags.push(["p", targetPubkey]); myMutedPubkeys.push(targetPubkey); } else { myMutedPubkeys = myMutedPubkeys.filter(pk => pk !== targetPubkey); }
             let rawEvent = { kind: 10000, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                myMuteEvent = signedEvent;
-                
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
-                muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]';
-                if (myMutedPubkeys.includes(targetPubkey)) {
-                    muteBtn.classList.remove('danger');
-                } else {
-                    muteBtn.classList.add('danger');
-                }
-                
-                alert(`> SUCCESS: Mute list network metadata updated!`);
-            } catch(e) { 
-                alert('> ERROR: Failed to update mute list.'); 
-                muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; 
-            }
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); myMuteEvent = signedEvent; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; if (myMutedPubkeys.includes(targetPubkey)) { muteBtn.classList.remove('danger'); } else { muteBtn.classList.add('danger'); } alert(`> SUCCESS: Mute list network metadata updated!`); } catch(e) { muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; }
         }
 
         async function initProfile() {
             if (!targetPubkey) { targetPubkey = currentUserPubkey; }
-            isMyProfile = (targetPubkey === currentUserPubkey);
-            updateAuthState();
-
-            if (!targetPubkey) {
-                relayStatusBtn.textContent = '[ RELAYS: DISCONNECTED ]';
-                profilePubkeyDisplay.textContent = 'Data not found.';
-                return;
-            }
-            profilePubkeyDisplay.textContent = targetPubkey;
-            profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`;
-            connectMultiRelays();
+            isMyProfile = (targetPubkey === currentUserPubkey); updateAuthState();
+            if (!targetPubkey) { relayStatusBtn.textContent = '[ RELAYS: DISCONNECTED ]'; profilePubkeyDisplay.textContent = 'Data not found.'; return; }
+            profilePubkeyDisplay.textContent = targetPubkey; profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`; connectMultiRelays();
         }
 
         function connectMultiRelays() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
                 let socket = new WebSocket(url);
-
                 socket.onopen = function() {
-                    onlineCount++;
-                    relayStatusMap[url] = true;
-                    updateRelayCounter(onlineCount);
-                    
+                    onlineCount++; relayStatusMap[url] = true; updateRelayCounter(onlineCount);
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
-                    
-                    // FIX: Kinds 22 ditambahkan agar Phosphor menarik event video
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
-                    
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
                     socket.send(JSON.stringify(["REQ", "target-followers-" + Math.random(), { "kinds": [3], "#p": [targetPubkey] }]));
 
                     if (currentUserPubkey) {
                         socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }]));
                         socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                         socket.send(JSON.stringify(["REQ", "my-mute-" + Math.random(), { "kinds": [10000], "authors": [currentUserPubkey], "limit": 1 }]));
-                        
-                        if (!isMyProfile) {
-                            socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
-                        }
+                        if (!isMyProfile) socket.send(JSON.stringify(["REQ", "my-contacts-" + Math.random(), { "kinds": [3], "authors": [currentUserPubkey], "limit": 1 }]));
                     }
                 };
 
@@ -1159,205 +555,81 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-
-                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
-                                let userRelays = [];
-                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
-                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
-                            }
-                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
-                                let userBlossom = [];
-                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
-                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
-                            }
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
 
                             if (ev.kind === 10000) {
                                 if (ev.pubkey === targetPubkey) {
-                                    targetMutedPubkeys = [];
-                                    ev.tags.forEach(t => { if (t[0] === 'p') targetMutedPubkeys.push(t[1]); });
-                                    mutedCountText.textContent = targetMutedPubkeys.length;
-                                    
-                                    if (targetMutedPubkeys.length > 0) {
-                                        targetMutedPubkeys.forEach(pk => requestProfileInfo(pk));
-                                    }
+                                    targetMutedPubkeys = []; ev.tags.forEach(t => { if (t[0] === 'p') targetMutedPubkeys.push(t[1]); }); mutedCountText.textContent = targetMutedPubkeys.length;
+                                    if (targetMutedPubkeys.length > 0) targetMutedPubkeys.forEach(pk => requestProfileInfo(pk));
                                 }
                                 if (currentUserPubkey && ev.pubkey === currentUserPubkey) {
                                     if (!myMuteEvent || ev.created_at >= myMuteEvent.created_at) {
-                                        myMuteEvent = ev;
-                                        myMutedPubkeys = [];
-                                        ev.tags.forEach(t => { if (t[0] === 'p') myMutedPubkeys.push(t[1]); });
-                                        
-                                        if (muteBtn && !isMyProfile) {
-                                            muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]';
-                                            if (myMutedPubkeys.includes(targetPubkey)) {
-                                                muteBtn.classList.remove('danger');
-                                            } else {
-                                                muteBtn.classList.add('danger');
-                                            }
-                                        }
+                                        myMuteEvent = ev; myMutedPubkeys = []; ev.tags.forEach(t => { if (t[0] === 'p') myMutedPubkeys.push(t[1]); });
+                                        if (muteBtn && !isMyProfile) { muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; if (myMutedPubkeys.includes(targetPubkey)) muteBtn.classList.remove('danger'); else muteBtn.classList.add('danger'); }
                                     }
                                 }
                             }
 
                             if (ev.kind === 5) {
-                                ev.tags.forEach(t => {
-                                    if (t[0] === 'e') {
-                                        let oldCard = document.getElementById(`post-${t[1]}`);
-                                        if (oldCard) oldCard.remove();
-                                        userEventsList = userEventsList.filter(item => item.id !== t[1]);
-                                    }
-                                });
+                                ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`post-${t[1]}`); if (oldCard) oldCard.remove(); userEventsList = userEventsList.filter(item => item.id !== t[1]); } });
                                 return;
                             }
                             
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
                                 if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
-                                    myBookmarkEvent = ev;
-                                    myBookmarks.clear();
-                                    ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
-                                    document.querySelectorAll('.bookmark-btn').forEach(btn => {
-                                        let id = btn.getAttribute('data-id');
-                                        btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save';
-                                    });
+                                    myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); });
+                                    document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; });
                                 }
                             }
 
                             if (ev.kind === 3) {
-                                if (ev.tags.some(t => t[0] === "p" && t[1] === targetPubkey)) {
-                                    if (!targetFollowersPubkeys.includes(ev.pubkey)) {
-                                        targetFollowersPubkeys.push(ev.pubkey);
-                                        followersCountText.textContent = targetFollowersPubkeys.length;
-                                        requestProfileInfo(ev.pubkey);
-                                    }
-                                }
-
-                                if (ev.pubkey === targetPubkey) {
-                                    targetFollowingPubkeys = [];
-                                    ev.tags.forEach(t => { if (t[0] === "p") targetFollowingPubkeys.push(t[1]); });
-                                    followingCountText.textContent = targetFollowingPubkeys.length;
-                                    
-                                    if (targetFollowingPubkeys.length > 0) {
-                                        targetFollowingPubkeys.forEach(pk => requestProfileInfo(pk));
-                                    }
-                                }
-                                if (ev.pubkey === currentUserPubkey) {
-                                    myFollowingPubkeys = [];
-                                    ev.tags.forEach(t => { if (t[0] === "p") myFollowingPubkeys.push(t[1]); });
-                                    if (followBtn && !isMyProfile) followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]';
-                                }
+                                if (ev.tags.some(t => t[0] === "p" && t[1] === targetPubkey)) { if (!targetFollowersPubkeys.includes(ev.pubkey)) { targetFollowersPubkeys.push(ev.pubkey); followersCountText.textContent = targetFollowersPubkeys.length; requestProfileInfo(ev.pubkey); } }
+                                if (ev.pubkey === targetPubkey) { targetFollowingPubkeys = []; ev.tags.forEach(t => { if (t[0] === "p") targetFollowingPubkeys.push(t[1]); }); followingCountText.textContent = targetFollowingPubkeys.length; if (targetFollowingPubkeys.length > 0) targetFollowingPubkeys.forEach(pk => requestProfileInfo(pk)); }
+                                if (ev.pubkey === currentUserPubkey) { myFollowingPubkeys = []; ev.tags.forEach(t => { if (t[0] === "p") myFollowingPubkeys.push(t[1]); }); if (followBtn && !isMyProfile) followBtn.textContent = myFollowingPubkeys.includes(targetPubkey) ? '[UNFOLLOW]' : '[FOLLOW]'; }
                             }
 
                             if (ev.kind === 0 && ev.pubkey !== targetPubkey) {
                                 try {
-                                    let meta = JSON.parse(ev.content);
-                                    let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
-                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
-                                    let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
-                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    
-                                    followingProfilesCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                        picture: meta.picture || null,
-                                        pending: false
-                                    };
-                                    
-                                    // Save to IndexedDB
+                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    followingProfilesCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName, picture: meta.picture || null, pending: false };
                                     saveProfileToCache(ev.pubkey, followingProfilesCache[ev.pubkey]);
-                                    
-                                    if (followingModal.style.display === 'flex') renderFollowingListUI();
-                                    if (followersModal.style.display === 'flex') renderFollowersListUI();
-                                    if (mutedModal.style.display === 'flex') renderMutedListUI();
+                                    if (followingModal.style.display === 'flex') renderFollowingListUI(); if (followersModal.style.display === 'flex') renderFollowersListUI(); if (mutedModal.style.display === 'flex') renderMutedListUI();
                                     triggerDebouncedRender();
                                 } catch(e){}
                             }
                             
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
-                                eTags.forEach(tId => {
-                                    initMetrics(tId);
-                                    if (!metricsCache[tId].processed.has(ev.id)) {
-                                        metricsCache[tId].processed.add(ev.id);
-                                        if (ev.kind === 1) metricsCache[tId].replies++;
-                                        if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++;
-                                        if (ev.kind === 7) metricsCache[tId].likes++;
-                                        updateMetricsUI(tId);
-                                    }
-                                });
+                                eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++; if (ev.kind === 7) metricsCache[tId].likes++; updateMetricsUI(tId); } });
                             }
 
                             if (ev.pubkey !== targetPubkey) return;
 
                             if (ev.kind === 0) {
                                 try {
-                                    let profileData = JSON.parse(ev.content);
-                                    if (isMyProfile) myRawProfileData = ev.content;
-                                    if (profileData.name || profileData.display_name) {
-                                        profileNameTxt = profileData.display_name || profileData.name;
-                                        profileName.textContent = profileNameTxt;
-                                    }
-                                    
-                                    let nip05Local = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[0] : '';
-                                    let rawNameStr = profileData.name || profileData.display_name || targetPubkey.substring(0, 8);
-                                    profileHandleTxt = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
-                                    let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
-
-                                    profileHandle.innerHTML = domainPart ? 
-                                        `${profileHandleTxt} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" class="text-success" style="text-decoration:none;">${domainPart}</a>` : 
-                                        profileHandleTxt;
+                                    let profileData = JSON.parse(ev.content); if (isMyProfile) myRawProfileData = ev.content;
+                                    if (profileData.name || profileData.display_name) { profileNameTxt = profileData.display_name || profileData.name; profileName.textContent = profileNameTxt; }
+                                    let nip05Local = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[0] : ''; let rawNameStr = profileData.name || profileData.display_name || targetPubkey.substring(0, 8); profileHandleTxt = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
+                                    profileHandle.innerHTML = domainPart ? `${profileHandleTxt} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" class="text-success" style="text-decoration:none;">${domainPart}</a>` : profileHandleTxt;
                                     
                                     if (profileData.about && profileData.about.trim() !== "") {
-                                        let bioText = profileData.about;
-                                        let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
-                                        bioText = escapeHtml(bioText).replace(nostrRegex, function(match, nip19Id) {
-                                            let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                                            return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`;
-                                        });
-                                        profileBio.innerHTML = bioText;
-                                        profileBio.classList.remove('hidden');
+                                        let bioText = profileData.about; let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
+                                        bioText = escapeHtml(bioText).replace(nostrRegex, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`; });
+                                        profileBio.innerHTML = bioText; profileBio.classList.remove('hidden');
                                     } else { profileBio.classList.add('hidden'); }
                                     
-                                    if (profileData.nip05) {
-                                        profileNip05Txt = profileData.nip05;
-                                        profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(profileNip05Txt)}`;
-                                    } else {
-                                        profileNip05Txt = "";
-                                        profileNip05Container.innerHTML = `<strong>NIP-05:</strong> -`;
-                                    }
-                                    
-                                    let lud = profileData.lud16 || profileData.lud06;
-                                    if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); }
-                                    
-                                    if (profileData.website) {
-                                        webLink.href = profileData.website;
-                                        webLink.textContent = profileData.website.replace(/^https?:\/\//, '');
-                                        profileWebsite.classList.remove('hidden');
-                                    }
-                                    if (profileData.picture) {
-                                        profileAvatarUrl = profileData.picture;
-                                        profileAvatarBox.innerHTML = `<img src="${escapeHtml(profileData.picture)}" alt="Avatar">`;
-                                    }
-                                    if (profileData.banner) {
-                                        profileBannerBox.innerHTML = `<img src="${escapeHtml(profileData.banner)}" alt="Banner">`;
-                                    }
+                                    if (profileData.nip05) { profileNip05Txt = profileData.nip05; profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(profileNip05Txt)}`; } else { profileNip05Txt = ""; profileNip05Container.innerHTML = `<strong>NIP-05:</strong> -`; }
+                                    let lud = profileData.lud16 || profileData.lud06; if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); }
+                                    if (profileData.website) { webLink.href = profileData.website; webLink.textContent = profileData.website.replace(/^https?:\/\//, ''); profileWebsite.classList.remove('hidden'); }
+                                    if (profileData.picture) { profileAvatarUrl = profileData.picture; profileAvatarBox.innerHTML = `<img src="${escapeHtml(profileData.picture)}" alt="Avatar">`; }
+                                    if (profileData.banner) { profileBannerBox.innerHTML = `<img src="${escapeHtml(profileData.banner)}" alt="Banner">`; }
                                 } catch(e){}
                             }
 
-                            // FIX: Memasukkan ev.kind === 22 ke dalam antrean event untuk dirender
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (!userEventsList.some(item => item.id === ev.id)) {
-                                    userEventsList.push(ev);
-                                    triggerDebouncedRender();
-                                }
-                                
-                                if (ev.kind === 6 || ev.kind === 16) {
-                                    try {
-                                        let innerEv = JSON.parse(ev.content);
-                                        if (innerEv.pubkey !== targetPubkey) {
-                                            requestProfileInfo(innerEv.pubkey);
-                                        }
-                                    } catch(e){}
-                                }
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 21 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                if (!userEventsList.some(item => item.id === ev.id)) { userEventsList.push(ev); triggerDebouncedRender(); }
+                                if (ev.kind === 6 || ev.kind === 16) { try { let innerEv = JSON.parse(ev.content); if (innerEv.pubkey !== targetPubkey) { requestProfileInfo(innerEv.pubkey); } } catch(e){} }
                             }
                         }
                     } catch (err) {}
@@ -1366,95 +638,50 @@
             });
         }
 
-        function updateRelayCounter(onlineCount) {
-            relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-        }
-
-        function triggerDebouncedRender() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => { renderChronologicalFeed(); }, 300);
-        }
-        
-        function loadMorePosts() {
-            currentDisplayLimit += 10;
-            renderChronologicalFeed();
-        }
+        function updateRelayCounter(onlineCount) { relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`; }
+        function triggerDebouncedRender() { clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { renderChronologicalFeed(); }, 300); }
+        function loadMorePosts() { currentDisplayLimit += 10; renderChronologicalFeed(); }
 
         function renderChronologicalFeed() {
             userEventsList.sort((a, b) => b.created_at - a.created_at);
             userPostsContainer.innerHTML = '';
-            
             let itemsToRender = userEventsList.slice(0, currentDisplayLimit);
 
             itemsToRender.forEach(ev => {
                 initMetrics(ev.id); requestMetrics(ev.id);
-
-                let isRepost = (ev.kind === 6 || ev.kind === 16);
-                let targetEv = ev;
-                let repostHeader = "";
-
-                if (isRepost) {
-                    try {
-                        targetEv = JSON.parse(ev.content);
-                        repostHeader = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: ${escapeHtml(profileNameTxt)}</div>`;
-                    } catch(e) { return; }
-                }
+                let isRepost = (ev.kind === 6 || ev.kind === 16); let targetEv = ev; let repostHeader = "";
+                if (isRepost) { try { targetEv = JSON.parse(ev.content); repostHeader = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: ${escapeHtml(profileNameTxt)}</div>`; } catch(e) { return; } }
 
                 let timeStr = timeAgo(targetEv.created_at);
-                
-                let authorName = profileNameTxt;
-                let authorHandleLine = profileHandleTxt;
-                let avatarHtml = profileAvatarUrl ? `<img src="${escapeHtml(profileAvatarUrl)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
+                let authorName = profileNameTxt; let authorHandleLine = profileHandleTxt; let avatarHtml = profileAvatarUrl ? `<img src="${escapeHtml(profileAvatarUrl)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
                 
                 if (targetEv.pubkey !== targetPubkey) {
                     let cache = followingProfilesCache[targetEv.pubkey];
-                    if (cache && !cache.pending) {
-                        authorName = cache.name;
-                        authorHandleLine = cache.handle;
-                        avatarHtml = cache.picture ? `<img src="${escapeHtml(cache.picture)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
-                    } else {
-                        authorName = `Node_${targetEv.pubkey.substring(0, 6)}`;
-                        authorHandleLine = `@${targetEv.pubkey.substring(0, 8)}`;
-                        avatarHtml = `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`;
-                    }
+                    if (cache && !cache.pending) { authorName = cache.name; authorHandleLine = cache.handle; avatarHtml = cache.picture ? `<img src="${escapeHtml(cache.picture)}" alt="Avatar">` : `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`; } 
+                    else { authorName = `Node_${targetEv.pubkey.substring(0, 6)}`; authorHandleLine = `@${targetEv.pubkey.substring(0, 8)}`; avatarHtml = `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`; }
                 } else {
-                    let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, '');
-                    let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
+                    let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, ''); let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
                     authorHandleLine = domainPart ? `${lowerHandle} ✓ ${domainPart}` : lowerHandle;
                 }
 
                 let formattedMetaLine = `${authorHandleLine} · ${timeStr}`;
-                
                 let clientName = "unknown"; let dTagValue = ""; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY";
                 targetEv.tags.forEach(t => { 
                     if (t[0] === "client") clientName = t[1]; 
                     if (t[0] === "d") dTagValue = t[1];
-                    if (t[0] === "expiration") {
-                        hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
-                        expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
-                    }
+                    if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; }
                 });
 
-                let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey);
-                let editBtnVisibility = isMine ? '' : 'hidden';
-                let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
+                let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
 
-                let card = document.createElement('div');
-                card.id = `post-${ev.id}`;
-                
+                let card = document.createElement('div'); card.id = `post-${ev.id}`;
                 let isJsonPayload = false; let parsedJsonContent = "";
-                if (targetEv.kind === 1 && targetEv.content.trim().startsWith('{') && targetEv.content.trim().endsWith('}')) {
-                    try { parsedJsonContent = JSON.stringify(JSON.parse(targetEv.content.trim()), null, 2); isJsonPayload = true; } catch (e) {}
-                }
-
+                if (targetEv.kind === 1 && targetEv.content.trim().startsWith('{') && targetEv.content.trim().endsWith('}')) { try { parsedJsonContent = JSON.stringify(JSON.parse(targetEv.content.trim()), null, 2); isJsonPayload = true; } catch (e) {} }
                 let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
 
-                // FIX: Menangani render untuk kind: 22 (Short-form Video)
-                if (targetEv.kind === 22) {
+                if (targetEv.kind === 22 || targetEv.kind === 21) {
                     card.className = 't-feed-card';
-                    
-                    let videoUrl = "";
-                    let mimeType = "video/mp4";
+                    let videoUrl = ""; let mimeType = "video/mp4"; let posterUrl = "";
                     
                     targetEv.tags.forEach(t => {
                         if (t[0] === "imeta") {
@@ -1462,6 +689,7 @@
                                 if (typeof val === 'string') {
                                     if (val.startsWith("url ")) videoUrl = val.substring(4);
                                     if (val.startsWith("m ")) mimeType = val.substring(2);
+                                    if (val.startsWith("thumb ") || val.startsWith("image ")) posterUrl = val.substring(6);
                                 }
                             });
                         }
@@ -1469,10 +697,12 @@
                     
                     let mediaHtml = "";
                     if (videoUrl) {
-                        mediaHtml = `<video controls class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green);"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Video format not supported.</video>`;
+                        let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
+                        mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Browser Anda tidak mendukung format video (kemungkinan H.265/HEVC).</video>`;
                     }
                     
                     let contentText = targetEv.content ? `<div class="t-feed-content mt-2">${escapeHtml(targetEv.content)}</div>` : "";
+                    let badgeName = targetEv.kind === 21 ? "VIDEO" : "SHORT_VIDEO";
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1482,7 +712,7 @@
                                 <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-feed-author author-${targetEv.pubkey}">${escapeHtml(authorName)}</a>
                                 <span class="t-feed-meta"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
                             </div>
-                            <div class="t-badge mt-2">> SHORT_VIDEO / MEDIA</div>
+                            <div class="t-badge mt-2">> ${badgeName} / MEDIA</div>
                             ${contentText}
                             ${mediaHtml}
                             <div class="t-feed-actions mt-2">
@@ -1534,75 +764,30 @@
                 } 
                 else if (targetEv.kind === 1301) {
                     card.className = 't-feed-card';
-                    
-                    let actTitle = "Workout"; let actType = "Activity";
-                    let actDist = "0"; let actDistUnit = "km";
-                    let actDur = "00:00:00"; 
-                    let actEle = "0"; let actEleUnit = "m";
-                    
-                    targetEv.tags.forEach(t => { 
-                        if (t[0] === "title") actTitle = t[1]; 
-                        if (t[0] === "activity_type") actType = t[1]; 
-                        if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; }
-                        if (t[0] === "duration") actDur = t[1];
-                        if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
-                    });
+                    let actTitle = "Workout"; let actType = "Activity"; let actDist = "0"; let actDistUnit = "km"; let actDur = "00:00:00"; let actEle = "0"; let actEleUnit = "m";
+                    targetEv.tags.forEach(t => { if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type") actType = t[1]; if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
 
-                    // --- LOGIC FOR PACE/SPEED ---
-                    let paceSpeedLabel = "Avg Pace";
-                    let paceSpeedValue = "0:00 /km";
-
+                    let paceSpeedLabel = "Avg Pace"; let paceSpeedValue = "0:00 /km";
                     try {
                         let distNum = parseFloat(actDist);
                         if (!isNaN(distNum) && actDur && distNum > 0) {
-                            let timeParts = actDur.split(':');
-                            let totalSeconds = 0;
-                            if (timeParts.length === 3) {
-                                totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
-                            } else if (timeParts.length === 2) {
-                                totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); // MM:SS fallback
-                            }
-
+                            let timeParts = actDur.split(':'); let totalSeconds = 0;
+                            if (timeParts.length === 3) { totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]); } 
+                            else if (timeParts.length === 2) { totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); }
                             if (totalSeconds > 0) {
-                                let exercise = actType.toLowerCase();
-                                const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling'];
-                                const waterSports = ['swimming'];
-
-                                if (speedSports.includes(exercise)) {
-                                    let durationHours = totalSeconds / 3600;
-                                    let speed = (distNum / durationHours).toFixed(2);
-                                    paceSpeedValue = `${speed} km/h`;
-                                    paceSpeedLabel = "Avg Speed";
-                                } else if (waterSports.includes(exercise)) {
-                                    let distance100m = (distNum * 1000) / 100;
-                                    let pacePer100m = (totalSeconds / 60) / distance100m;
-                                    let paceMins = Math.floor(pacePer100m);
-                                    let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
-                                    paceSpeedValue = `${paceMins}:${paceSecs} /100m`;
-                                    paceSpeedLabel = "Avg Pace";
-                                } else {
-                                    let durationMinutes = totalSeconds / 60;
-                                    let paceDecimal = durationMinutes / distNum;
-                                    let paceMins = Math.floor(paceDecimal);
-                                    let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
-                                    paceSpeedValue = `${paceMins}:${paceSecs} /km`;
-                                    paceSpeedLabel = "Avg Pace";
-                                }
+                                let exercise = actType.toLowerCase(); const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling']; const waterSports = ['swimming'];
+                                if (speedSports.includes(exercise)) { let durationHours = totalSeconds / 3600; let speed = (distNum / durationHours).toFixed(2); paceSpeedValue = `${speed} km/h`; paceSpeedLabel = "Avg Speed"; } 
+                                else if (waterSports.includes(exercise)) { let distance100m = (distNum * 1000) / 100; let pacePer100m = (totalSeconds / 60) / distance100m; let paceMins = Math.floor(pacePer100m); let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0'); paceSpeedValue = `${paceMins}:${paceSecs} /100m`; paceSpeedLabel = "Avg Pace"; } 
+                                else { let durationMinutes = totalSeconds / 60; let paceDecimal = durationMinutes / distNum; let paceMins = Math.floor(paceDecimal); let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0'); paceSpeedValue = `${paceMins}:${paceSecs} /km`; paceSpeedLabel = "Avg Pace"; }
                             }
                         }
                     } catch(e) {}
-                    // --------------------------------
 
-                    let iconStr = "[A]";
-                    let tLower = actType.toLowerCase();
-                    if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
-                    else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
+                    let iconStr = "[A]"; let tLower = actType.toLowerCase();
+                    if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]"; else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
 
                     let contentText = escapeHtml(targetEv.content.trim());
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                        let href = url.replace(/&amp;/g, '&');
-                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                    });
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1612,38 +797,9 @@
                                 <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-feed-author text-success font-bold author-${targetEv.pubkey}">${escapeHtml(authorName)}</a>
                                 <span class="t-feed-meta"><span class="handle-${targetEv.pubkey}">${escapeHtml(formattedMetaLine)}</span></span>
                             </div>
-                            
-                            <div class="t-activity-header mt-3">
-                                <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
-                                <div>
-                                    <h4 class="t-activity-title text-success m-0">${escapeHtml(actTitle)}</h4>
-                                    <span class="t-activity-type text-success">${escapeHtml(actType)}</span>
-                                </div>
-                            </div>
-                            
-                            <div class="t-activity-metrics mb-3 mt-2">
-                                <div class="t-metric-box w-100 mb-2">
-                                    <div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div>
-                                    <span class="t-metric-lbl text-success">Distance</span>
-                                </div>
-                                <div class="d-flex gap-3 flex-wrap">
-                                    <div class="t-metric-box">
-                                        <div class="t-metric-val fs-2">${escapeHtml(actDur)}</div>
-                                        <span class="t-metric-lbl text-success">Duration</span>
-                                    </div>
-                                    <div class="t-metric-box">
-                                        <div class="t-metric-val fs-2">${escapeHtml(paceSpeedValue)}</div>
-                                        <span class="t-metric-lbl text-success">${escapeHtml(paceSpeedLabel)}</span>
-                                    </div>
-                                    <div class="t-metric-box">
-                                        <div class="t-metric-val fs-2">${escapeHtml(actEle)} <span class="t-metric-unit">${escapeHtml(actEleUnit)}</span></div>
-                                        <span class="t-metric-lbl text-success">Elevation Gain</span>
-                                    </div>
-                                </div>
-                            </div>
-
+                            <div class="t-activity-header mt-3"><div class="border-dashed p-2 font-bold fs-3">${iconStr}</div><div><h4 class="t-activity-title text-success m-0">${escapeHtml(actTitle)}</h4><span class="t-activity-type text-success">${escapeHtml(actType)}</span></div></div>
+                            <div class="t-activity-metrics mb-3 mt-2"><div class="t-metric-box w-100 mb-2"><div class="t-metric-val t-metric-large">${escapeHtml(actDist)} <span class="t-metric-unit">${escapeHtml(actDistUnit)}</span></div><span class="t-metric-lbl text-success">Distance</span></div><div class="d-flex gap-3 flex-wrap"><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(actDur)}</div><span class="t-metric-lbl text-success">Duration</span></div><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(paceSpeedValue)}</div><span class="t-metric-lbl text-success">${escapeHtml(paceSpeedLabel)}</span></div><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(actEle)} <span class="t-metric-unit">${escapeHtml(actEleUnit)}</span></div><span class="t-metric-lbl text-success">Elevation Gain</span></div></div></div>
                             ${contentText ? `<div class="t-feed-content">${contentText}</div>` : ''}
-                            
                             <div class="t-feed-actions mt-2">
                                 <a href="thread.html?id=${targetEv.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${targetEv.id}">0</span></a>
                                 <button id="bm-btn-${targetEv.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${targetEv.id}" onclick="toggleBookmark('${targetEv.id}')">${bmText}</button>
@@ -1659,32 +815,17 @@
                 }
                 else if (isPulse) {
                     card.className = 't-feed-card';
-                    let contentText = targetEv.content; 
-                    let mediaElements = [];
-                    
+                    let contentText = targetEv.content; let mediaElements = [];
                     contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                         let lowerExt = ext.toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
-                        else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`);
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`);
                         return "";
                     });
-                    
-                    let mediaHtml = "";
-                    if (mediaElements.length > 1) {
-                        mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
-                    } else if (mediaElements.length === 1) {
-                        mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
-                    }
+                    let mediaHtml = ""; if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
                     
                     contentText = escapeHtml(contentText.trim());
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                        let href = url.replace(/&amp;/g, '&');
-                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                    });
-                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                        let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                        return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                    });
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
+                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1710,39 +851,24 @@
                 } 
                 else {
                     card.className = 't-feed-card';
-                    let contentHtml = ""; 
-                    let mediaElements = [];
+                    let contentHtml = ""; let mediaElements = [];
                     
-                    if (isJsonPayload) {
-                        contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsedJsonContent)}</pre>`;
-                    } else {
+                    if (isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsedJsonContent)}</pre>`; } 
+                    else {
                         let contentText = targetEv.content;
                         contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
                             let lowerExt = ext.toLowerCase();
-                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
-                            else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
+                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
                             return "";
                         });
 
                         contentText = escapeHtml(contentText.trim());
-                        contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                            let href = url.replace(/&amp;/g, '&');
-                            return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                        });
-                        contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                            let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                            return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                        });
-                        
+                        contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
+                        contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
                         contentHtml = `<div class="t-feed-content">${contentText}</div>`;
                     }
                     
-                    let mediaHtml = "";
-                    if (mediaElements.length > 1) {
-                        mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
-                    } else if (mediaElements.length === 1) {
-                        mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
-                    }
+                    let mediaHtml = ""; if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1768,106 +894,41 @@
                         </div>
                     `;
                 }
-                userPostsContainer.appendChild(card);
-                updateMetricsUI(targetEv.id);
+                userPostsContainer.appendChild(card); updateMetricsUI(targetEv.id);
             });
             
-            if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden');
-            else loadMoreBtn.classList.add('hidden');
+            if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden'); else loadMoreBtn.classList.add('hidden');
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
         sendQuoteBtn.addEventListener('click', async function() {
-            let quoteText = quoteContentInput.value.trim();
-            if (!quoteTargetEvent) return;
+            let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
-            try {
-                sendQuoteBtn.textContent = '> SIGNING...';
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
-                closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+            try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
         sendEditBtn.addEventListener('click', async function() {
-            let newText = editContentInput.value.trim();
-            if (!newText) { alert('> ERROR: Message is empty!'); return; }
+            let newText = editContentInput.value.trim(); if (!newText) { alert('> ERROR: Message is empty!'); return; }
             if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
-
             try {
                 sendEditBtn.textContent = '> SIGNING...';
-                
-                let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
-                let signedDelEvent = await window.nostr.signEvent(delEvent);
-                
-                let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
-                let signedNewEvent = await window.nostr.signEvent(newEvent);
-                
-                let sentCount = 0;
-                activeSockets.forEach(sock => { 
-                    if (sock && sock.readyState === WebSocket.OPEN) { 
-                        sock.send(JSON.stringify(["EVENT", signedDelEvent]));
-                        sock.send(JSON.stringify(["EVENT", signedNewEvent]));
-                        sentCount++; 
-                    } 
-                });
-                
+                let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey }; let signedDelEvent = await window.nostr.signEvent(delEvent);
+                let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey }; let signedNewEvent = await window.nostr.signEvent(newEvent);
+                let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedDelEvent])); sock.send(JSON.stringify(["EVENT", signedNewEvent])); sentCount++; } });
                 alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
-                
-                let oldCard = document.getElementById(`post-${editTargetEvent.id}`);
-                if (oldCard) oldCard.remove();
-                userEventsList = userEventsList.filter(item => item.id !== editTargetEvent.id);
-                userEventsList.push(signedNewEvent);
-                
-                closeEditModal(); 
-                sendEditBtn.textContent = '> UPDATE_EVENT';
-                triggerDebouncedRender();
-            } catch (err) { 
-                alert('> ERROR: Failed to update event.'); 
-                sendEditBtn.textContent = '> UPDATE_EVENT'; 
-            }
+                let oldCard = document.getElementById(`post-${editTargetEvent.id}`); if (oldCard) oldCard.remove(); userEventsList = userEventsList.filter(item => item.id !== editTargetEvent.id); userEventsList.push(signedNewEvent);
+                closeEditModal(); sendEditBtn.textContent = '> UPDATE_EVENT'; triggerDebouncedRender();
+            } catch (err) { alert('> ERROR: Failed to update event.'); sendEditBtn.textContent = '> UPDATE_EVENT'; }
         });
 
         broadcastProfileBtn.addEventListener('click', async function() {
-            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: NO_ACTIVE_SESSION. Please login first.');
-            if (!myRawProfileData) return alert('> ERROR: Profile data not yet loaded. Please wait for synchronization.');
-            
+            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: NO_ACTIVE_SESSION. Please login first.'); if (!myRawProfileData) return alert('> ERROR: Profile data not yet loaded. Please wait for synchronization.');
             if (!confirm('> This will re-sign and broadcast your profile metadata to all connected relays. Proceed?')) return;
-
-            let originalText = broadcastProfileBtn.textContent;
-            broadcastProfileBtn.textContent = '* TRANSMITTING...';
-
-            let rawEvent = {
-                kind: 0,
-                created_at: Math.floor(Date.now() / 1000),
-                tags: [],
-                content: myRawProfileData,
-                pubkey: currentUserPubkey
-            };
-
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                
-                activeSockets.forEach(sock => {
-                    if (sock && sock.readyState === WebSocket.OPEN) {
-                        sock.send(JSON.stringify(["EVENT", signedEvent]));
-                        sentCount++;
-                    }
-                });
-                
-                alert(`> SUCCESS: Profile metadata updated and broadcasted to ${sentCount} active nodes!`);
-            } catch (err) {
-                console.error(err);
-                alert('> ERROR: Failed to sign or broadcast metadata.');
-            } finally {
-                broadcastProfileBtn.textContent = originalText;
-            }
+            let originalText = broadcastProfileBtn.textContent; broadcastProfileBtn.textContent = '* TRANSMITTING...';
+            let rawEvent = { kind: 0, created_at: Math.floor(Date.now() / 1000), tags: [], content: myRawProfileData, pubkey: currentUserPubkey };
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); alert(`> SUCCESS: Profile metadata updated and broadcasted to ${sentCount} active nodes!`); } catch (err) { alert('> ERROR: Failed to sign or broadcast metadata.'); } finally { broadcastProfileBtn.textContent = originalText; }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);

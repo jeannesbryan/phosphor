@@ -55,7 +55,6 @@
                 <div style="flex: 1; min-width: 0;">
                     <textarea id="postContentInput" class="t-editor-textarea border-dashed p-2 w-100 mb-3" rows="3" placeholder="What's happening on the network?"></textarea>
                     
-                    <!-- Diberi margin-top dan padding-top ekstra agar tidak mepet border putus-putus -->
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1rem;">
                         <div class="d-flex gap-2">
                             <input type="file" id="mediaUploadInput" accept="image/*,video/*" multiple class="d-none">
@@ -82,7 +81,6 @@
                         <span class="t-checkmark"></span> NSFW Tag
                     </label>
                 </div>
-                <!-- Margin-top dan padding-top ekstra untuk Proof of Work -->
                 <div style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem; margin-top: 1.5rem;">
                     <label class="t-form-label mb-3" style="display: block;">> PROOF_OF_WORK (DIFFICULTY: <span id="powVal">0</span>)</label>
                     <input type="range" min="0" max="16" value="0" class="t-range w-100" id="powSlider" oninput="document.getElementById('powVal').innerText=this.value">
@@ -104,7 +102,7 @@
         </section>
     </div>
 
-    <!-- Modals (Menggunakan struktur .t-modal standar terminal.css) -->
+    <!-- Modals -->
     
     <!-- AUTH/LOGIN MODAL -->
     <div id="loginModal" class="t-modal">
@@ -396,8 +394,7 @@
 
                 if (!globalSubscribed) {
                     globalSubscribed = true;
-                    // FIX: Kinds 22 ditambahkan ke global feed
-                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "limit": 40 }]);
+                    let req = JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "limit": 40 }]);
                     activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
                 }
             }
@@ -454,24 +451,17 @@
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
-        
-        // Listener tombol Logout
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logoutFully();
-        });
+        logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
         document.getElementById('extLoginBtn').addEventListener('click', async () => {
             if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
                 try {
                     currentUserPubkey = await window.nostr.getPublicKey();
                     localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    
                     localStorage.removeItem('phosphor_privkey');
                     localStorage.removeItem('phosphor_ncryptsec');
                     localStorage.removeItem('phosphor_bunker_uri');
                     sessionStorage.removeItem('phosphor_privkey_temp');
-                    
                     updateAuthState();
                     myFollowing.add(currentUserPubkey);
                     fetchMyAvatarAndBookmarks();
@@ -489,7 +479,6 @@
             try {
                 let urlObj = new URL(uri);
                 let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
-                
                 currentUserPubkey = targetPubkey;
                 localStorage.setItem('phosphor_pubkey', currentUserPubkey);
                 localStorage.setItem('phosphor_bunker_uri', uri);
@@ -503,9 +492,7 @@
                 fetchMyAvatarAndBookmarks();
                 document.getElementById('loginModal').style.display = 'none';
                 setTimeout(() => location.reload(), 500);
-            } catch (e) {
-                alert('> ERROR: Failed to parse Bunker URI.');
-            }
+            } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); }
         });
 
         document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
@@ -528,13 +515,11 @@
                 
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
                 currentUserPubkey = pubkeyHex;
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
                 let ncryptsec = nip49.encrypt(skBytes, pass);
-                
                 localStorage.setItem('phosphor_ncryptsec', ncryptsec);
                 localStorage.removeItem('phosphor_privkey');
                 localStorage.removeItem('phosphor_bunker_uri');
@@ -546,9 +531,8 @@
                 document.getElementById('loginModal').style.display = 'none';
                 alert('> LOCAL SIGNER ENCRYPTED. RELOADING CONFIG...');
                 setTimeout(() => location.reload(), 500);
-            } catch(e) {
-                alert('> ERROR: Invalid key format or processing failed.');
-            } finally { btn.textContent = '> ENCRYPT & LOGIN'; }
+            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); } 
+            finally { btn.textContent = '> ENCRYPT & LOGIN'; }
         });
 
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
@@ -566,7 +550,6 @@
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
                 currentUserPubkey = pubkeyHex;
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 localStorage.setItem('phosphor_ncryptsec', input);
@@ -601,10 +584,8 @@
                 let pubkeyHex = nostrTools.getPublicKey(skBytes);
                 
                 setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
                 let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
                 sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
                 currentUserPubkey = pubkeyHex;
                 localStorage.setItem('phosphor_pubkey', pubkeyHex);
                 
@@ -674,12 +655,10 @@
         // ================= MEDIA UPLOAD LOGIC =================
         async function handleMediaUpload(files, btnElement, textareaElement) {
             if (!files.length) return;
-            
             if (files.length > 4) {
                 alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
                 files = files.slice(0, 4);
             }
-
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
             
             try {
@@ -697,23 +676,12 @@
                     let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                     
                     let nowTimestamp = Math.floor(Date.now() / 1000);
-                    
-                    let authEvent = {
-                        kind: 24242,
-                        created_at: nowTimestamp,
-                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
-                        content: "Phosphor Blossom Auth",
-                        pubkey: currentUserPubkey
-                    };
+                    let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
                     
                     let signedAuth = await window.nostr.signEvent(authEvent);
                     let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
                     
-                    let response = await fetch(uploadEndpoint, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Nostr ' + authBase64 },
-                        body: file
-                    });
+                    let response = await fetch(uploadEndpoint, { method: 'PUT', headers: { 'Authorization': 'Nostr ' + authBase64 }, body: file });
                     
                     if (response.ok) {
                         let data = await response.json();
@@ -729,7 +697,6 @@
 
         uploadMediaBtn.addEventListener('click', () => mediaUploadInput.click());
         mediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadMediaBtn, postContentInput); e.target.value = ''; });
-        
         uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click());
         quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
 
@@ -762,12 +729,8 @@
                 }
                 
                 if (zeroes >= targetDifficulty) return clone;
-                
                 nonce++;
-                if (nonce % 500 === 0) {
-                    broadcastBtn.textContent = `> MINING PoW [${nonce}]...`;
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
+                if (nonce % 500 === 0) { broadcastBtn.textContent = `> MINING PoW [${nonce}]...`; await new Promise(resolve => setTimeout(resolve, 0)); }
             }
         }
 
@@ -783,12 +746,10 @@
             else { myBookmarks.delete(eventId); }
             
             let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 myBookmarkEvent = signedEvent;
                 activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
                 let btn = document.getElementById(`bm-btn-${eventId}`);
                 if (btn) btn.textContent = !isBookmarked ? '[b] saved' : '[b] save';
             } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
@@ -816,7 +777,6 @@
                                 let meta = JSON.parse(d[2].content);
                                 let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
                                 let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                
                                 let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : (meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${currentUserPubkey.substring(0,8)}`);
                                 
                                 profileCache[currentUserPubkey] = {
@@ -847,9 +807,7 @@
                             if (!myContactEvent || d[2].created_at > myContactEvent.created_at) {
                                 myContactEvent = d[2];
                                 d[2].tags.forEach(t => { if (t[0] === 'p') myFollowing.add(t[1]); });
-                                
                                 localStorage.setItem('phosphor_following', JSON.stringify(Array.from(myFollowing)));
-                                
                                 document.querySelectorAll('.t-feed-card').forEach(card => {
                                     let author = card.dataset.author;
                                     if (myFollowing.has(author)) card.classList.add('is-followed');
@@ -873,36 +831,23 @@
         }
 
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
-        
-        function openRawModal(eventId) {
-            let ev = eventsCache[eventId];
-            if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; }
-        }
+        function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
-        
-        function copyRawJson() {
-            navigator.clipboard.writeText(rawEventContent.textContent).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); })
-            .catch(err => { alert("> ERROR: Failed to copy to clipboard."); });
-        }
+        function copyRawJson() { navigator.clipboard.writeText(rawEventContent.textContent).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
 
         function openQuoteModal(eventId) {
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to quote.'); return; }
-            let ev = eventsCache[eventId];
-            if (!ev) return;
+            let ev = eventsCache[eventId]; if (!ev) return;
             quoteTargetEvent = ev;
             quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + " ..." : ev.content;
-            quoteContentInput.value = "";
-            quoteModal.style.display = 'flex';
+            quoteContentInput.value = ""; quoteModal.style.display = 'flex';
         }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
         function openEditModal(eventId) {
             if (!currentUserPubkey || !window.nostr) return;
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            editTargetEvent = ev;
-            editContentInput.value = ev.content;
-            editModal.style.display = 'flex';
+            let ev = eventsCache[eventId]; if (!ev) return;
+            editTargetEvent = ev; editContentInput.value = ev.content; editModal.style.display = 'flex';
         }
         function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
 
@@ -913,8 +858,7 @@
                 let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
                 htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
             });
-            relayListContainer.innerHTML = htmlContent;
-            relayModal.style.display = 'flex';
+            relayListContainer.innerHTML = htmlContent; relayModal.style.display = 'flex';
         }
         function closeRelayModal() { relayModal.style.display = 'none'; }
 
@@ -943,11 +887,9 @@
         }
 
         async function likeEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
+            let ev = eventsCache[eventId]; if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
-
             let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
@@ -957,16 +899,13 @@
         }
 
         async function repostEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
+            let ev = eventsCache[eventId]; if (!ev) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
             if (!confirm('> Repost this content to your timeline?')) return;
-
             let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
             let dTag = ev.tags.find(t => t[0] === 'd');
             if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
-
             try {
                 let signedEvent = await window.nostr.signEvent(rawEvent);
                 let sentCount = 0;
@@ -981,7 +920,6 @@
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false;
                 let socket = new WebSocket(url);
-
                 socket.onopen = function() {
                     onlineCount++;
                     relayStatusMap[url] = true;
@@ -989,13 +927,10 @@
                     
                     let followingAuthors = Array.from(myFollowing);
                     if (followingAuthors.length > 0) {
-                        // FIX: Kinds 22 ditambahkan ke following feed
-                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
+                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
                     }
-                    
                     if (globalSubscribed) {
-                        // FIX: Kinds 22 ditambahkan ke global feed
-                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 22, 1301, 30023, 20000], "limit": 40 }]));
+                        socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "limit": 40 }]));
                     }
                 };
 
@@ -1007,25 +942,16 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-
                             if (ev.kind === 5) {
-                                ev.tags.forEach(t => {
-                                    if (t[0] === 'e') {
-                                        let oldCard = document.getElementById(`post-${t[1]}`);
-                                        if (oldCard) oldCard.remove();
-                                    }
-                                });
+                                ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`post-${t[1]}`); if (oldCard) oldCard.remove(); } });
                                 return;
                             }
-
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content);
                                     let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
                                     let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    
                                     let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : (meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`);
-                                    
                                     profileCache[ev.pubkey] = {
                                         name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
                                         handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
@@ -1033,12 +959,9 @@
                                         picture: meta.picture || null,
                                         pending: false
                                     };
-                                    
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]);
-                                    updatePostUI(ev.pubkey);
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
-                            
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
                                 eTags.forEach(targetId => {
@@ -1053,13 +976,9 @@
                                 });
                             }
 
-                            // FIX: Menangani render untuk kind: 22
-                            if (ev.kind === 1 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (!profileCache[ev.pubkey]) {
-                                    requestProfileInfo(ev.pubkey);
-                                }
-                                eventsCache[ev.id] = ev; 
-                                renderPost(ev);
+                            if (ev.kind === 1 || ev.kind === 21 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
+                                eventsCache[ev.id] = ev; renderPost(ev);
                             } 
                             else if (ev.kind === 6 || ev.kind === 16) {
                                 try {
@@ -1067,8 +986,7 @@
                                     if (innerEv && innerEv.id) {
                                         if (!profileCache[innerEv.pubkey]) requestProfileInfo(innerEv.pubkey);
                                         if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
-                                        eventsCache[innerEv.id] = innerEv; 
-                                        renderPost(innerEv, ev); 
+                                        eventsCache[innerEv.id] = innerEv; renderPost(innerEv, ev); 
                                     }
                                 } catch(e) {}
                             }
@@ -1080,13 +998,10 @@
         }
 
         function updatePostUI(pubkey) {
-            let info = profileCache[pubkey];
-            if (!info || info.pending) return;
+            let info = profileCache[pubkey]; if (!info || info.pending) return;
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
             document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle}`; });
-            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
-                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
-            });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; });
         }
 
         function renderPost(ev, repostEv = null) {
@@ -1101,31 +1016,19 @@
                 }
             }
 
-            let isNSFW = false;
-            let nsfwReason = "NSFW";
+            let isNSFW = false; let nsfwReason = "NSFW";
             for(let t of ev.tags) {
-                if(t[0] === "content-warning") {
-                    isNSFW = true;
-                    if(t[1]) nsfwReason = t[1];
-                }
+                if(t[0] === "content-warning") { isNSFW = true; if(t[1]) nsfwReason = t[1]; }
             }
 
-            initMetrics(ev.id);
-            requestMetrics(ev.id);
-
+            initMetrics(ev.id); requestMetrics(ev.id);
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
             let info = profileCache[ev.pubkey];
-            
-            if (!info || info.pending) {
-                info = { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, nip05: "", picture: null };
-            }
+            if (!info || info.pending) info = { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, nip05: "", picture: null };
 
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
-            
-            let clientName = "unknown";
-            let dTagValue = "";
-            let expTimeStr = "EPHEMERAL_STORY";
+            let clientName = "unknown"; let dTagValue = ""; let expTimeStr = "EPHEMERAL_STORY";
 
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
@@ -1146,12 +1049,9 @@
             let editBtnVisibility = isMine ? '' : 'hidden';
             let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
             let blurClass = isNSFW ? 't-spoiler' : '';
-            
             let nsfwBadgeHtml = isNSFW ? `<div class="t-badge text-success mb-2">> CONTENT_WARNING: ${escapeHtml(nsfwReason)}</div>` : "";
 
-            let card = document.createElement('div');
-            card.id = `post-${renderId}`;
-            
+            let card = document.createElement('div'); card.id = `post-${renderId}`;
             card.dataset.time = repostEv ? repostEv.created_at : ev.created_at;
             card.dataset.author = repostEv ? repostEv.pubkey : ev.pubkey;
             if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
@@ -1161,15 +1061,12 @@
                 let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
                 repostHtml = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}" style="color:inherit; text-decoration:none;">${escapeHtml(rpInfo.name)}</a></div>`;
             }
-            
             card.className = 't-feed-card';
 
-            // FIX: Render khusus untuk Short-form Video (kind: 22)
-            if (ev.kind === 22) {
+            if (ev.kind === 22 || ev.kind === 21) {
                 if (myFollowing.has(card.dataset.author)) card.classList.add('is-followed');
                 
-                let videoUrl = "";
-                let mimeType = "video/mp4";
+                let videoUrl = ""; let mimeType = "video/mp4"; let posterUrl = "";
                 
                 ev.tags.forEach(t => {
                     if (t[0] === "imeta") {
@@ -1177,6 +1074,7 @@
                             if (typeof val === 'string') {
                                 if (val.startsWith("url ")) videoUrl = val.substring(4);
                                 if (val.startsWith("m ")) mimeType = val.substring(2);
+                                if (val.startsWith("thumb ") || val.startsWith("image ")) posterUrl = val.substring(6);
                             }
                         });
                     }
@@ -1184,10 +1082,12 @@
                 
                 let mediaHtml = "";
                 if (videoUrl) {
-                    mediaHtml = `<video controls class="t-video-item w-100 mt-2 ${blurClass}" style="max-height: 500px; border: 1px dashed var(--t-green);" onclick="this.classList.remove('t-spoiler');"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Video format not supported.</video>`;
+                    let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
+                    mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2 ${blurClass}" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;" onclick="this.classList.remove('t-spoiler');"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Browser Anda tidak mendukung format video (kemungkinan H.265/HEVC).</video>`;
                 }
                 
                 let contentText = ev.content ? `<div class="t-feed-content mt-2 ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${escapeHtml(ev.content)}</div>` : "";
+                let badgeName = ev.kind === 21 ? "VIDEO" : "SHORT_VIDEO";
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none;">${avatarHtml}</a>
@@ -1198,7 +1098,7 @@
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
                         </div>
                         ${nsfwBadgeHtml}
-                        <div class="t-badge mt-2">> SHORT_VIDEO / MEDIA</div>
+                        <div class="t-badge mt-2">> ${badgeName} / MEDIA</div>
                         ${contentText}
                         ${mediaHtml}
                         <div class="t-feed-actions mt-2">
@@ -1267,19 +1167,13 @@
                     if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; }
                 });
 
-                let paceSpeedLabel = "Avg Pace";
-                let paceSpeedValue = "0:00 /km";
-                
+                let paceSpeedLabel = "Avg Pace"; let paceSpeedValue = "0:00 /km";
                 try {
                     let distNum = parseFloat(actDist);
                     if (!isNaN(distNum) && actDur && distNum > 0) {
-                        let timeParts = actDur.split(':');
-                        let totalSeconds = 0;
-                        if (timeParts.length === 3) {
-                            totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
-                        } else if (timeParts.length === 2) {
-                            totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); 
-                        }
+                        let timeParts = actDur.split(':'); let totalSeconds = 0;
+                        if (timeParts.length === 3) { totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]); } 
+                        else if (timeParts.length === 2) { totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); }
 
                         if (totalSeconds > 0) {
                             let exercise = actType.toLowerCase();
@@ -1289,29 +1183,25 @@
                             if (speedSports.includes(exercise)) {
                                 let durationHours = totalSeconds / 3600;
                                 let speed = (distNum / durationHours).toFixed(2);
-                                paceSpeedValue = `${speed} km/h`;
-                                paceSpeedLabel = "Avg Speed";
+                                paceSpeedValue = `${speed} km/h`; paceSpeedLabel = "Avg Speed";
                             } else if (waterSports.includes(exercise)) {
                                 let distance100m = (distNum * 1000) / 100;
                                 let pacePer100m = (totalSeconds / 60) / distance100m;
                                 let paceMins = Math.floor(pacePer100m);
                                 let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
-                                paceSpeedValue = `${paceMins}:${paceSecs} /100m`;
-                                paceSpeedLabel = "Avg Pace";
+                                paceSpeedValue = `${paceMins}:${paceSecs} /100m`; paceSpeedLabel = "Avg Pace";
                             } else {
                                 let durationMinutes = totalSeconds / 60;
                                 let paceDecimal = durationMinutes / distNum;
                                 let paceMins = Math.floor(paceDecimal);
                                 let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
-                                paceSpeedValue = `${paceMins}:${paceSecs} /km`;
-                                paceSpeedLabel = "Avg Pace";
+                                paceSpeedValue = `${paceMins}:${paceSecs} /km`; paceSpeedLabel = "Avg Pace";
                             }
                         }
                     }
                 } catch(e) {}
 
-                let iconStr = "[A]";
-                let tLower = actType.toLowerCase();
+                let iconStr = "[A]"; let tLower = actType.toLowerCase();
                 if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]";
                 else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
 
