@@ -14,16 +14,13 @@
     
     <style>
         .hidden { display: none !important; }
-        
         .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed var(--t-green); padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
         .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
-
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
 </head>
 <body class="t-crt">
     <div class="t-container">
-        <!-- HEADER SINKRON DENGAN INDEX -->
         <header class="mb-4">
             <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
                 <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
@@ -37,19 +34,15 @@
                     <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
             </div>
-            <!-- Relay Button dipisah ke baris sendiri -->
             <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;">
                 <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
             </div>
         </header>
 
-        <div class="mb-3">
-            <a href="index.html" class="text-muted" style="text-decoration: none;">&lt;-- [ BACK TO FEED ]</a>
-        </div>
+        <div class="mb-3"><a href="index.html" class="text-muted" style="text-decoration: none;">&lt;-- [ BACK TO FEED ]</a></div>
         
         <div id="authWarning" class="hidden border-dashed border-danger p-3 mb-4 text-danger bg-surface">
-            > ERROR: AUTHENTICATION_REQUIRED.<br>
-            > Please login to view your secure bookmarks.
+            > ERROR: AUTHENTICATION_REQUIRED.<br>> Please login to view your secure bookmarks.
         </div>
 
         <section id="bookmarkFeed">
@@ -64,47 +57,34 @@
     <div id="loginModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 450px;">
             <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
-            
             <div class="d-flex gap-2 mb-3 t-border-bottom pb-3 flex-wrap">
                 <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
-
             <div id="viewExt">
-                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x). Recommended for desktop security.</p>
+                <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension (e.g., Alby, nos2x).</p>
                 <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
-
             <div id="viewBunker" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <label class="t-form-label">bunker://...</label>
                 <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
                 <button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button>
             </div>
-
             <div id="viewNsec" class="hidden">
-                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it into a secure NCRYPTSEC for local storage.</p>
-                <label class="t-form-label">nsec or hex</label>
+                <p class="text-muted fs-small mb-3">Login using a raw private key. A password is <strong>required</strong> to encrypt it.</p>
                 <input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex">
-                <label class="t-form-label">password</label>
                 <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
                 <button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button>
             </div>
-
             <div id="viewNcryptsec" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
-                <label class="t-form-label">ncryptsec</label>
                 <input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1...">
-                <label class="t-form-label">password</label>
                 <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
                 <button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button>
             </div>
-
-            <div class="text-right mt-4">
-                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
-            </div>
+            <div class="text-right mt-4"><button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button></div>
         </div>
     </div>
 
@@ -112,23 +92,17 @@
     <div id="unlockModal" class="t-modal">
         <div class="t-modal-content border-success" style="max-width: 400px;">
             <div class="t-card-header text-success">> SESSION_LOCKED</div>
-            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory.</p>
+            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock.</p>
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
             <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
                 <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
-                </div>
+                <div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button><button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button></div>
             </div>
         </div>
     </div>
 
     <!-- Lightbox Modal -->
-    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'">
-        <span class="t-lightbox-close">&times;</span>
-        <img id="lightboxImg" src="" alt="Zoomed Image">
-    </div>
+    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'"><span class="t-lightbox-close">&times;</span><img id="lightboxImg" src="" alt="Zoomed Image"></div>
 
     <!-- QUOTE MODAL -->
     <div id="quoteModal" class="t-modal">
@@ -137,14 +111,8 @@
             <div id="quoteTargetPreview" class="text-muted fs-small mb-3 p-2 border-dashed bg-surface overflow-hidden" style="max-height: 80px;"></div>
             <textarea id="quoteContentInput" class="t-editor-textarea" rows="3" placeholder="Write quote response..."></textarea>
             <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
-                    <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
-                </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
-                    <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
-                </div>
+                <div class="d-flex align-items-center gap-2"><input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none"><button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button></div>
+                <div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button><button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button></div>
             </div>
         </div>
     </div>
@@ -154,10 +122,7 @@
         <div class="t-modal-content">
             <div class="t-card-header">> EDIT_TRANSMISSION</div>
             <textarea id="editContentInput" class="t-editor-textarea" rows="4" placeholder="Update your note..."></textarea>
-            <div class="d-flex justify-content-between mt-3 flex-wrap gap-2">
-                <button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button>
-                <button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button>
-            </div>
+            <div class="d-flex justify-content-between mt-3 flex-wrap gap-2"><button class="t-btn danger" onclick="closeEditModal()">[CANCEL]</button><button id="sendEditBtn" class="t-btn">> UPDATE_EVENT</button></div>
         </div>
     </div>
 
@@ -165,12 +130,8 @@
     <div id="relayModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" class="mb-3">
-                <p class="text-muted">Checking network connections...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
-            </div>
+            <div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div>
         </div>
     </div>
 
@@ -179,774 +140,162 @@
         <div class="t-modal-content" style="max-width: 650px;">
             <div class="t-card-header">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="t-code" style="max-height: 60vh;"></pre>
-            <div class="d-flex justify-content-end gap-2 mt-3">
-                <button class="t-btn" onclick="copyRawJson()">[COPY]</button>
-                <button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button>
-            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3"><button class="t-btn" onclick="copyRawJson()">[COPY]</button><button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button></div>
         </div>
     </div>
 
     <script>
-        // ================= INDEXED_DB LOCAL CACHING =================
         let db = null;
-        function initDB() {
-            return new Promise((resolve) => {
-                let request = indexedDB.open("PhosphorDB", 1);
-                request.onupgradeneeded = function(e) {
-                    let database = e.target.result;
-                    if (!database.objectStoreNames.contains("profiles")) {
-                        database.createObjectStore("profiles", { keyPath: "pubkey" });
-                    }
-                };
-                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
-                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
-            });
-        }
-
-        function saveProfileToCache(pubkey, profileData) {
-            if (!db) return;
-            let tx = db.transaction("profiles", "readwrite");
-            let store = tx.objectStore("profiles");
-            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
-        }
-
-        async function getProfileFromCache(pubkey) {
-            if (!db) return null;
-            return new Promise((resolve) => {
-                let tx = db.transaction("profiles", "readonly");
-                let store = tx.objectStore("profiles");
-                let req = store.get(pubkey);
-                req.onsuccess = e => resolve(e.target.result);
-                req.onerror = () => resolve(null);
-            });
-        }
-
+        function initDB() { return new Promise((resolve) => { let request = indexedDB.open("PhosphorDB", 1); request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) { database.createObjectStore("profiles", { keyPath: "pubkey" }); } }; request.onsuccess = function(e) { db = e.target.result; resolve(true); }; request.onerror = function(e) { resolve(false); }; }); }
+        function saveProfileToCache(pubkey, profileData) { if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() }); }
+        async function getProfileFromCache(pubkey) { if (!db) return null; return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); }); }
         async function requestProfileInfo(pubkey) {
-            if (profileCache[pubkey]) return;
-            
-            profileCache[pubkey] = { pending: true };
+            if (profileCache[pubkey]) return; profileCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
-            
-            if (cached) {
-                profileCache[pubkey] = {
-                    name: cached.name,
-                    handle: cached.handle,
-                    picture: cached.picture,
-                    nip05: cached.nip05,
-                    pending: false
-                };
-                updatePostUI(pubkey);
-            } else {
-                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
-            }
+            if (cached) { profileCache[pubkey] = { name: cached.name, handle: cached.handle, picture: cached.picture, nip05: cached.nip05, pending: false }; updatePostUI(pubkey); } 
+            else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
         }
-        // ==========================================================
 
-        let RELAYS = [];
-        let BLOSSOM_SERVERS = [];
-        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
-        let profileCache = {};
-        let eventsCache = {};
-        
-        let quoteTargetEvent = null;
-        let editTargetEvent = null;
-        let relayStatusMap = {};
-        
-        let metricsCache = {};
-        let pendingMetricsIds = new Set();
-        let metricsTimeout = null;
-        
-        let likedEvents = new Set();
-        let repostedEvents = new Set();
+        let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {};
+        let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
+        let likedEvents = new Set(); let repostedEvents = new Set(); let myBookmarks = new Set(); let bookmarkIds = new Set(); let myBookmarkEvent = null;
 
-        let myBookmarks = new Set();
-        let bookmarkIds = new Set();
-        let myBookmarkEvent = null;
-
-        const navLoginBtn = document.getElementById('navLoginBtn');
-        const navUnlockBtn = document.getElementById('navUnlockBtn');
-        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
-        const navNotifBtn = document.getElementById('navNotifBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const relayStatusBtn = document.getElementById('relayStatusBtn');
-        
-        const postsContainer = document.getElementById('posts-container');
-        const statusText = document.getElementById('statusText');
-
-        const quoteModal = document.getElementById('quoteModal');
-        const quoteTargetPreview = document.getElementById('quoteTargetPreview');
-        const quoteContentInput = document.getElementById('quoteContentInput');
-        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-        const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn');
-        const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
-        
-        const editModal = document.getElementById('editModal');
-        const editContentInput = document.getElementById('editContentInput');
-        const sendEditBtn = document.getElementById('sendEditBtn');
-
-        const relayModal = document.getElementById('relayModal');
-        const relayListContainer = document.getElementById('relayListContainer');
-        const rawModal = document.getElementById('rawModal');
-        const rawEventContent = document.getElementById('rawEventContent');
-
+        const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn');
+        const postsContainer = document.getElementById('posts-container'); const statusText = document.getElementById('statusText');
+        const quoteModal = document.getElementById('quoteModal'); const quoteTargetPreview = document.getElementById('quoteTargetPreview'); const quoteContentInput = document.getElementById('quoteContentInput'); const sendQuoteBtn = document.getElementById('sendQuoteBtn'); const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn'); const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
+        const editModal = document.getElementById('editModal'); const editContentInput = document.getElementById('editContentInput'); const sendEditBtn = document.getElementById('sendEditBtn');
+        const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const rawModal = document.getElementById('rawModal'); const rawEventContent = document.getElementById('rawEventContent');
         let activeSockets = [];
 
         async function loadConfig() {
-            try {
-                await initDB(); 
-                let res = await fetch('config.json');
-                let config = await res.json();
-                
-                let savedRelays = localStorage.getItem('phosphor_user_relays');
-                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
-                
-                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
-                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
-                
-                await checkLocalSessions();
-                
-                updateAuthState();
-                
-                if (currentUserPubkey) {
-                    connectAndFetchBookmarks();
-                } else {
-                    document.getElementById('authWarning').classList.remove('hidden');
-                    document.getElementById('bookmarkFeed').classList.add('hidden');
-                }
-            } catch (e) {
-                console.error("Failed to load config.json", e);
-                alert("> ERROR: Missing config.json");
-            }
+            try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
+                let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
+                await checkLocalSessions(); updateAuthState();
+                if (currentUserPubkey) { connectAndFetchBookmarks(); } else { document.getElementById('authWarning').classList.remove('hidden'); document.getElementById('bookmarkFeed').classList.add('hidden'); }
+            } catch (e) { alert("> ERROR: Missing config.json"); }
         }
 
-        // ================= AUTHENTICATION LOGIC =================
-        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
-            window.nostr = {
-                getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => {
-                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
-                }
-            };
-        }
+        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) { window.nostr = { getPublicKey: async () => pubkeyHex, signEvent: async (eventTemplate) => { return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes); } }; }
 
         async function checkLocalSessions() {
-            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
-            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
-            if (rawHex && currentUserPubkey) {
-                try {
-                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
-                } catch(e) { console.error("Failed to restore local session", e); }
-            } else if (savedNcryptsec && !window.nostr && !rawHex) {
-                currentUserPubkey = null;
-                localStorage.removeItem('phosphor_pubkey');
-            }
+            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey'); let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
+            if (rawHex && currentUserPubkey) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools); } catch(e) {} } 
+            else if (savedNcryptsec && !window.nostr && !rawHex) { currentUserPubkey = null; localStorage.removeItem('phosphor_pubkey'); }
         }
 
         function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden');
-            document.getElementById('viewBunker').classList.add('hidden');
-            document.getElementById('viewNsec').classList.add('hidden');
-            document.getElementById('viewNcryptsec').classList.add('hidden');
-            
-            document.getElementById('tabExt').classList.add('ghost');
-            document.getElementById('tabBunker').classList.add('ghost');
-            document.getElementById('tabNsec').classList.add('ghost');
-            document.getElementById('tabNcryptsec').classList.add('ghost');
-            
-            if (tab === 'ext') {
-                document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').classList.remove('ghost');
-            } else if (tab === 'bunker') {
-                document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').classList.remove('ghost');
-            } else if (tab === 'nsec') {
-                document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').classList.remove('ghost');
-            } else if (tab === 'ncryptsec') {
-                document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').classList.remove('ghost');
-            }
+            document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost');
+            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } 
+            else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } 
+            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } 
+            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); }
         }
 
-        navLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('loginModal').style.display = 'flex';
-            
-            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            if(savedNcryptsec) {
-                switchLoginTab('ncryptsec');
-                document.getElementById('ncryptsecInput').value = savedNcryptsec;
-            }
-        });
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec'); if(savedNcryptsec) { switchLoginTab('ncryptsec'); document.getElementById('ncryptsecInput').value = savedNcryptsec; } });
+        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+        document.getElementById('extLoginBtn').addEventListener('click', async () => { if (window.nostr && typeof window.nostr.getPublicKey === 'function') { try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); } } else { alert('> WARNING: NIP-07 extension not found.'); } });
+        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => { let uri = document.getElementById('bunkerInput').value.trim(); if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format.'); try { let urlObj = new URL(uri); let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', ''); currentUserPubkey = targetPubkey; localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.setItem('phosphor_bunker_uri', uri); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); alert('> BUNKER CONNECTED.\n> NOTE: Relayer connected in delegated signer mode.'); document.getElementById('loginModal').style.display = 'none'; setTimeout(() => location.reload(), 500); } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); } });
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value; if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.'); let btn = document.getElementById('nsecLoginBtn'); try { btn.textContent = '> PROCESSING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes; if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); skBytes = decoded.data; } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); } let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); let ncryptsec = nip49.encrypt(skBytes, pass); localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> LOCAL SIGNER ENCRYPTED.'); location.reload(); } catch(e) { alert('> ERROR: Invalid key or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; } });
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value; if(!input || !pass) return alert('> ERROR: Key and password required.'); let btn = document.getElementById('ncryptsecLoginBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; } });
+        document.getElementById('unlockBtn').addEventListener('click', async () => { let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec'); if(!pass) return alert('> ERROR: Password required.'); let btn = document.getElementById('unlockBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; } });
 
-        navUnlockBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            document.getElementById('unlockModal').style.display = 'flex';
-        });
-
-        document.getElementById('extLoginBtn').addEventListener('click', async () => {
-            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-                try {
-                    currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    localStorage.removeItem('phosphor_privkey');
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    localStorage.removeItem('phosphor_bunker_uri');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                    location.reload();
-                } catch (err) { alert('> ERROR: Login failed.'); }
-            } else { alert('> WARNING: NIP-07 extension not found.'); }
-        });
-
-        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
-            let uri = document.getElementById('bunkerInput').value.trim();
-            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
-            
-            try {
-                let urlObj = new URL(uri);
-                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
-                
-                currentUserPubkey = targetPubkey;
-                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                localStorage.setItem('phosphor_bunker_uri', uri);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_ncryptsec');
-                sessionStorage.removeItem('phosphor_privkey_temp');
-                
-                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
-                document.getElementById('loginModal').style.display = 'none';
-                setTimeout(() => location.reload(), 500);
-            } catch (e) {
-                alert('> ERROR: Failed to parse Bunker URI.');
-            }
-        });
-
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim();
-            let pass = document.getElementById('nsecPassword').value;
-            
-            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            
-            let btn = document.getElementById('nsecLoginBtn');
-            try {
-                btn.textContent = '> PROCESSING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes;
-                if (input.startsWith('nsec1')) {
-                    let decoded = nostrTools.nip19.decode(input);
-                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
-                    skBytes = decoded.data;
-                } else {
-                    skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                }
-                
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                let ncryptsec = nip49.encrypt(skBytes, pass);
-                
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> LOCAL SIGNER ENCRYPTED AND INITIALIZED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Invalid key format or processing failed.');
-                btn.textContent = '> ENCRYPT & LOGIN';
-            }
-        });
-
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim();
-            let pass = document.getElementById('ncryptsecPassword').value;
-            
-            if(!input || !pass) return alert('> ERROR: Key and password required.');
-            
-            let btn = document.getElementById('ncryptsecLoginBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(input, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                localStorage.setItem('phosphor_ncryptsec', input);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                alert('> SECURE DECRYPTION SUCCESSFUL.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT & LOGIN';
-            }
-        });
-
-        document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value;
-            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
-            if(!pass) return alert('> ERROR: Password required.');
-
-            let btn = document.getElementById('unlockBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(ncryptsec, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                document.getElementById('unlockModal').style.display = 'none';
-                alert('> SESSION UNLOCKED.');
-                location.reload();
-            } catch(e) {
-                console.error(e);
-                alert('> ERROR: Decryption failed. Incorrect password?');
-                btn.textContent = '> DECRYPT';
-            }
-        });
-
-        function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey');
-            localStorage.removeItem('phosphor_privkey');
-            localStorage.removeItem('phosphor_ncryptsec');
-            localStorage.removeItem('phosphor_bunker_uri');
-            sessionStorage.removeItem('phosphor_privkey_temp');
-            location.reload();
-        }
-
-        logoutBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            logoutFully();
-        });
+        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
+        logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-
-            if (isLocked) {
-                navLoginBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navUnlockBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                
-                document.getElementById('unlockModal').style.display = 'flex';
-            } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.remove('hidden');
-                navNotifBtn.classList.remove('hidden');
-                document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
-                document.getElementById('unlockModal').style.display = 'none';
-            } else {
-                navLoginBtn.classList.remove('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-            }
+            if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); document.getElementById('unlockModal').style.display = 'flex'; } 
+            else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden'); document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden')); document.getElementById('unlockModal').style.display = 'none'; } 
+            else { navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); }
         }
 
-        // ================= END AUTH LOGIC =================
-        
-        // ================= MEDIA UPLOAD LOGIC =================
         async function handleMediaUpload(files, btnElement, textareaElement) {
-            if (!files.length) return;
-            
-            if (files.length > 4) {
-                alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
-                files = files.slice(0, 4);
-            }
-
+            if (!files.length) return; if (files.length > 4) { alert('> WARNING: Max 4 files. Processing first 4.'); files = files.slice(0, 4); }
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            
             try {
-                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
-                blossomUrl = blossomUrl.replace(/\/$/, '');
-                let uploadEndpoint = blossomUrl + '/upload';
-                
+                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id'; blossomUrl = blossomUrl.replace(/\/$/, ''); let uploadEndpoint = blossomUrl + '/upload';
                 for (let i = 0; i < files.length; i++) {
-                    let file = files[i];
-                    btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
-                    
-                    let arrayBuffer = await file.arrayBuffer();
-                    let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-                    let hashArray = Array.from(new Uint8Array(hashBuffer));
-                    let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                    
-                    let nowTimestamp = Math.floor(Date.now() / 1000);
-                    
-                    let authEvent = {
-                        kind: 24242,
-                        created_at: nowTimestamp,
-                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
-                        content: "Phosphor Blossom Auth",
-                        pubkey: currentUserPubkey
-                    };
-                    
-                    let signedAuth = await window.nostr.signEvent(authEvent);
-                    let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
-                    
-                    let response = await fetch(uploadEndpoint, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Nostr ' + authBase64 },
-                        body: file
-                    });
-                    
-                    if (response.ok) {
-                        let data = await response.json();
-                        textareaElement.value += (textareaElement.value ? '\n' : '') + data.url;
-                    } else { 
-                        let errText = await response.text();
-                        alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
-                    }
+                    let file = files[i]; btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
+                    let arrayBuffer = await file.arrayBuffer(); let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer); let hashArray = Array.from(new Uint8Array(hashBuffer)); let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    let nowTimestamp = Math.floor(Date.now() / 1000); let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
+                    let signedAuth = await window.nostr.signEvent(authEvent); let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                    let response = await fetch(uploadEndpoint, { method: 'PUT', headers: { 'Authorization': 'Nostr ' + authBase64 }, body: file });
+                    if (response.ok) { let data = await response.json(); textareaElement.value += (textareaElement.value ? '\n' : '') + data.url; } else { alert(`> ERROR: Server rejected ${file.name}.`); }
                 }
-            } catch (err) { alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); } 
-            finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server.'); } finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
         }
-        
-        uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click());
-        quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
+        uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click()); quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
 
-
-        // ================= BOOKMARK LOGIC =================
         async function toggleBookmark(eventId) {
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            let isBookmarked = myBookmarks.has(eventId);
-            
-            let tags = [["d", "bookmark"]];
-            if (myBookmarkEvent) {
-                myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); });
-            }
-            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } 
-            else { myBookmarks.delete(eventId); }
-            
+            let isBookmarked = myBookmarks.has(eventId); let tags = [["d", "bookmark"]];
+            if (myBookmarkEvent) { myBookmarkEvent.tags.forEach(t => { if (t[0] !== 'e' || (t[0] === 'e' && t[1] !== eventId)) tags.push(t); }); }
+            if (!isBookmarked) { tags.push(["e", eventId]); myBookmarks.add(eventId); } else { myBookmarks.delete(eventId); }
             let rawEvent = { kind: 30003, created_at: Math.floor(Date.now() / 1000), tags: tags, content: "", pubkey: currentUserPubkey };
-            
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                myBookmarkEvent = signedEvent;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                
-                let btn = document.getElementById(`bm-btn-${eventId}`);
-                if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save';
-                
-                let card = document.getElementById(`post-${eventId}`);
-                if (!myBookmarks.has(eventId) && card) card.remove();
-            } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
+            try { let signedEvent = await window.nostr.signEvent(rawEvent); myBookmarkEvent = signedEvent; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); let btn = document.getElementById(`bm-btn-${eventId}`); if (btn) btn.textContent = myBookmarks.has(eventId) ? '[b] saved' : '[b] save'; let card = document.getElementById(`post-${eventId}`); if (!myBookmarks.has(eventId) && card) card.remove(); } catch (e) { alert('> ERROR: Failed to sign bookmark event.'); }
         }
 
-        async function copyNote(eventId) {
-            try {
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                let noteId = nostrTools.nip19.noteEncode(eventId);
-                navigator.clipboard.writeText(`nostr:${noteId}`);
-                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`);
-            } catch (e) { alert('> ERROR: Failed to encode NIP-19 note.'); }
-        }
-
-        async function copyNaddr(kind, pubkey, identifier) {
-            try {
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                let naddr = nostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier });
-                navigator.clipboard.writeText(`nostr:${naddr}`);
-                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`);
-            } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); }
-        }
-        
-        function copyThreadLink(id) {
-            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
-            let threadUrl = baseUrl + 'thread.html?id=' + id;
-            navigator.clipboard.writeText(threadUrl);
-            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
-        }
-
-        function copyArticleFeedLink(pubkey, dTag) {
-            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
-            let articleUrl = baseUrl + 'notes.html?d=' + encodeURIComponent(dTag) + '&author=' + pubkey;
-            navigator.clipboard.writeText(articleUrl);
-            alert('> LINK COPIED TO CLIPBOARD:\n\n' + articleUrl);
-        }
-        
-        function copyRawJson() {
-            let textToCopy = rawEventContent.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("> SUCCESS: Raw JSON copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("> ERROR: Failed to copy to clipboard.");
-            });
-        }
-
-        function timeAgo(unixTimestamp) {
-            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
-            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
-            if (seconds < 60) return "Just now";
-            for (let i in intervals) {
-                let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
-            }
-            return "Just now";
-        }
-
+        async function copyNote(eventId) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let noteId = nostrTools.nip19.noteEncode(eventId); navigator.clipboard.writeText(`nostr:${noteId}`); alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`); } catch (e) { alert('> ERROR: Failed to encode NIP-19 note.'); } }
+        async function copyNaddr(kind, pubkey, identifier) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let naddr = nostrTools.nip19.naddrEncode({ kind: parseInt(kind), pubkey: pubkey, identifier: identifier }); navigator.clipboard.writeText(`nostr:${naddr}`); alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${naddr}`); } catch (e) { alert('> ERROR: Failed to encode NIP-19 naddr.'); } }
+        function copyThreadLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
+        function copyArticleFeedLink(pubkey, dTag) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let articleUrl = baseUrl + 'notes.html?d=' + encodeURIComponent(dTag) + '&author=' + pubkey; navigator.clipboard.writeText(articleUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + articleUrl); }
+        function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy."); }); }
+        function timeAgo(unixTimestamp) { let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 }; if (seconds < 60) return "Just now"; for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; } return "Just now"; }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
-        
-        function openRawModal(eventId) {
-            let ev = eventsCache[eventId];
-            if (ev) {
-                rawEventContent.textContent = JSON.stringify(ev, null, 2);
-                rawModal.style.display = 'flex';
-            }
-        }
+        function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
-
-        function openQuoteModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) {
-                alert('> ERROR: Not logged in! Login to quote.'); return;
-            }
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
-            quoteContentInput.value = "";
-            quoteModal.style.display = 'flex';
-        }
+        function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to quote.'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
-
-        function openEditModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) return;
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            editTargetEvent = ev;
-            editContentInput.value = ev.content;
-            editModal.style.display = 'flex';
-        }
+        function openEditModal(eventId) { if (!currentUserPubkey || !window.nostr) return; let ev = eventsCache[eventId]; if (!ev) return; editTargetEvent = ev; editContentInput.value = ev.content; editModal.style.display = 'flex'; }
         function closeEditModal() { editModal.style.display = 'none'; editTargetEvent = null; }
-
-        function openRelayModal() {
-            let htmlContent = "";
-            RELAYS.forEach(url => {
-                let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
-                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
-            });
-            relayListContainer.innerHTML = htmlContent;
-            relayModal.style.display = 'flex';
-        }
+        function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; relayModal.style.display = 'flex'; }
         function closeRelayModal() { relayModal.style.display = 'none'; }
-
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, processed: new Set() }; }
-
-        function updateMetricsUI(id) {
-            let m = metricsCache[id];
-            let er = document.getElementById(`metric-replies-${id}`);
-            let et = document.getElementById(`metric-reposts-${id}`);
-            let el = document.getElementById(`metric-likes-${id}`);
-            if(er) er.textContent = m.replies;
-            if(et) et.textContent = m.reposts;
-            if(el) el.textContent = m.likes;
-        }
-
-        function requestMetrics(eventId) {
-            pendingMetricsIds.add(eventId);
-            clearTimeout(metricsTimeout);
-            metricsTimeout = setTimeout(() => {
-                let ids = Array.from(pendingMetricsIds);
-                if(ids.length === 0) return;
-                let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
-                pendingMetricsIds.clear();
-            }, 1500);
-        }
-
-        async function likeEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
-
-            let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId);
-            } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
-        }
-
-        async function repostEvent(eventId) {
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; }
-            if (!confirm('> Repost this content to your timeline?')) return;
-
-            let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey };
-            let dTag = ev.tags.find(t => t[0] === 'd');
-            if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; }
-
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId);
-                alert(`> SUCCESS: Reposted to ${sentCount} relays!`);
-            } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
-        }
+        function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; }
+        function requestMetrics(eventId) { pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout); metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500); }
+        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; } let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey }; try { let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId); } catch (err) { alert('> ERROR: Failed to broadcast like.'); } }
+        async function repostEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; } if (!confirm('> Repost this content to your timeline?')) return; let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey }; let dTag = ev.tags.find(t => t[0] === 'd'); if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; } try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId); alert(`> SUCCESS: Reposted to ${sentCount} relays!`); } catch (err) { alert('> ERROR: Failed to broadcast repost.'); } }
 
         function connectAndFetchBookmarks() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
-                relayStatusMap[url] = false;
-                let socket = new WebSocket(url);
-
+                relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
-                    onlineCount++;
-                    relayStatusMap[url] = true;
-                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     socket.send(JSON.stringify(["REQ", "my-bookmarks", { "kinds": [30003], "authors": [currentUserPubkey] }]));
-                    
-                    // NIP-65 & Blossom Settings Sync (Silently to LocalStorage)
                     socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                 };
-
-                socket.onerror = function() { relayStatusMap[url] = false; };
-                socket.onclose = function() { relayStatusMap[url] = false; };
-
+                socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-                            
-                            // NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
-                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
-                                let userRelays = [];
-                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
-                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
-                            }
-                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
-                                let userBlossom = [];
-                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
-                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
-                            }
-
-                            if (ev.kind === 5) {
-                                ev.tags.forEach(t => {
-                                    if (t[0] === 'e') {
-                                        let oldCard = document.getElementById(`post-${t[1]}`);
-                                        if (oldCard) oldCard.remove();
-                                    }
-                                });
-                                return;
-                            }
-
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
+                            if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`post-${t[1]}`); if (oldCard) oldCard.remove(); } }); return; }
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
                                 if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
                                     let isNewer = (!myBookmarkEvent || ev.created_at > myBookmarkEvent.created_at);
-                                    
                                     if (isNewer) {
-                                        myBookmarkEvent = ev;
-                                        bookmarkIds.clear();
-                                        myBookmarks.clear();
-                                        ev.tags.forEach(t => { if (t[0] === 'e') { bookmarkIds.add(t[1]); myBookmarks.add(t[1]); } });
-                                        
-                                        let syncInd = document.getElementById('syncIndicator');
-                                        if (syncInd) syncInd.style.display = 'none';
-
-                                        if (bookmarkIds.size > 0) {
-                                            if (statusText) statusText.style.display = 'none';
-                                            let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]);
-                                            activeSockets.forEach(sock => {
-                                                if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq);
-                                            });
-                                        } else {
-                                            if (statusText) statusText.textContent = "[ Bookmark list is empty. ]";
-                                        }
+                                        myBookmarkEvent = ev; bookmarkIds.clear(); myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') { bookmarkIds.add(t[1]); myBookmarks.add(t[1]); } });
+                                        let syncInd = document.getElementById('syncIndicator'); if (syncInd) syncInd.style.display = 'none';
+                                        if (bookmarkIds.size > 0) { if (statusText) statusText.style.display = 'none'; let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); }); } else { if (statusText) statusText.textContent = "[ Bookmark list is empty. ]"; }
                                     } 
-                                    else if (ev.created_at === myBookmarkEvent.created_at) {
-                                        if (bookmarkIds.size > 0) {
-                                            let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]);
-                                            socket.send(subReq);
-                                        }
-                                    }
+                                    else if (ev.created_at === myBookmarkEvent.created_at) { if (bookmarkIds.size > 0) { let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]); socket.send(subReq); } }
                                 }
                             }
-                            
                             if (ev.kind === 0) {
                                 try {
-                                    let meta = JSON.parse(ev.content);
-                                    let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
-                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
-                                    let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
-                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    
-                                    profileCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName,
-                                        picture: meta.picture || null,
-                                        nip05: meta.nip05 || "",
-                                        pending: false
-                                    };
-                                    
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SAVE TO LOCAL CACHE
-                                    updatePostUI(ev.pubkey);
+                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName, picture: meta.picture || null, nip05: meta.nip05 || "", pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
-                            
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
-                                let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
-                                eTags.forEach(tId => {
-                                    initMetrics(tId);
-                                    if (!metricsCache[tId].processed.has(ev.id)) {
-                                        metricsCache[tId].processed.add(ev.id);
-                                        if (ev.kind === 1) metricsCache[tId].replies++;
-                                        if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++;
-                                        if (ev.kind === 7) metricsCache[tId].likes++;
-                                        updateMetricsUI(tId);
-                                    }
-                                });
-                            }
-
-                            if (ev.kind === 1 || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (!profileCache[ev.pubkey]) {
-                                    requestProfileInfo(ev.pubkey); // <-- CHECK LOCAL CACHE BEFORE FETCHING FROM RELAYS
-                                }
-                                eventsCache[ev.id] = ev;
-                                renderSavedPost(ev);
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++; if (ev.kind === 7) metricsCache[tId].likes++; updateMetricsUI(tId); } }); }
+                            if (ev.kind === 1 || ev.kind === 21 || ev.kind === 22 || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                                if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } eventsCache[ev.id] = ev; renderSavedPost(ev);
                             }
                         }
                     } catch (err) {}
@@ -955,192 +304,48 @@
             });
         }
 
-        // --- Common Parser Function for Events ---
         function parseActivityData(ev) {
-            let isSportActivity = false;
-            let actTitle = "Workout";
-            let actType = "Activity";
-            let actDist = "0"; let actDistUnit = "km";
-            let actDur = "00:00:00";
-            let actEle = "0"; let actEleUnit = "m";
-            let clientName = "unknown";
-            let hasExpiration = false;
-            let expTimeStr = "EPHEMERAL_STORY";
-            let parsedJsonContent = "";
-            let isJsonPayload = false;
-
-            if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) {
-                isSportActivity = true;
-            }
-
-            ev.tags.forEach(t => { 
-                if (t[0] === "client") clientName = t[1]; 
-                
-                if (t[0] === "expiration") {
-                    hasExpiration = true; 
-                    let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000);
-                    expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired";
-                }
-                
-                if (t[0] === "title") actTitle = t[1];
-                if (t[0] === "activity_type" || t[0] === "activity") { 
-                    isSportActivity = true; 
-                    actType = t[1]; 
-                }
-                if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) {
-                    isSportActivity = true;
-                }
-                if (t[0] === "distance") { 
-                    actDist = t[1]; 
-                    if(t[2]) actDistUnit = t[2]; 
-                }
-                if (t[0] === "duration") actDur = t[1];
-                if (t[0] === "elevation_gain") { 
-                    actEle = t[1]; 
-                    if(t[2]) actEleUnit = t[2]; 
-                }
-            });
-
-            if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
-                try { 
-                    let parsedObj = JSON.parse(ev.content.trim());
-                    parsedJsonContent = JSON.stringify(parsedObj, null, 2); 
-                    isJsonPayload = true; 
-                    
-                    if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") {
-                        isSportActivity = true;
-                        actType = (parsedObj.sport || parsedObj.activity || actType);
-                    }
-                    if (parsedObj.title) actTitle = parsedObj.title;
-                    if (parsedObj.distance) actDist = parsedObj.distance;
-                    if (parsedObj.duration) actDur = parsedObj.duration;
-                    if (parsedObj.heartrate) { 
-                        actEle = parsedObj.heartrate; 
-                        actEleUnit = "bpm"; 
-                    }
-                } catch (e) {}
-            }
-
-            let paceSpeedLabel = "Avg Pace";
-            let paceSpeedValue = "0:00 /km";
-            
+            let isSportActivity = false; let actTitle = "Workout"; let actType = "Activity"; let actDist = "0"; let actDistUnit = "km"; let actDur = "00:00:00"; let actEle = "0"; let actEleUnit = "m"; let clientName = "unknown"; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY"; let parsedJsonContent = ""; let isJsonPayload = false;
+            if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) { isSportActivity = true; }
+            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; } if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; } if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; } if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
+            if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) { try { let parsedObj = JSON.parse(ev.content.trim()); parsedJsonContent = JSON.stringify(parsedObj, null, 2); isJsonPayload = true; if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") { isSportActivity = true; actType = (parsedObj.sport || parsedObj.activity || actType); } if (parsedObj.title) actTitle = parsedObj.title; if (parsedObj.distance) actDist = parsedObj.distance; if (parsedObj.duration) actDur = parsedObj.duration; if (parsedObj.heartrate) { actEle = parsedObj.heartrate; actEleUnit = "bpm"; } } catch (e) {} }
+            let paceSpeedLabel = "Avg Pace"; let paceSpeedValue = "0:00 /km";
             try {
                 let distNum = parseFloat(actDist);
                 if (!isNaN(distNum) && actDur && distNum > 0) {
-                    let timeParts = actDur.split(':');
-                    let totalSeconds = 0;
-                    if (timeParts.length === 3) {
-                        totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]);
-                    } else if (timeParts.length === 2) {
-                        totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); 
-                    }
-
+                    let timeParts = actDur.split(':'); let totalSeconds = 0; if (timeParts.length === 3) { totalSeconds = (+timeParts[0]) * 3600 + (+timeParts[1]) * 60 + (+timeParts[2]); } else if (timeParts.length === 2) { totalSeconds = (+timeParts[0]) * 60 + (+timeParts[1]); }
                     if (totalSeconds > 0) {
-                        let exercise = actType.toLowerCase();
-                        const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling'];
-                        const waterSports = ['swimming'];
-
-                        if (speedSports.includes(exercise)) {
-                            let durationHours = totalSeconds / 3600;
-                            let speed = (distNum / durationHours).toFixed(2);
-                            paceSpeedValue = `${speed} km/h`;
-                            paceSpeedLabel = "Avg Speed";
-                        } else if (waterSports.includes(exercise)) {
-                            let distance100m = (distNum * 1000) / 100;
-                            let pacePer100m = (totalSeconds / 60) / distance100m;
-                            let paceMins = Math.floor(pacePer100m);
-                            let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0');
-                            paceSpeedValue = `${paceMins}:${paceSecs} /100m`;
-                            paceSpeedLabel = "Avg Pace";
-                        } else {
-                            let durationMinutes = totalSeconds / 60;
-                            let paceDecimal = durationMinutes / distNum;
-                            let paceMins = Math.floor(paceDecimal);
-                            let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0');
-                            paceSpeedValue = `${paceMins}:${paceSecs} /km`;
-                            paceSpeedLabel = "Avg Pace";
-                        }
+                        let exercise = actType.toLowerCase(); const speedSports = ['cycling', 'biking', 'ebike', 'driving', 'motorcycling']; const waterSports = ['swimming'];
+                        if (speedSports.includes(exercise)) { let durationHours = totalSeconds / 3600; let speed = (distNum / durationHours).toFixed(2); paceSpeedValue = `${speed} km/h`; paceSpeedLabel = "Avg Speed"; } 
+                        else if (waterSports.includes(exercise)) { let distance100m = (distNum * 1000) / 100; let pacePer100m = (totalSeconds / 60) / distance100m; let paceMins = Math.floor(pacePer100m); let paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0'); paceSpeedValue = `${paceMins}:${paceSecs} /100m`; paceSpeedLabel = "Avg Pace"; } 
+                        else { let durationMinutes = totalSeconds / 60; let paceDecimal = durationMinutes / distNum; let paceMins = Math.floor(paceDecimal); let paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0'); paceSpeedValue = `${paceMins}:${paceSecs} /km`; paceSpeedLabel = "Avg Pace"; }
                     }
                 }
             } catch(e) {}
-
             return { isSportActivity, actTitle, actType, actDist, actDistUnit, actDur, actEle, actEleUnit, paceSpeedLabel, paceSpeedValue, clientName, hasExpiration, expTimeStr, isJsonPayload, parsedJsonContent };
         }
 
-        function updatePostUI(pubkey) {
-            let info = profileCache[pubkey];
-            if (!info || info.pending) return;
-            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle}`; });
-            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
-                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
-            });
-        }
+        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle}`; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
         function renderSavedPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
-            
-            let syncInd = document.getElementById('syncIndicator');
-            if (syncInd) syncInd.style.display = 'none';
-            if (statusText) statusText.style.display = 'none';
-            
-            let parsed = parseActivityData(ev);
-            let dTagValue = "";
-            ev.tags.forEach(t => { 
-                if (t[0] === "d") dTagValue = t[1]; 
-            });
-
-            if (parsed.hasExpiration) {
-                let hasExpired = false;
-                ev.tags.forEach(t => {
-                    if(t[0] === "expiration") {
-                        if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) hasExpired = true; 
-                    }
-                });
-                if (hasExpired) return;
-            }
-
-            initMetrics(ev.id); 
-            requestMetrics(ev.id);
-
-            let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            
-            let cached = profileCache[ev.pubkey];
-            let info = (cached && !cached.pending) ? cached : { 
-                name: `Node_${shortPub}`, 
-                handle: `@${ev.pubkey.substring(0, 8)}`, 
-                picture: null 
-            };
-            
-            let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
-            let timeStr = timeAgo(ev.created_at);
-
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration);
-            let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey);
-            let editBtnVisibility = isMine ? '' : 'hidden';
-            let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-
-            let card = document.createElement('div');
-            card.id = `post-${ev.id}`;
+            let syncInd = document.getElementById('syncIndicator'); if (syncInd) syncInd.style.display = 'none'; if (statusText) statusText.style.display = 'none';
+            let parsed = parseActivityData(ev); let dTagValue = ""; ev.tags.forEach(t => { if (t[0] === "d") dTagValue = t[1]; });
+            if (parsed.hasExpiration) { let hasExpired = false; ev.tags.forEach(t => { if(t[0] === "expiration") { if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) hasExpired = true; } }); if (hasExpired) return; }
+            initMetrics(ev.id); requestMetrics(ev.id);
+            let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let cached = profileCache[ev.pubkey]; let info = (cached && !cached.pending) ? cached : { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
+            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration); let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
+            let card = document.createElement('div'); card.id = `post-${ev.id}`;
             
             if (ev.kind === 30023) {
-                card.className = 't-feed-card border-info mb-4';
-                let title = "Untitled Article"; let summary = ""; let coverImg = "";
-                ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
-
-                let coverHtml = coverImg ? `<div class="t-media-item" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : "";
-                let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
-
+                card.className = 't-feed-card border-info mb-4'; let title = "Untitled Article"; let summary = ""; let coverImg = ""; ev.tags.forEach(t => { if (t[0] === "title") title = t[1]; if (t[0] === "summary") summary = t[1]; if (t[0] === "image") coverImg = t[1]; });
+                let coverHtml = coverImg ? `<div class="t-media-item" onclick="openLightbox('${coverImg}')"><img src="${coverImg}" alt="Cover Article"></div>` : ""; let articleTargetParam = dTagValue ? `d=${encodeURIComponent(dTagValue)}&author=${ev.pubkey}` : `id=${ev.id}`;
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
                     <div class="t-feed-main" style="min-width: 0; flex: 1;">
-                        <div class="t-feed-header">
-                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
-                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
-                        </div>
-                        <div class="font-bold fs-3 mb-2">${escapeHtml(title)}</div>
-                        ${coverHtml ? `<div class="mt-2 mb-3">${coverHtml}</div>` : ''}
-                        <div class="fs-small opacity-75 mb-3" style="word-break: break-all;">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
+                        <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span></div>
+                        <div class="font-bold fs-3 mb-2">${escapeHtml(title)}</div>${coverHtml ? `<div class="mt-2 mb-3">${coverHtml}</div>` : ''}<div class="fs-small opacity-75 mb-3" style="word-break: break-all;">${escapeHtml(summary || ev.content.substring(0, 180) + '...')}</div>
                         <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="notes.html?${articleTargetParam}" class="t-feed-btn text-success" title="Read Article" style="text-decoration:none;">[read]</a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -1157,57 +362,17 @@
                 `;
             } 
             else if (parsed.isSportActivity) {
-                card.className = 't-feed-card border-success mb-4';
-                let iconStr = "[A]";
-                let tLower = parsed.actType.toLowerCase();
-                
-                if (tLower.includes("cycl") || tLower.includes("bike")) {
-                    iconStr = "[BIKE]";
-                } else if (tLower.includes("run") || tLower.includes("walk")) {
-                    iconStr = "[WALK]";
-                }
-                
+                card.className = 't-feed-card border-success mb-4'; let iconStr = "[A]"; let tLower = parsed.actType.toLowerCase(); if (tLower.includes("cycl") || tLower.includes("bike")) { iconStr = "[BIKE]"; } else if (tLower.includes("run") || tLower.includes("walk")) { iconStr = "[WALK]"; }
                 let eleLabel = parsed.actEleUnit.toLowerCase() === "bpm" ? "Heart Rate" : "Elevation Gain";
-
                 let contentHtml = `
-                    <div class="t-activity-header mt-3">
-                        <div class="border-dashed p-2 font-bold fs-3">${iconStr}</div>
-                        <div>
-                            <h4 class="t-activity-title text-success m-0">${escapeHtml(parsed.actTitle)}</h4>
-                            <span class="t-activity-type text-success">${escapeHtml(parsed.actType)}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="t-activity-metrics mb-4 mt-2">
-                        <div class="t-metric-box w-100 mb-4">
-                            <div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div>
-                            <span class="t-metric-lbl text-success">Distance</span>
-                        </div>
-                        <div class="d-flex gap-4 flex-wrap">
-                            <div class="t-metric-box">
-                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div>
-                                <span class="t-metric-lbl text-success">Duration</span>
-                            </div>
-                            <div class="t-metric-box">
-                                <div class="t-metric-val fs-2">${escapeHtml(parsed.paceSpeedValue)}</div>
-                                <span class="t-metric-lbl text-success">${escapeHtml(parsed.paceSpeedLabel)}</span>
-                            </div>
-                            <div class="t-metric-box">
-                                <div class="t-metric-val fs-2">${escapeHtml(parsed.actEle)} <span class="t-metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div>
-                                <span class="t-metric-lbl text-success">${eleLabel}</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="t-activity-header mt-3"><div class="border-dashed p-2 font-bold fs-3">${iconStr}</div><div><h4 class="t-activity-title text-success m-0">${escapeHtml(parsed.actTitle)}</h4><span class="t-activity-type text-success">${escapeHtml(parsed.actType)}</span></div></div>
+                    <div class="t-activity-metrics mb-4 mt-2"><div class="t-metric-box w-100 mb-4"><div class="t-metric-val t-metric-large">${escapeHtml(parsed.actDist)} <span class="t-metric-unit">${escapeHtml(parsed.actDistUnit)}</span></div><span class="t-metric-lbl text-success">Distance</span></div><div class="d-flex gap-4 flex-wrap"><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(parsed.actDur)}</div><span class="t-metric-lbl text-success">Duration</span></div><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(parsed.paceSpeedValue)}</div><span class="t-metric-lbl text-success">${escapeHtml(parsed.paceSpeedLabel)}</span></div><div class="t-metric-box"><div class="t-metric-val fs-2">${escapeHtml(parsed.actEle)} <span class="t-metric-unit">${escapeHtml(parsed.actEleUnit)}</span></div><span class="t-metric-lbl text-success">${eleLabel}</span></div></div></div>
                     ${parsed.isJsonPayload ? `<details><summary style="cursor: pointer; opacity: 0.8; font-size: 0.85em;">[VIEW_RAW_DATA]</summary><pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre></details>` : (ev.content.trim() ? `<div class="t-feed-content">${escapeHtml(ev.content)}</div>` : '')}
                 `;
-
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
                     <div class="t-feed-main" style="min-width: 0; flex: 1;">
-                        <div class="t-feed-header">
-                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
-                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
-                        </div>
+                        <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span></div>
                         ${contentHtml}
                         <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
@@ -1224,42 +389,49 @@
                     </div>
                 `;
             }
-            else if (isPulse) {
-                card.className = 't-feed-card border-warning mb-4';
-                let contentText = ev.content; let mediaElements = [];
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                    let lowerExt = ext.toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
-                    else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`);
-                    return "";
-                });
-                
+            else if (ev.kind === 22 || ev.kind === 21) {
+                card.className = 't-feed-card mb-4';
+                let videoUrl = ""; let mimeType = "video/mp4"; let posterUrl = "";
+                ev.tags.forEach(t => { if (t[0] === "imeta") { t.forEach(val => { if (typeof val === 'string') { if (val.startsWith("url ")) videoUrl = val.substring(4); if (val.startsWith("m ")) mimeType = val.substring(2); if (val.startsWith("thumb ") || val.startsWith("image ")) posterUrl = val.substring(6); } }); } });
                 let mediaHtml = "";
-                if (mediaElements.length > 1) {
-                    mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
-                } else if (mediaElements.length === 1) {
-                    mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
+                if (videoUrl) {
+                    let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
+                    mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Browser Anda tidak mendukung format video.</video>`;
                 }
-
-                contentText = escapeHtml(contentText.trim());
-
-                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                    let href = url.replace(/&amp;/g, '&');
-                    return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                });
-
-                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                });
+                let contentText = ev.content ? `<div class="t-feed-content mt-2">${escapeHtml(ev.content)}</div>` : ""; let badgeName = ev.kind === 21 ? "VIDEO" : "SHORT_VIDEO"; let contentHtml = `<div class="t-badge success mb-2">> ${badgeName} / MEDIA</div>${contentText}`; let eventTypeStr = ev.kind === 21 ? 'video_stream' : 'short_video';
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
                     <div class="t-feed-main" style="min-width: 0; flex: 1;">
-                        <div class="t-feed-header">
-                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
-                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
+                        <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span></div>
+                        ${contentHtml}${mediaHtml}
+                        <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
+                            <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
+                            <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
+                            <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
+                            <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
+                            <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                         </div>
+                        <div class="text-right fs-small text-muted mt-2">> ${eventTypeStr} / via ${escapeHtml(parsed.clientName)}</div>
+                    </div>
+                `;
+            }
+            else if (isPulse) {
+                card.className = 't-feed-card border-warning mb-4'; let contentText = ev.content; let mediaElements = [];
+                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) { let lowerExt = ext.toLowerCase(); if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`); return ""; });
+                let mediaHtml = ""; if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
+                contentText = escapeHtml(contentText.trim());
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
+
+                card.innerHTML = `
+                    <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
+                    <div class="t-feed-main" style="min-width: 0; flex: 1;">
+                        <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span></div>
                         <div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>
                         <div class="t-feed-content">${contentText}</div>
                         ${mediaHtml}
@@ -1276,50 +448,23 @@
                 `;
             } 
             else {
-                card.className = 't-feed-card mb-4';
-                let contentHtml = ""; let mediaHtml = ""; let mediaElements = [];
-                
-                if (parsed.isJsonPayload) {
-                    contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
-                } else {
+                card.className = 't-feed-card mb-4'; let contentHtml = ""; let mediaHtml = ""; let mediaElements = [];
+                if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`; } 
+                else {
                     let contentText = ev.content;
-                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                        let lowerExt = ext.toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
-                        else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
-                        return "";
-                    });
-                    
-                    if (mediaElements.length > 1) {
-                        mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
-                    } else if (mediaElements.length === 1) {
-                        mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
-                    }
-
+                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) { let lowerExt = ext.toLowerCase(); if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`); return ""; });
+                    if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
                     contentText = escapeHtml(contentText.trim());
-
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                        let href = url.replace(/&amp;/g, '&');
-                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                    });
-
-                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                        let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                        return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                    });
-                    
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
+                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
                     contentHtml = `<div class="t-feed-content">${contentText}</div>`;
                 }
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
                     <div class="t-feed-main" style="min-width: 0; flex: 1;">
-                        <div class="t-feed-header">
-                            <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
-                            <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span>
-                        </div>
-                        ${contentHtml}
-                        ${mediaHtml}
+                        <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${escapeHtml(info.handle)}</span> · ${timeStr}</span></div>
+                        ${contentHtml}${mediaHtml}
                         <div class="t-feed-actions mt-2 d-flex flex-wrap gap-2">
                             <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply" style="text-decoration:none;">[r] <span id="metric-replies-${ev.id}">0</span></a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -1335,64 +480,20 @@
                     </div>
                 `;
             }
-            postsContainer.appendChild(card);
-            updateMetricsUI(ev.id);
+            postsContainer.appendChild(card); updateMetricsUI(ev.id);
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
         sendQuoteBtn.addEventListener('click', async function() {
-            let quoteText = quoteContentInput.value.trim();
-            if (!quoteTargetEvent) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-
+            let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
-            try {
-                sendQuoteBtn.textContent = '> SIGNING...';
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`);
-                closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+            try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
         sendEditBtn.addEventListener('click', async function() {
-            let newText = editContentInput.value.trim();
-            if (!newText) { alert('> ERROR: Message is empty!'); return; }
-            if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
-
-            try {
-                sendEditBtn.textContent = '> SIGNING...';
-                
-                let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey };
-                let signedDelEvent = await window.nostr.signEvent(delEvent);
-                
-                let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey };
-                let signedNewEvent = await window.nostr.signEvent(newEvent);
-                
-                let sentCount = 0;
-                activeSockets.forEach(sock => { 
-                    if (sock && sock.readyState === WebSocket.OPEN) { 
-                        sock.send(JSON.stringify(["EVENT", signedDelEvent]));
-                        sock.send(JSON.stringify(["EVENT", signedNewEvent]));
-                        sentCount++; 
-                    } 
-                });
-                
-                alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`);
-                
-                let oldCard = document.getElementById(`post-${editTargetEvent.id}`);
-                if (oldCard) oldCard.remove();
-                
-                closeEditModal(); 
-                sendEditBtn.textContent = '> UPDATE_EVENT';
-                eventsCache[signedNewEvent.id] = signedNewEvent; 
-                renderSavedPost(signedNewEvent);
-            } catch (err) { 
-                alert('> ERROR: Failed to update event.'); 
-                sendEditBtn.textContent = '> UPDATE_EVENT'; 
-            }
+            let newText = editContentInput.value.trim(); if (!newText) { alert('> ERROR: Message is empty!'); return; } if (!editTargetEvent || !currentUserPubkey || !window.nostr) return;
+            try { sendEditBtn.textContent = '> SIGNING...'; let delEvent = { kind: 5, created_at: Math.floor(Date.now() / 1000), tags: [["e", editTargetEvent.id]], content: "Edited by user", pubkey: currentUserPubkey }; let signedDelEvent = await window.nostr.signEvent(delEvent); let newEvent = { kind: editTargetEvent.kind, created_at: Math.floor(Date.now() / 1000), tags: editTargetEvent.tags, content: newText, pubkey: currentUserPubkey }; let signedNewEvent = await window.nostr.signEvent(newEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedDelEvent])); sock.send(JSON.stringify(["EVENT", signedNewEvent])); sentCount++; } }); alert(`> EDIT SUCCESS: Updated to ${sentCount} relays!`); let oldCard = document.getElementById(`post-${editTargetEvent.id}`); if (oldCard) oldCard.remove(); closeEditModal(); sendEditBtn.textContent = '> UPDATE_EVENT'; eventsCache[signedNewEvent.id] = signedNewEvent; renderSavedPost(signedNewEvent); } catch (err) { alert('> ERROR: Failed to update event.'); sendEditBtn.textContent = '> UPDATE_EVENT'; }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);

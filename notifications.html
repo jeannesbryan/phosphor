@@ -15,16 +15,13 @@
     
     <style>
         .hidden { display: none !important; }
-        
         .nostr-embed-link { display: inline-block; background: rgba(0,255,65,0.1); border: 1px dashed var(--t-green); padding: 2px 6px; margin: 2px 0; font-size: 0.85em; text-decoration: none !important; color: inherit; word-break: break-all; }
         .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
-
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
 </head>
 <body class="t-crt">
     <div class="t-container">
-        <!-- HEADER SINKRON DENGAN INDEX -->
         <header class="mb-4">
             <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
                 <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
@@ -38,15 +35,12 @@
                     <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
                 </div>
             </div>
-            <!-- Relay Button dipisah ke baris sendiri -->
             <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;">
                 <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
             </div>
         </header>
 
-        <div class="mb-4 font-bold fs-3 t-border-bottom pb-2">
-            > NETWORK_NOTIFICATIONS
-        </div>
+        <div class="mb-4 font-bold fs-3 t-border-bottom pb-2">> NETWORK_NOTIFICATIONS</div>
 
         <section id="notifications-feed">
             <div id="unauthMessage" class="text-center text-muted mt-3">[ Authentication required to view notifications ]</div>
@@ -60,47 +54,34 @@
     <div id="loginModal" class="t-modal">
         <div class="t-modal-content" style="max-width: 450px;">
             <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
-            
             <div class="d-flex gap-2 mb-3 t-border-bottom pb-3 flex-wrap">
                 <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
                 <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
             </div>
-
             <div id="viewExt">
                 <p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension.</p>
                 <button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button>
             </div>
-
             <div id="viewBunker" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer (Bunker URI / Connect Code).</p>
-                <label class="t-form-label">bunker://...</label>
                 <input type="text" id="bunkerInput" class="t-input" placeholder="bunker://<pubkey>?relay=...&secret=...">
                 <button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button>
             </div>
-
             <div id="viewNsec" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using a raw private key. A password is required to encrypt it.</p>
-                <label class="t-form-label">nsec or hex</label>
                 <input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex">
-                <label class="t-form-label">password</label>
                 <input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt">
                 <button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button>
             </div>
-
             <div id="viewNcryptsec" class="hidden">
                 <p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p>
-                <label class="t-form-label">ncryptsec</label>
                 <input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1...">
-                <label class="t-form-label">password</label>
                 <input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password">
                 <button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button>
             </div>
-
-            <div class="text-right mt-4">
-                <button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button>
-            </div>
+            <div class="text-right mt-4"><button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button></div>
         </div>
     </div>
 
@@ -112,19 +93,13 @@
             <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
             <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
                 <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button>
-                    <button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button>
-                </div>
+                <div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button><button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button></div>
             </div>
         </div>
     </div>
 
     <!-- Lightbox Modal -->
-    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'">
-        <span class="t-lightbox-close">&times;</span>
-        <img id="lightboxImg" src="" alt="Zoomed Image">
-    </div>
+    <div id="lightboxModal" class="t-lightbox" onclick="this.style.display='none'"><span class="t-lightbox-close">&times;</span><img id="lightboxImg" src="" alt="Zoomed Image"></div>
 
     <!-- QUOTE MODAL -->
     <div id="quoteModal" class="t-modal">
@@ -133,14 +108,8 @@
             <div id="quoteTargetPreview" class="text-muted fs-small mb-3 p-2 border-dashed bg-surface overflow-hidden" style="max-height: 80px;"></div>
             <textarea id="quoteContentInput" class="t-editor-textarea" rows="3" placeholder="Write quote response..."></textarea>
             <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
-                <div class="d-flex align-items-center gap-2">
-                    <input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none">
-                    <button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button>
-                </div>
-                <div class="d-flex gap-2 flex-wrap">
-                    <button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button>
-                    <button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button>
-                </div>
+                <div class="d-flex align-items-center gap-2"><input type="file" id="quoteMediaUploadInput" accept="image/*,video/*" multiple class="d-none"><button id="uploadQuoteMediaBtn" class="t-btn t-btn-sm" title="Upload Image/Video (Max 4)">[MEDIA (0/4)]</button></div>
+                <div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="closeQuoteModal()">[CANCEL]</button><button id="sendQuoteBtn" class="t-btn t-btn-sm">> BROADCAST_QUOTE</button></div>
             </div>
         </div>
     </div>
@@ -149,12 +118,8 @@
     <div id="relayModal" class="t-modal">
         <div class="t-modal-content">
             <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" class="mb-3">
-                <p class="text-muted">Checking network connections...</p>
-            </div>
-            <div class="text-right">
-                <button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button>
-            </div>
+            <div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div>
+            <div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div>
         </div>
     </div>
 
@@ -163,533 +128,137 @@
         <div class="t-modal-content" style="max-width: 650px;">
             <div class="t-card-header">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="t-code" style="max-height: 60vh;"></pre>
-            <div class="d-flex justify-content-end gap-2 mt-3">
-                <button class="t-btn" onclick="copyRawJson()">[COPY]</button>
-                <button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button>
-            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3"><button class="t-btn" onclick="copyRawJson()">[COPY]</button><button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button></div>
         </div>
     </div>
 
     <script>
-        // ================= INDEXED_DB LOCAL CACHING =================
         let db = null;
-        function initDB() {
-            return new Promise((resolve) => {
-                let request = indexedDB.open("PhosphorDB", 1);
-                request.onupgradeneeded = function(e) {
-                    let database = e.target.result;
-                    if (!database.objectStoreNames.contains("profiles")) {
-                        database.createObjectStore("profiles", { keyPath: "pubkey" });
-                    }
-                };
-                request.onsuccess = function(e) { db = e.target.result; resolve(true); };
-                request.onerror = function(e) { console.warn("IndexedDB Blocked."); resolve(false); };
-            });
-        }
-
-        function saveProfileToCache(pubkey, profileData) {
-            if (!db) return;
-            let tx = db.transaction("profiles", "readwrite");
-            let store = tx.objectStore("profiles");
-            store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() });
-        }
-
-        async function getProfileFromCache(pubkey) {
-            if (!db) return null;
-            return new Promise((resolve) => {
-                let tx = db.transaction("profiles", "readonly");
-                let store = tx.objectStore("profiles");
-                let req = store.get(pubkey);
-                req.onsuccess = e => resolve(e.target.result);
-                req.onerror = () => resolve(null);
-            });
-        }
-
+        function initDB() { return new Promise((resolve) => { let request = indexedDB.open("PhosphorDB", 1); request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) { database.createObjectStore("profiles", { keyPath: "pubkey" }); } }; request.onsuccess = function(e) { db = e.target.result; resolve(true); }; request.onerror = function(e) { resolve(false); }; }); }
+        function saveProfileToCache(pubkey, profileData) { if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() }); }
+        async function getProfileFromCache(pubkey) { if (!db) return null; return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); }); }
         async function requestProfileInfo(pubkey) {
-            if (profileCache[pubkey]) return;
-            
-            profileCache[pubkey] = { pending: true };
-            let cached = await getProfileFromCache(pubkey);
-            
-            if (cached) {
-                profileCache[pubkey] = {
-                    name: cached.name,
-                    handleLine: cached.handleLine || cached.handle || `@${pubkey.substring(0, 8)}`,
-                    picture: cached.picture,
-                    pending: false
-                };
-                updatePostUI(pubkey);
-            } else {
-                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
-            }
+            if (profileCache[pubkey]) return; profileCache[pubkey] = { pending: true }; let cached = await getProfileFromCache(pubkey);
+            if (cached) { profileCache[pubkey] = { name: cached.name, handleLine: cached.handleLine || cached.handle || `@${pubkey.substring(0, 8)}`, picture: cached.picture, pending: false }; updatePostUI(pubkey); } 
+            else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
         }
-        // ==========================================================
 
-        let RELAYS = [];
-        let BLOSSOM_SERVERS = [];
-        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
-        let profileCache = {};
-        let eventsCache = {};
-        let quoteTargetEvent = null;
-        let relayStatusMap = {};
-        let activeSockets = [];
+        let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {}; let quoteTargetEvent = null; let relayStatusMap = {}; let activeSockets = [];
 
-        const navLoginBtn = document.getElementById('navLoginBtn');
-        const navUnlockBtn = document.getElementById('navUnlockBtn');
-        const navBookmarkBtn = document.getElementById('navBookmarkBtn');
-        const navNotifBtn = document.getElementById('navNotifBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const relayStatusBtn = document.getElementById('relayStatusBtn');
-        
-        const unauthMessage = document.getElementById('unauthMessage');
-        const loadingText = document.getElementById('loadingText');
-        const notifsContainer = document.getElementById('notifs-container');
-
-        const quoteModal = document.getElementById('quoteModal');
-        const quoteTargetPreview = document.getElementById('quoteTargetPreview');
-        const quoteContentInput = document.getElementById('quoteContentInput');
-        const sendQuoteBtn = document.getElementById('sendQuoteBtn');
-        const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn');
-        const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
-
-        const relayModal = document.getElementById('relayModal');
-        const relayListContainer = document.getElementById('relayListContainer');
-        const rawModal = document.getElementById('rawModal');
-        const rawEventContent = document.getElementById('rawEventContent');
+        const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn');
+        const unauthMessage = document.getElementById('unauthMessage'); const loadingText = document.getElementById('loadingText'); const notifsContainer = document.getElementById('notifs-container');
+        const quoteModal = document.getElementById('quoteModal'); const quoteTargetPreview = document.getElementById('quoteTargetPreview'); const quoteContentInput = document.getElementById('quoteContentInput'); const sendQuoteBtn = document.getElementById('sendQuoteBtn'); const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn'); const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
+        const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const rawModal = document.getElementById('rawModal'); const rawEventContent = document.getElementById('rawEventContent');
 
         async function loadConfig() {
             try {
-                await initDB(); 
-                let res = await fetch('config.json');
-                let config = await res.json();
-                
-                let savedRelays = localStorage.getItem('phosphor_user_relays');
-                let savedBlossom = localStorage.getItem('phosphor_user_blossom');
-                
-                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
-                BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
-                
-                await checkLocalSessions();
-                updateAuthState();
-
-                if (currentUserPubkey) {
-                    unauthMessage.classList.add('hidden');
-                    loadingText.classList.remove('hidden');
-                    connectMultiRelays();
-                }
-            } catch (e) {
-                console.error("Failed to load config.json", e);
-                alert("> ERROR: Missing config.json");
-            }
+                await initDB(); let res = await fetch('config.json'); let config = await res.json();
+                let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
+                await checkLocalSessions(); updateAuthState();
+                if (currentUserPubkey) { unauthMessage.classList.add('hidden'); loadingText.classList.remove('hidden'); connectMultiRelays(); }
+            } catch (e) { alert("> ERROR: Missing config.json"); }
         }
 
-        // ================= AUTHENTICATION LOGIC =================
-        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
-            window.nostr = {
-                getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => { return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes); }
-            };
-        }
+        function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) { window.nostr = { getPublicKey: async () => pubkeyHex, signEvent: async (eventTemplate) => { return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes); } }; }
 
         async function checkLocalSessions() {
             let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
-            
-            if (rawHex && currentUserPubkey) {
-                try {
-                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
-                } catch(e) { console.error("Failed to restore local session", e); }
-            }
+            if (rawHex && currentUserPubkey) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools); } catch(e) {} }
         }
 
         function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden');
-            document.getElementById('viewBunker').classList.add('hidden');
-            document.getElementById('viewNsec').classList.add('hidden');
-            document.getElementById('viewNcryptsec').classList.add('hidden');
-            
-            document.getElementById('tabExt').classList.add('ghost');
-            document.getElementById('tabBunker').classList.add('ghost');
-            document.getElementById('tabNsec').classList.add('ghost');
-            document.getElementById('tabNcryptsec').classList.add('ghost');
-            
-            if (tab === 'ext') {
-                document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').classList.remove('ghost');
-            } else if (tab === 'bunker') {
-                document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').classList.remove('ghost');
-            } else if (tab === 'nsec') {
-                document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').classList.remove('ghost');
-            } else if (tab === 'ncryptsec') {
-                document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').classList.remove('ghost');
-            }
+            document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden');
+            document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost');
+            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } 
+            else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } 
+            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } 
+            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); }
         }
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
 
-        document.getElementById('extLoginBtn').addEventListener('click', async () => {
-            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-                try {
-                    currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    localStorage.removeItem('phosphor_privkey');
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    localStorage.removeItem('phosphor_bunker_uri');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                    location.reload();
-                } catch (err) { alert('> ERROR: Login failed.'); }
-            } else { alert('> WARNING: NIP-07 extension not found.'); }
-        });
+        document.getElementById('extLoginBtn').addEventListener('click', async () => { if (window.nostr && typeof window.nostr.getPublicKey === 'function') { try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); } } else { alert('> WARNING: NIP-07 extension not found.'); } });
+        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => { let uri = document.getElementById('bunkerInput').value.trim(); if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format.'); try { let urlObj = new URL(uri); let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', ''); currentUserPubkey = targetPubkey; localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.setItem('phosphor_bunker_uri', uri); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); alert('> BUNKER CONNECTED.'); document.getElementById('loginModal').style.display = 'none'; setTimeout(() => location.reload(), 500); } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); } });
+        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value; if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.'); let btn = document.getElementById('nsecLoginBtn'); try { btn.textContent = '> PROCESSING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes; if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); skBytes = decoded.data; } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); } let pubkeyHex = nostrTools.getPublicKey(skBytes); localStorage.setItem('phosphor_pubkey', pubkeyHex); let ncryptsec = nip49.encrypt(skBytes, pass); localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); location.reload(); } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; } });
+        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value; if(!input || !pass) return alert('> ERROR: Key and password required.'); let btn = document.getElementById('ncryptsecLoginBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; } });
+        document.getElementById('unlockBtn').addEventListener('click', async () => { let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec'); if(!pass) return alert('> ERROR: Password required.'); let btn = document.getElementById('unlockBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(ncryptsec, pass); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; } });
 
-        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
-            let uri = document.getElementById('bunkerInput').value.trim();
-            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
-            
-            try {
-                let urlObj = new URL(uri);
-                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
-                
-                currentUserPubkey = targetPubkey;
-                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                localStorage.setItem('phosphor_bunker_uri', uri);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_ncryptsec');
-                sessionStorage.removeItem('phosphor_privkey_temp');
-                
-                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
-                document.getElementById('loginModal').style.display = 'none';
-                setTimeout(() => location.reload(), 500);
-            } catch (e) {
-                alert('> ERROR: Failed to parse Bunker URI.');
-            }
-        });
-
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim();
-            let pass = document.getElementById('nsecPassword').value;
-            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            let btn = document.getElementById('nsecLoginBtn');
-            try {
-                btn.textContent = '> PROCESSING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes;
-                if (input.startsWith('nsec1')) {
-                    let decoded = nostrTools.nip19.decode(input);
-                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
-                    skBytes = decoded.data;
-                } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
-                
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                let ncryptsec = nip49.encrypt(skBytes, pass);
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                localStorage.removeItem('phosphor_bunker_uri');
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                location.reload();
-            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); btn.textContent = '> ENCRYPT & LOGIN'; }
-        });
-
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim();
-            let pass = document.getElementById('ncryptsecPassword').value;
-            if(!input || !pass) return alert('> ERROR: Key and password required.');
-            let btn = document.getElementById('ncryptsecLoginBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(input, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                localStorage.setItem('phosphor_ncryptsec', input);
-                localStorage.removeItem('phosphor_bunker_uri');
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                location.reload();
-            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; }
-        });
-
-        document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value;
-            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
-            if(!pass) return alert('> ERROR: Password required.');
-            let btn = document.getElementById('unlockBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(ncryptsec, pass);
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                location.reload();
-            } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; }
-        });
-
-        function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey');
-            localStorage.removeItem('phosphor_privkey');
-            localStorage.removeItem('phosphor_ncryptsec');
-            localStorage.removeItem('phosphor_bunker_uri');
-            sessionStorage.removeItem('phosphor_privkey_temp');
-            location.reload();
-        }
-
+        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
         logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
             let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-            if (isLocked) {
-                navLoginBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navUnlockBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
-                document.getElementById('unlockModal').style.display = 'flex';
-            } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.remove('hidden');
-                navNotifBtn.classList.remove('hidden');
-            }
+            if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } 
+            else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden'); }
         }
         
-        // ================= MEDIA UPLOAD LOGIC =================
         async function handleMediaUpload(files, btnElement, textareaElement) {
-            if (!files.length) return;
-            
-            if (files.length > 4) {
-                alert('> WARNING: Maximum 4 media files allowed per post. Only processing the first 4.');
-                files = files.slice(0, 4);
-            }
-
+            if (!files.length) return; if (files.length > 4) { alert('> WARNING: Max 4 files. Processing first 4.'); files = files.slice(0, 4); }
             if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            
             try {
-                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id';
-                blossomUrl = blossomUrl.replace(/\/$/, '');
-                let uploadEndpoint = blossomUrl + '/upload';
-                
+                let blossomUrl = BLOSSOM_SERVERS[0] ? (BLOSSOM_SERVERS[0].startsWith('http') ? BLOSSOM_SERVERS[0] : 'https://' + BLOSSOM_SERVERS[0]) : 'https://blossom.jeannesbryan.my.id'; blossomUrl = blossomUrl.replace(/\/$/, ''); let uploadEndpoint = blossomUrl + '/upload';
                 for (let i = 0; i < files.length; i++) {
-                    let file = files[i];
-                    btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
-                    
-                    let arrayBuffer = await file.arrayBuffer();
-                    let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-                    let hashArray = Array.from(new Uint8Array(hashBuffer));
-                    let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                    
-                    let nowTimestamp = Math.floor(Date.now() / 1000);
-                    
-                    let authEvent = {
-                        kind: 24242,
-                        created_at: nowTimestamp,
-                        tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ],
-                        content: "Phosphor Blossom Auth",
-                        pubkey: currentUserPubkey
-                    };
-                    
-                    let signedAuth = await window.nostr.signEvent(authEvent);
-                    let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
-                    
-                    let response = await fetch(uploadEndpoint, {
-                        method: 'PUT',
-                        headers: { 'Authorization': 'Nostr ' + authBase64 },
-                        body: file
-                    });
-                    
-                    if (response.ok) {
-                        let data = await response.json();
-                        textareaElement.value += (textareaElement.value ? '\n' : '') + data.url;
-                    } else { 
-                        let errText = await response.text();
-                        alert(`> ERROR: Server rejected ${file.name}. ` + errText); 
-                    }
+                    let file = files[i]; btnElement.textContent = `[ UPLOADING ${i+1}/${files.length}... ]`;
+                    let arrayBuffer = await file.arrayBuffer(); let hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer); let hashArray = Array.from(new Uint8Array(hashBuffer)); let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    let nowTimestamp = Math.floor(Date.now() / 1000); let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
+                    let signedAuth = await window.nostr.signEvent(authEvent); let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
+                    let response = await fetch(uploadEndpoint, { method: 'PUT', headers: { 'Authorization': 'Nostr ' + authBase64 }, body: file });
+                    if (response.ok) { let data = await response.json(); textareaElement.value += (textareaElement.value ? '\n' : '') + data.url; } else { alert(`> ERROR: Server rejected ${file.name}.`); }
                 }
-            } catch (err) { alert('> ERROR: Failed to reach Blossom server. This could be a CORS issue or the server is down.'); } 
-            finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
+            } catch (err) { alert('> ERROR: Failed to reach Blossom server.'); } finally { btnElement.textContent = '[ MEDIA (0/4) ]'; }
         }
-        
-        uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click());
-        quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
+        uploadQuoteMediaBtn.addEventListener('click', () => quoteMediaUploadInput.click()); quoteMediaUploadInput.addEventListener('change', (e) => { handleMediaUpload(Array.from(e.target.files), uploadQuoteMediaBtn, quoteContentInput); e.target.value = ''; });
 
-
-        // ================= UTILITIES & COPY FUNCTIONS =================
-        async function copyNote(eventId) {
-            try {
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                let noteId = nostrTools.nip19.noteEncode(eventId);
-                navigator.clipboard.writeText(`nostr:${noteId}`);
-                alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`);
-            } catch (e) { alert('> ERROR: Failed to encode NIP-19 note.'); }
-        }
-
-        function copyThreadLink(id) {
-            let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
-            let threadUrl = baseUrl + 'thread.html?id=' + id;
-            navigator.clipboard.writeText(threadUrl);
-            alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl);
-        }
-
-        function copyRawJson() {
-            let textToCopy = rawEventContent.textContent;
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                alert("> SUCCESS: Raw JSON copied to clipboard!");
-            }).catch(err => {
-                console.error("Failed to copy:", err);
-                alert("> ERROR: Failed to copy to clipboard.");
-            });
-        }
-
+        async function copyNote(eventId) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let noteId = nostrTools.nip19.noteEncode(eventId); navigator.clipboard.writeText(`nostr:${noteId}`); alert(`> SUCCESS: Copied to clipboard!\n\nnostr:${noteId}`); } catch (e) { alert('> ERROR: Failed to encode NIP-19 note.'); } }
+        function copyThreadLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
+        function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy."); }); }
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
-
-        function timeAgo(unixTimestamp) {
-            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp);
-            let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
-            if (seconds < 60) return "Just now";
-            for (let i in intervals) {
-                let count = Math.floor(seconds / intervals[i]);
-                if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`;
-            }
-            return "Just now";
-        }
-
+        function timeAgo(unixTimestamp) { let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 }; if (seconds < 60) return "Just now"; for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; } return "Just now"; }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
-        function openRawModal(eventId) {
-            let ev = eventsCache[eventId];
-            if (ev) { document.getElementById('rawEventContent').textContent = JSON.stringify(ev, null, 2); document.getElementById('rawModal').style.display = 'flex'; }
-        }
+        function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { document.getElementById('rawEventContent').textContent = JSON.stringify(ev, null, 2); document.getElementById('rawModal').style.display = 'flex'; } }
         function closeRawModal() { document.getElementById('rawModal').style.display = 'none'; }
-        function openRelayModal() {
-            let htmlContent = "";
-            RELAYS.forEach(url => {
-                let isOnline = relayStatusMap[url] === true;
-                let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>';
-                htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`;
-            });
-            relayListContainer.innerHTML = htmlContent;
-            document.getElementById('relayModal').style.display = 'flex';
-        }
+        function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; document.getElementById('relayModal').style.display = 'flex'; }
         function closeRelayModal() { document.getElementById('relayModal').style.display = 'none'; }
 
-        function openQuoteModal(eventId) {
-            if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!');
-            let ev = eventsCache[eventId];
-            if (!ev) return;
-            quoteTargetEvent = ev;
-            quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content;
-            quoteContentInput.value = "";
-            quoteModal.style.display = 'flex';
-        }
+        function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) return alert('> ERROR: Not logged in!'); let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }
         function closeQuoteModal() { quoteModal.style.display = 'none'; quoteTargetEvent = null; }
 
         sendQuoteBtn.addEventListener('click', async function() {
-            let quoteText = quoteContentInput.value.trim();
-            if (!quoteTargetEvent || !currentUserPubkey || !window.nostr) return;
-
+            let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent || !currentUserPubkey || !window.nostr) return;
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
-            try {
-                sendQuoteBtn.textContent = '> SIGNING...';
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                alert(`> SUCCESS: Reply/Quote broadcasted!`);
-                closeQuoteModal();
-                sendQuoteBtn.textContent = '> BROADCAST_QUOTE';
-            } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
+            try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); alert(`> SUCCESS: Reply/Quote broadcasted!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
-
-        // ================= NOTIFICATION LOGIC =================
 
         function connectMultiRelays() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
-                relayStatusMap[url] = false;
-                let socket = new WebSocket(url);
-
+                relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
-                    onlineCount++;
-                    relayStatusMap[url] = true;
-                    relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    
-                    // Fetch events that mention my pubkey (#p)
+                    onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     let subId = "notifs-" + Math.random().toString(36).substring(2);
-                    socket.send(JSON.stringify([
-                        "REQ", 
-                        subId, 
-                        { "#p": [currentUserPubkey], "kinds": [1, 6, 7, 16], "limit": 50 }
-                    ]));
-                    
-                    // NIP-65 & Blossom Settings Sync (Silently to LocalStorage)
+                    socket.send(JSON.stringify([ "REQ", subId, { "#p": [currentUserPubkey], "kinds": [1, 6, 7, 16, 21, 22], "limit": 50 } ]));
                     socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                 };
-
-                socket.onerror = function() { relayStatusMap[url] = false; };
-                socket.onclose = function() { relayStatusMap[url] = false; };
-
+                socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
-                            
-                            // NIP-65 and NIP-10063 (Silent Auto-Sync to LocalStorage)
-                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) {
-                                let userRelays = [];
-                                ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); });
-                                if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays));
-                            }
-                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) {
-                                let userBlossom = [];
-                                ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); });
-                                if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom));
-                            }
-
-                            // CHECK LOCAL CACHE FIRST BEFORE REQUESTING FROM RELAY
-                            if (!profileCache[ev.pubkey]) {
-                                requestProfileInfo(ev.pubkey);
-                            }
-
+                            if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
+                            if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
+                            if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); }
                             if (ev.kind === 0) {
                                 try {
-                                    let meta = JSON.parse(ev.content);
-                                    let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
-                                    let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8);
-                                    let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`;
-                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    
-                                    let handleLineStr = domainPart 
-                                        ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green); text-decoration:none;">${domainPart}</a>` 
-                                        : rawName;
-                                    
-                                    profileCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handleLine: handleLineStr,
-                                        picture: meta.picture || null,
-                                        pending: false
-                                    };
-                                    
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); // <-- SAVE TO LOCAL CACHE
-                                    updatePostUI(ev.pubkey);
+                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
+                                    let handleLineStr = domainPart ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green); text-decoration:none;">${domainPart}</a>` : rawName;
+                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handleLine: handleLineStr, picture: meta.picture || null, pending: false };
+                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
-                            
-                            // Render notification
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16) {
-                                eventsCache[ev.id] = ev;
-                                renderNotification(ev);
-                            }
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 21 || ev.kind === 22) { eventsCache[ev.id] = ev; renderNotification(ev); }
                         }
                     } catch (err) {}
                 };
@@ -697,62 +266,47 @@
             });
         }
 
-        function updatePostUI(pubkey) {
-            let info = profileCache[pubkey];
-            if (!info || info.pending) return;
-            
-            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; });
-            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => {
-                if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`;
-            });
-        }
+        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
         function renderNotification(ev) {
             if (document.getElementById(`notif-${ev.id}`)) return;
             if (ev.pubkey === currentUserPubkey) return;
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase();
-            
             let cached = profileCache[ev.pubkey];
-            let info = (cached && !cached.pending) ? cached : { 
-                name: `Node_${shortPub}`, 
-                handleLine: `@${ev.pubkey.substring(0, 8)}`, 
-                picture: null 
-            };
-
+            let info = (cached && !cached.pending) ? cached : { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
 
-            let badgeText = "";
-            let contentHtml = "";
-            let actionButtonsHtml = "";
+            let badgeText = ""; let contentHtml = ""; let actionButtonsHtml = "";
 
-            if (ev.kind === 1) {
-                badgeText = "> INCOMING_TRANSMISSION [ 💬 REPLY / MENTION ]";
+            if (ev.kind === 1 || ev.kind === 21 || ev.kind === 22) {
+                let badgeType = ev.kind === 1 ? 'REPLY / MENTION' : (ev.kind === 21 ? 'VIDEO MENTION' : 'SHORT_VIDEO MENTION');
+                badgeText = `> INCOMING_TRANSMISSION [ 💬 ${badgeType} ]`;
                 
-                let contentText = ev.content || "";
-                let mediaElements = [];
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                    let lowerExt = ext.toLowerCase();
-                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}"></video>`);
-                    else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
-                    return "";
-                });
-                
-                let mediaHtml = "";
-                if (mediaElements.length > 1) {
-                    mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`;
-                } else if (mediaElements.length === 1) {
-                    mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`;
+                let contentText = ev.content || ""; let mediaHtml = "";
+
+                if (ev.kind === 21 || ev.kind === 22) {
+                    let videoUrl = ""; let mimeType = "video/mp4"; let posterUrl = "";
+                    ev.tags.forEach(t => { if (t[0] === "imeta") { t.forEach(val => { if (typeof val === 'string') { if (val.startsWith("url ")) videoUrl = val.substring(4); if (val.startsWith("m ")) mimeType = val.substring(2); if (val.startsWith("thumb ") || val.startsWith("image ")) posterUrl = val.substring(6); } }); } });
+                    if (videoUrl) {
+                        let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
+                        mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}"></video>`;
+                    }
+                } else {
+                    let mediaElements = [];
+                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
+                        let lowerExt = ext.toLowerCase();
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}"></video>`);
+                        else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
+                        return "";
+                    });
+                    if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
                 }
                 
                 contentText = escapeHtml(contentText.trim());
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, url => `<a href="${url.replace(/&amp;/g, '&')}" target="_blank" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`);
-                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                    let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                    return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`;
-                });
+                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`; });
 
                 contentHtml = `<div class="t-feed-content">${contentText}</div>${mediaHtml}`;
                 actionButtonsHtml = `
@@ -765,32 +319,26 @@
             } 
             else if (ev.kind === 7) {
                 badgeText = "> TELEMETRY_ACK [ ❤️ REACTION ]";
-                
-                let targetEventId = "";
-                ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
+                let targetEventId = ""; ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
                 let reactionTxt = (ev.content === '+' || !ev.content) ? '👍' : escapeHtml(ev.content);
-                
                 contentHtml = `<div class="t-feed-content fs-3 opacity-75">${reactionTxt} <span class="fs-small opacity-50">on event: ${targetEventId.substring(0,8)}...</span></div>`;
                 actionButtonsHtml = `<button class="t-feed-btn text-success" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
             }
             else if (ev.kind === 6 || ev.kind === 16) {
                 badgeText = "> SIGNAL_AMPLIFIED [ ♻️ REPOST ]";
-                
-                let targetEventId = "";
-                ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
-                
+                let targetEventId = ""; ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
                 contentHtml = `<div class="t-feed-content opacity-75"><i>Broadcasted your event (${targetEventId.substring(0,8)}...) to their network.</i></div>`;
                 actionButtonsHtml = `<button class="t-feed-btn text-success" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
             }
 
             let card = document.createElement('div');
-            card.className = 't-feed-card border-info';
+            card.className = 't-feed-card border-info mb-4';
             card.id = `notif-${ev.id}`;
             card.innerHTML = `
-                <div class="text-success font-bold fs-small mb-2 t-border-bottom pb-2" style="word-break: break-all;">${badgeText}</div>
-                <div class="d-flex w-100 mt-2 gap-3">
+                <div class="d-flex w-100 gap-3">
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
                     <div class="t-feed-main" style="min-width: 0; flex: 1;">
+                        <div class="text-success font-bold fs-small mb-2 t-border-bottom pb-2" style="word-break: break-all;">${badgeText}</div>
                         <div class="t-feed-header">
                             <a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a>
                             <span class="t-feed-meta"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span>
