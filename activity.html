@@ -4,40 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Phosphor - Activity Tracker</title>
-    
     <meta name="description" content="Phosphor Activity - Parse GPX and broadcast sports tracking stats to the Nostr network.">
     <link rel="stylesheet" href="/assets/terminal.css">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
     <link rel="manifest" href="/assets/site.webmanifest">
-    
-    <style>
-        .hidden { display: none !important; }
-        select.t-input option { background: var(--bg-base); color: inherit; }
-        button:disabled { cursor: not-allowed; opacity: 0.5; }
-    </style>
+    <style>.hidden { display: none !important; } select.t-input option { background: var(--bg-base); color: inherit; } button:disabled { cursor: not-allowed; opacity: 0.5; }</style>
 </head>
 <body class="t-crt">
     <div class="t-container">
         <header class="mb-4">
-            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3">
-                <div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div>
-                <div class="d-flex align-items-center flex-wrap gap-3 justify-content-end">
-                    <a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a>
-                    <a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a>
-                    <a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a>
-                    <a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a>
-                    <a href="compose.html" style="text-decoration:none; color:inherit;">[COMPOSE]</a>
-                    <a href="activity.html" class="text-success" style="text-decoration:none;">[ACTIVITY]</a>
-                    <a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a>
-                    <a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a>
-                    <a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a>
-                </div>
-            </div>
-            <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;">
-                <button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button>
-            </div>
+            <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-3"><div class="t-nav-brand font-bold" style="font-size: 1.5rem;">> PHOSPHOR</div><div class="d-flex align-items-center flex-wrap gap-3 justify-content-end"><a href="index.html" style="text-decoration:none; color:inherit;">[TIMELINE]</a><a href="profile.html" style="text-decoration:none; color:inherit;">[PROFILE]</a><a href="bookmark.html" id="navBookmarkBtn" class="hidden" style="text-decoration:none; color:inherit;">[BOOKMARKS]</a><a href="notifications.html" id="navNotifBtn" class="hidden" style="text-decoration:none; color:inherit;">[NOTIFICATIONS]</a><a href="compose.html" style="text-decoration:none; color:inherit;">[COMPOSE]</a><a href="activity.html" class="text-success font-bold" style="text-decoration:none;">[ACTIVITY]</a><a href="#" id="navLoginBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGIN]</a><a href="#" id="navUnlockBtn" class="hidden text-danger" style="text-decoration:none;">[UNLOCK SESSION]</a><a href="#" id="logoutBtn" class="hidden" style="text-decoration:none; color:inherit;">[LOGOUT]</a></div></div>
+            <div class="d-flex justify-content-end t-border-bottom m-0" style="padding-bottom: 1.25rem;"><button id="relayStatusBtn" class="t-btn t-btn-sm" style="width: max-content; margin-bottom: 0.5rem;" onclick="openRelayModal()">[RELAYS: CONNECTING...]</button></div>
         </header>
 
         <div class="mb-3"><a href="#" onclick="history.back(); return false;" class="text-muted" style="text-decoration: none;" title="Go back">&lt;-- [ BACK ]</a></div>
@@ -45,34 +24,22 @@
         <div class="t-feed-card border-dashed hidden mb-4" id="editorContainer">
             <div class="t-card-header mb-4">> ACTIVITY_TRACKER <span class="text-muted fs-small fw-normal">(GPX IMPORT)</span></div>
 
-            <div class="mb-3">
-                <label class="t-form-label" for="gpxFileInput">GPX FILE <span class="text-success">*</span></label>
-                <input type="file" id="gpxFileInput" class="t-input" accept=".gpx">
+            <div class="mb-4">
+                <label class="t-form-label d-block mb-2">GPX FILE <span class="text-success">*</span></label>
+                <!-- Terminal Framework Custom File Input Wrapper -->
+                <div class="t-file-wrapper w-100">
+                    <input type="file" id="gpxFileInput" accept=".gpx">
+                    <span class="t-file-btn w-100 text-center" id="gpxFileNameDisplay">[ SELECT GPX FILE ]</span>
+                </div>
             </div>
 
             <div class="d-flex gap-3 flex-wrap mb-3">
-                <div style="flex: 1; min-width: 250px;">
-                    <label class="t-form-label" for="activityType">ACTIVITY TYPE <span class="text-success">*</span></label>
-                    <select id="activityType" class="t-input">
-                        <option value="Cycling">Cycling</option>
-                        <option value="Running">Running</option>
-                        <option value="Walking">Walking</option>
-                        <option value="Hiking">Hiking</option>
-                        <option value="Swimming">Swimming</option>
-                    </select>
-                </div>
-                <div style="flex: 1; min-width: 250px;">
-                    <label class="t-form-label" for="activityTitle">TITLE <span class="text-muted fs-small fw-normal ml-2">Optional</span></label>
-                    <input type="text" id="activityTitle" class="t-input" placeholder="e.g., Morning Session">
-                </div>
+                <div style="flex: 1; min-width: 250px;"><label class="t-form-label" for="activityType">ACTIVITY TYPE <span class="text-success">*</span></label><select id="activityType" class="t-input"><option value="Cycling">Cycling</option><option value="Running">Running</option><option value="Walking">Walking</option><option value="Hiking">Hiking</option><option value="Swimming">Swimming</option></select></div>
+                <div style="flex: 1; min-width: 250px;"><label class="t-form-label" for="activityTitle">TITLE <span class="text-muted fs-small fw-normal ml-2">Optional</span></label><input type="text" id="activityTitle" class="t-input" placeholder="e.g., Morning Session"></div>
             </div>
 
-            <div class="mb-3">
-                <label class="t-form-label" for="activityNote">NOTES / CAPTION <span class="text-muted fs-small fw-normal ml-2">Optional</span></label>
-                <textarea id="activityNote" class="t-editor-textarea" style="min-height: 80px;" placeholder="How did it feel?"></textarea>
-            </div>
+            <div class="mb-3"><label class="t-form-label" for="activityNote">NOTES / CAPTION <span class="text-muted fs-small fw-normal ml-2">Optional</span></label><textarea id="activityNote" class="t-editor-textarea" style="min-height: 80px;" placeholder="How did it feel?"></textarea></div>
 
-            <!-- GPX Stats Preview -->
             <div id="statsPreviewContainer" class="hidden mt-4 p-3 border-dashed bg-surface">
                 <div class="d-flex flex-wrap gap-4">
                     <div class="t-border-left pl-3"><div class="text-muted fs-small text-uppercase">Total Distance</div><div class="fs-2 font-bold text-success mt-1" id="valDistance">0.00 km</div></div>
@@ -85,112 +52,44 @@
             
             <input type="hidden" id="detectedClient" value="Unknown Client">
 
-            <div class="d-flex justify-content-end gap-3 flex-wrap mt-4">
-                <button type="button" class="t-btn ghost" onclick="resetForm()">[ RESET ]</button>
-                <button type="button" id="publishBtn" class="t-btn" disabled>> BROADCAST_ACTIVITY</button>
-            </div>
+            <div class="d-flex justify-content-end gap-3 flex-wrap mt-4"><button type="button" class="t-btn ghost" onclick="resetForm()">[ RESET ]</button><button type="button" id="publishBtn" class="t-btn" disabled>> BROADCAST_ACTIVITY</button></div>
         </div>
     </div>
 
     <!-- Modals -->
-    <!-- AUTH/LOGIN MODAL -->
-    <div id="loginModal" class="t-modal">
-        <div class="t-modal-content" style="max-width: 450px;">
-            <div class="t-card-header">> AUTHENTICATION_PROTOCOL</div>
-            <div class="d-flex gap-2 mb-3 t-border-bottom pb-3 flex-wrap">
-                <button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button>
-                <button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button>
-                <button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button>
-                <button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button>
-            </div>
-            <div id="viewExt"><p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension.</p><button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button></div>
-            <div id="viewBunker" class="hidden"><p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer.</p><input type="text" id="bunkerInput" class="t-input" placeholder="bunker://..."><button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button></div>
-            <div id="viewNsec" class="hidden"><p class="text-muted fs-small mb-3">Login using a raw private key.</p><input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex"><input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt"><button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button></div>
-            <div id="viewNcryptsec" class="hidden"><p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p><input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1..."><input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password"><button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button></div>
-            <div class="text-right mt-4"><button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button></div>
-        </div>
-    </div>
+    <div id="loginModal" class="t-modal"><div class="t-modal-content" style="max-width: 450px;"><div class="t-card-header">> AUTHENTICATION_PROTOCOL</div><div class="d-flex gap-2 mb-3 t-border-bottom pb-3 flex-wrap"><button class="t-btn t-btn-sm" id="tabExt" onclick="switchLoginTab('ext')">[ EXTENSION ]</button><button class="t-btn t-btn-sm ghost" id="tabBunker" onclick="switchLoginTab('bunker')">[ BUNKER ]</button><button class="t-btn t-btn-sm ghost" id="tabNsec" onclick="switchLoginTab('nsec')">[ NSEC ]</button><button class="t-btn t-btn-sm ghost" id="tabNcryptsec" onclick="switchLoginTab('ncryptsec')">[ NCRYPTSEC ]</button></div><div id="viewExt"><p class="text-muted fs-small mb-3">Login using a NIP-07 browser extension.</p><button id="extLoginBtn" class="t-btn w-100">> AUTHORIZE_EXTENSION</button></div><div id="viewBunker" class="hidden"><p class="text-muted fs-small mb-3">Login using NIP-46 Remote Signer.</p><input type="text" id="bunkerInput" class="t-input" placeholder="bunker://..."><button id="bunkerLoginBtn" class="t-btn w-100 mt-3">> CONNECT_BUNKER</button></div><div id="viewNsec" class="hidden"><p class="text-muted fs-small mb-3">Login using a raw private key.</p><input type="password" id="nsecInput" class="t-input mb-2" placeholder="nsec1... or hex"><input type="password" id="nsecPassword" class="t-input" placeholder="Enter password to encrypt"><button id="nsecLoginBtn" class="t-btn w-100 mt-3">> ENCRYPT & LOGIN</button></div><div id="viewNcryptsec" class="hidden"><p class="text-muted fs-small mb-3">Login using an encrypted private key (NIP-49).</p><input type="text" id="ncryptsecInput" class="t-input mb-2" placeholder="ncryptsec1..."><input type="password" id="ncryptsecPassword" class="t-input" placeholder="Enter decryption password"><button id="ncryptsecLoginBtn" class="t-btn w-100 mt-3">> DECRYPT & LOGIN</button></div><div class="text-right mt-4"><button class="t-btn danger" onclick="document.getElementById('loginModal').style.display='none'">[CANCEL]</button></div></div></div>
+    <div id="unlockModal" class="t-modal"><div class="t-modal-content border-success" style="max-width: 400px;"><div class="t-card-header text-success">> SESSION_LOCKED</div><p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock.</p><input type="password" id="unlockPassword" class="t-input" placeholder="Enter password..."><div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3"><button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button><div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button><button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button></div></div></div></div>
+    <div id="relayModal" class="t-modal"><div class="t-modal-content"><div class="t-card-header">> SYSTEM_RELAY_STATUS</div><div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div><div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div></div></div>
 
-    <!-- UNLOCK MODAL -->
-    <div id="unlockModal" class="t-modal">
-        <div class="t-modal-content border-success" style="max-width: 400px;">
-            <div class="t-card-header text-success">> SESSION_LOCKED</div>
-            <p class="text-muted fs-small mb-3">Your encrypted session is detected. Enter your password to unlock the private key into memory to broadcast activities.</p>
-            <input type="password" id="unlockPassword" class="t-input" placeholder="Enter password...">
-            <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-3">
-                <button class="t-btn ghost t-btn-sm" onclick="document.getElementById('unlockModal').style.display='none'">[CANCEL]</button>
-                <div class="d-flex gap-2 flex-wrap"><button class="t-btn danger t-btn-sm" onclick="logoutFully()">[ LOGOUT ]</button><button id="unlockBtn" class="t-btn t-btn-sm">> DECRYPT</button></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Relay Modal -->
-    <div id="relayModal" class="t-modal">
-        <div class="t-modal-content">
-            <div class="t-card-header">> SYSTEM_RELAY_STATUS</div>
-            <div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div>
-            <div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div>
-        </div>
-    </div>
-
+    <script src="/assets/terminal.js"></script>
     <script>
         let RELAYS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let relayStatusMap = {}; let activeSockets = [];
 
         const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn'); const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const editorContainer = document.getElementById('editorContainer');
         
-        async function loadConfig() {
-            try { let res = await fetch('config.json'); let config = await res.json(); let savedRelays = localStorage.getItem('phosphor_user_relays'); RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); await checkLocalSessions(); updateAuthState(); connectMultiRelays(); } catch (e) {}
-        }
+        async function loadConfig() { try { let res = await fetch('config.json'); let config = await res.json(); let savedRelays = localStorage.getItem('phosphor_user_relays'); RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); await checkLocalSessions(); updateAuthState(); connectMultiRelays(); } catch (e) {} }
 
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) { window.nostr = { getPublicKey: async () => pubkeyHex, signEvent: async (eventTemplate) => nostrTools.finalizeEvent(eventTemplate, secretKeyBytes) }; }
         async function checkLocalSessions() { let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey'); let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec'); if (rawHex && currentUserPubkey) { try { const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools); } catch(e) {} } else if (savedNcryptsec && !window.nostr && !rawHex) { currentUserPubkey = null; localStorage.removeItem('phosphor_pubkey'); } }
 
-        function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden');
-            document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost');
-            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); }
+        function switchLoginTab(tab) { document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden'); document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost'); if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); } }
+        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; }); navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
+        document.getElementById('extLoginBtn').addEventListener('click', async () => { if (window.nostr && typeof window.nostr.getPublicKey === 'function') { try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); } } else { alert('> WARNING: NIP-07 extension not found.'); } }); document.getElementById('bunkerLoginBtn').addEventListener('click', async () => { let uri = document.getElementById('bunkerInput').value.trim(); if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format.'); try { let urlObj = new URL(uri); let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', ''); currentUserPubkey = targetPubkey; localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.setItem('phosphor_bunker_uri', uri); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); alert('> BUNKER CONNECTED.'); document.getElementById('loginModal').style.display = 'none'; setTimeout(() => location.reload(), 500); } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); } }); document.getElementById('nsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value; if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.'); let btn = document.getElementById('nsecLoginBtn'); try { btn.textContent = '> PROCESSING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes; if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); skBytes = decoded.data; } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); } let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); let ncryptsec = nip49.encrypt(skBytes, pass); localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> LOCAL SIGNER ENCRYPTED.'); location.reload(); } catch(e) { alert('> ERROR: Invalid key format.'); btn.textContent = '> ENCRYPT & LOGIN'; } }); document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value; if(!input || !pass) return alert('> ERROR: Key and password required.'); let btn = document.getElementById('ncryptsecLoginBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; } }); document.getElementById('unlockBtn').addEventListener('click', async () => { let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec'); if(!pass) return alert('> ERROR: Password required.'); let btn = document.getElementById('unlockBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; } });
+        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
+        function updateAuthState() { let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp'); if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); editorContainer.classList.remove('hidden'); document.getElementById('unlockModal').style.display = 'none'; } else { navLoginBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); } }
+        function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; relayModal.style.display = 'flex'; } function closeRelayModal() { relayModal.style.display = 'none'; } function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
+        function connectMultiRelays() { let onlineCount = 0; RELAYS.forEach(url => { relayStatusMap[url] = false; let socket = new WebSocket(url); socket.onopen = function() { onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`; }; socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; }; activeSockets.push(socket); }); }
+
+        const gpxInput = document.getElementById('gpxFileInput'); const gpxFileNameDisplay = document.getElementById('gpxFileNameDisplay'); const publishBtn = document.getElementById('publishBtn'); const statsPreview = document.getElementById('statsPreviewContainer'); const activityTypeSelect = document.getElementById('activityType'); let parsedActivityData = null;
+
+        // Inisialisasi fitur custom file input dari terminal.js
+        if (typeof Terminal !== 'undefined' && typeof Terminal.fileInput === 'function') {
+            Terminal.fileInput('gpxFileInput', 'gpxFileNameDisplay');
         }
-
-        navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
-        navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
-        
-        document.getElementById('extLoginBtn').addEventListener('click', async () => { if (window.nostr && typeof window.nostr.getPublicKey === 'function') { try { currentUserPubkey = await window.nostr.getPublicKey(); localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); } catch (err) { alert('> ERROR: Login failed.'); } } else { alert('> WARNING: NIP-07 extension not found.'); } });
-        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => { let uri = document.getElementById('bunkerInput').value.trim(); if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format.'); try { let urlObj = new URL(uri); let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', ''); currentUserPubkey = targetPubkey; localStorage.setItem('phosphor_pubkey', currentUserPubkey); localStorage.setItem('phosphor_bunker_uri', uri); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); sessionStorage.removeItem('phosphor_privkey_temp'); alert('> BUNKER CONNECTED.'); document.getElementById('loginModal').style.display = 'none'; setTimeout(() => location.reload(), 500); } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); } });
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('nsecInput').value.trim(); let pass = document.getElementById('nsecPassword').value; if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.'); let btn = document.getElementById('nsecLoginBtn'); try { btn.textContent = '> PROCESSING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes; if (input.startsWith('nsec1')) { let decoded = nostrTools.nip19.decode(input); skBytes = decoded.data; } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); } let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); let ncryptsec = nip49.encrypt(skBytes, pass); localStorage.setItem('phosphor_ncryptsec', ncryptsec); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> LOCAL SIGNER ENCRYPTED.'); location.reload(); } catch(e) { alert('> ERROR: Invalid key format.'); btn.textContent = '> ENCRYPT & LOGIN'; } });
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value; if(!input || !pass) return alert('> ERROR: Key and password required.'); let btn = document.getElementById('ncryptsecLoginBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); alert('> SECURE DECRYPTION SUCCESSFUL.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; } });
-        document.getElementById('unlockBtn').addEventListener('click', async () => { let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec'); if(!pass) return alert('> ERROR: Password required.'); let btn = document.getElementById('unlockBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(ncryptsec, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); setupLocalNostrMock(pubkeyHex, skBytes, nostrTools); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); currentUserPubkey = pubkeyHex; localStorage.setItem('phosphor_pubkey', pubkeyHex); document.getElementById('unlockModal').style.display = 'none'; alert('> SESSION UNLOCKED.'); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; } });
-        
-        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
-        logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
-
-        function updateAuthState() {
-            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-            if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } 
-            else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); editorContainer.classList.remove('hidden'); document.getElementById('unlockModal').style.display = 'none'; } 
-            else { navLoginBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); }
-        }
-
-        function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; relayModal.style.display = 'flex'; }
-        function closeRelayModal() { relayModal.style.display = 'none'; }
-        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
-
-        function connectMultiRelays() {
-            let onlineCount = 0;
-            RELAYS.forEach(url => { relayStatusMap[url] = false; let socket = new WebSocket(url); socket.onopen = function() { onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`; }; socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; }; activeSockets.push(socket); });
-        }
-
-        const gpxInput = document.getElementById('gpxFileInput'); const publishBtn = document.getElementById('publishBtn'); const statsPreview = document.getElementById('statsPreviewContainer'); const activityTypeSelect = document.getElementById('activityType'); let parsedActivityData = null;
 
         function calculateDistance(lat1, lon1, lat2, lon2) { const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2); const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c; }
         function formatDuration(seconds) { const h = Math.floor(seconds / 3600); const m = Math.floor((seconds % 3600) / 60); const s = Math.floor(seconds % 60); return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; }
-
-        function updatePaceSpeedDisplay(distanceKm, durationSeconds, exerciseType) {
-            let exercise = exerciseType.toLowerCase(); let displayStat = ""; let displayLabel = "";
-            if (exercise === 'cycling') { const durationHours = durationSeconds / 3600; const speed = (distanceKm / durationHours).toFixed(2); displayStat = `${speed} km/h`; displayLabel = "Avg Speed"; } 
-            else if (exercise === 'swimming') { const distance100m = (distanceKm * 1000) / 100; const pacePer100m = (durationSeconds / 60) / distance100m; const paceMins = Math.floor(pacePer100m); const paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0'); displayStat = `${paceMins}:${paceSecs} /100m`; displayLabel = "Avg Pace"; } 
-            else { const durationMinutes = durationSeconds / 60; const paceDecimal = durationMinutes / distanceKm; const paceMins = Math.floor(paceDecimal); const paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0'); displayStat = `${paceMins}:${paceSecs} /km`; displayLabel = "Avg Pace"; }
-            document.getElementById('lblPaceSpeed').innerText = displayLabel; document.getElementById('valPaceSpeed').innerText = displayStat;
-        }
+        function updatePaceSpeedDisplay(distanceKm, durationSeconds, exerciseType) { let exercise = exerciseType.toLowerCase(); let displayStat = ""; let displayLabel = ""; if (exercise === 'cycling') { const durationHours = durationSeconds / 3600; const speed = (distanceKm / durationHours).toFixed(2); displayStat = `${speed} km/h`; displayLabel = "Avg Speed"; } else if (exercise === 'swimming') { const distance100m = (distanceKm * 1000) / 100; const pacePer100m = (durationSeconds / 60) / distance100m; const paceMins = Math.floor(pacePer100m); const paceSecs = Math.round((pacePer100m - paceMins) * 60).toString().padStart(2, '0'); displayStat = `${paceMins}:${paceSecs} /100m`; displayLabel = "Avg Pace"; } else { const durationMinutes = durationSeconds / 60; const paceDecimal = durationMinutes / distanceKm; const paceMins = Math.floor(paceDecimal); const paceSecs = Math.round((paceDecimal - paceMins) * 60).toString().padStart(2, '0'); displayStat = `${paceMins}:${paceSecs} /km`; displayLabel = "Avg Pace"; } document.getElementById('lblPaceSpeed').innerText = displayLabel; document.getElementById('valPaceSpeed').innerText = displayStat; }
 
         activityTypeSelect.addEventListener('change', function() { if (parsedActivityData) { updatePaceSpeedDisplay(parsedActivityData.distanceRaw, parsedActivityData.durationRaw, this.value); } });
 
@@ -205,10 +104,8 @@
 
                 let totalDistance = 0; let totalElevation = 0; let startTime = new Date(trackPoints[0].getElementsByTagName("time")[0].textContent); let endTime = new Date(trackPoints[trackPoints.length - 1].getElementsByTagName("time")[0].textContent); let durationSeconds = (endTime - startTime) / 1000;
                 for (let i = 0; i < trackPoints.length - 1; i++) {
-                    let p1 = trackPoints[i]; let p2 = trackPoints[i+1]; let lat1 = parseFloat(p1.getAttribute("lat")); let lon1 = parseFloat(p1.getAttribute("lon")); let lat2 = parseFloat(p2.getAttribute("lat")); let lon2 = parseFloat(p2.getAttribute("lon"));
-                    totalDistance += calculateDistance(lat1, lon1, lat2, lon2);
-                    let ele1 = p1.getElementsByTagName("ele")[0]; let ele2 = p2.getElementsByTagName("ele")[0];
-                    if (ele1 && ele2) { let diff = parseFloat(ele2.textContent) - parseFloat(ele1.textContent); if (diff > 0) totalElevation += diff; }
+                    let p1 = trackPoints[i]; let p2 = trackPoints[i+1]; let lat1 = parseFloat(p1.getAttribute("lat")); let lon1 = parseFloat(p1.getAttribute("lon")); let lat2 = parseFloat(p2.getAttribute("lat")); let lon2 = parseFloat(p2.getAttribute("lon")); totalDistance += calculateDistance(lat1, lon1, lat2, lon2);
+                    let ele1 = p1.getElementsByTagName("ele")[0]; let ele2 = p2.getElementsByTagName("ele")[0]; if (ele1 && ele2) { let diff = parseFloat(ele2.textContent) - parseFloat(ele1.textContent); if (diff > 0) totalElevation += diff; }
                 }
 
                 parsedActivityData = { distance: totalDistance.toFixed(2), distanceRaw: totalDistance, duration: formatDuration(durationSeconds), durationRaw: durationSeconds, elevation: totalElevation.toFixed(0), timestamp: Math.floor(startTime.getTime() / 1000), client: clientName };
@@ -219,21 +116,14 @@
             reader.readAsText(file);
         });
 
-        function resetForm() { gpxInput.value = ""; document.getElementById('activityTitle').value = ""; document.getElementById('activityNote').value = ""; document.getElementById('detectedClient').value = "Unknown Client"; statsPreview.classList.add('hidden'); publishBtn.disabled = true; parsedActivityData = null; }
+        function resetForm() { gpxInput.value = ""; gpxFileNameDisplay.textContent = "[ SELECT GPX FILE ]"; document.getElementById('activityTitle').value = ""; document.getElementById('activityNote').value = ""; document.getElementById('detectedClient').value = "Unknown Client"; statsPreview.classList.add('hidden'); publishBtn.disabled = true; parsedActivityData = null; }
 
         publishBtn.addEventListener('click', async function() {
             if (!currentUserPubkey || !window.nostr || !parsedActivityData) return;
             const activityTitle = document.getElementById('activityTitle').value.trim(); const activityType = activityTypeSelect.value; const notes = document.getElementById('activityNote').value.trim(); const clientApp = document.getElementById('detectedClient').value;
-
             let tags = [ ["title", activityTitle || `${activityType} Workout`], ["activity_type", activityType.toLowerCase()], ["distance", parsedActivityData.distance, "km"], ["duration", parsedActivityData.duration], ["elevation_gain", parsedActivityData.elevation, "m"], ["client", clientApp] ];
             let rawEvent = { kind: 1301, created_at: Math.floor(Date.now() / 1000), tags: tags, content: notes || `Completed a ${parsedActivityData.distance} km ${activityType.toLowerCase()} in ${parsedActivityData.duration}.`, pubkey: currentUserPubkey };
-            
-            try {
-                publishBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0;
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
-                if (sentCount > 0) { alert(`> SUCCESS: Activity Broadcasted to ${sentCount} relays via ${clientApp}!`); window.location.href = `profile.html?pubkey=${currentUserPubkey}`; } 
-                else { alert('> ERROR: No relays connected to broadcast.'); publishBtn.textContent = '> BROADCAST_ACTIVITY'; }
-            } catch (err) { alert('> ERROR: Failed to sign/broadcast event.'); publishBtn.textContent = '> BROADCAST_ACTIVITY'; }
+            try { publishBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); if (sentCount > 0) { alert(`> SUCCESS: Activity Broadcasted to ${sentCount} relays via ${clientApp}!`); window.location.href = `profile.html?pubkey=${currentUserPubkey}`; } else { alert('> ERROR: No relays connected to broadcast.'); publishBtn.textContent = '> BROADCAST_ACTIVITY'; } } catch (err) { alert('> ERROR: Failed to sign/broadcast event.'); publishBtn.textContent = '> BROADCAST_ACTIVITY'; }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);
