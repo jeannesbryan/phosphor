@@ -62,7 +62,13 @@
             <div class="mb-3 opacity-75 text-break hidden" id="profileBio" style="line-height: 1.4;"></div>
 
             <div class="d-flex flex-column gap-1 fs-small opacity-75 mb-3 text-break">
-                <div id="profileLightning" class="hidden text-warning">⚡ <span id="lndText"></span></div>
+                <div id="profileLightning" class="hidden text-warning d-flex align-items-center flex-wrap gap-2">⚡ <span id="lndText"></span>
+                    <span id="zapPresets" class="hidden d-flex gap-1">
+                        <button class="t-btn t-btn-sm" onclick="sendProfileZap(100)" title="Send 100 sats">[⚡100]</button>
+                        <button class="t-btn t-btn-sm" onclick="sendProfileZap(1000)" title="Send 1,000 sats">[⚡1K]</button>
+                        <button class="t-btn t-btn-sm" onclick="sendProfileZap(10000)" title="Send 10,000 sats">[⚡10K]</button>
+                    </span>
+                </div>
                 <div id="profileWebsite" class="hidden">🔗 <a href="#" id="webLink" target="_blank" class="text-success" style="text-decoration:none;"></a></div>
                 <div id="profileNip05Container"><strong>NIP-05:</strong> -</div>
             </div>
@@ -273,13 +279,13 @@
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null;
         let targetPubkey = new URLSearchParams(window.location.search).get('pubkey');
         let isMyProfile = false;
-        let profileAvatarUrl = null; let profileNameTxt = "User Name"; let profileHandleTxt = "@handle"; let profileNip05Txt = ""; let myRawProfileData = null;
+        let profileAvatarUrl = null; let profileNameTxt = "User Name"; let profileHandleTxt = "@handle"; let profileNip05Txt = ""; let myRawProfileData = null; let zapProfileMeta = null;
         let quoteTargetEvent = null; let editTargetEvent = null;
         let userEventsList = []; let relayStatusMap = {};
         let currentDisplayLimit = 10; let debounceTimer = null;
         let targetFollowingPubkeys = []; let targetFollowersPubkeys = []; let targetMutedPubkeys = [];
         let myFollowingPubkeys = []; let myMutedPubkeys = []; let myMuteEvent = null;
-        let followingProfilesCache = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null; let zapProfileMeta = null;
+        let followingProfilesCache = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
         let likedEvents = new Set(); let repostedEvents = new Set();
         let myBookmarks = new Set(); let myBookmarkEvent = null;
 
@@ -537,6 +543,45 @@
             try { let signedEvent = await window.nostr.signEvent(rawEvent); myMuteEvent = signedEvent; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; if (myMutedPubkeys.includes(targetPubkey)) { muteBtn.classList.remove('danger'); } else { muteBtn.classList.add('danger'); } alert(`> SUCCESS: Mute list network metadata updated!`); } catch(e) { muteBtn.textContent = myMutedPubkeys.includes(targetPubkey) ? '[UNMUTE]' : '[MUTE]'; }
         }
 
+        // ---------- NIP-57 Zap pipeline (profile-level pilot) ----------
+        async function sendProfileZap(sats) {
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            if (!zapProfileMeta) { alert('> ERROR: No zap-enabled Lightning address on this profile.'); return; }
+            try {
+                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
+                const nip57 = nostrTools.nip57 || nostrTools;
+                // 1) Resolve LNURL-pay endpoint from the profile's kind-0 metadata
+                const endpoint = await nip57.getZapEndpoint(zapProfileMeta);
+                if (!endpoint) { alert('> ERROR: This Lightning address does not support Nostr zaps.'); return; }
+                // 2) Build + sign the kind-9734 zap request (amount in msats)
+                const amountMsats = sats * 1000;
+                const rawZapReq = nip57.makeZapRequest({
+                    pubkey: targetPubkey, amount: amountMsats,
+                    relays: RELAYS.length ? RELAYS : ['wss://relay.damus.io']
+                });
+                const signedZapReq = await window.nostr.signEvent({ ...rawZapReq, pubkey: currentUserPubkey });
+                // 3) Request a bolt11 invoice from the LNURL-pay callback
+                const cb = new URL(endpoint);
+                cb.searchParams.set('amount', String(amountMsats));
+                cb.searchParams.set('nostr', JSON.stringify(signedZapReq));
+                const res = await fetch(cb);
+                if (!res.ok) throw new Error('LNURL callback HTTP ' + res.status);
+                const body = await res.json();
+                if (body.status === 'ERROR') throw new Error(body.reason || 'LNURL error');
+                if (!body.pr) throw new Error('No bolt11 invoice returned.');
+                // 4) Pay via WebLN, or fall back to copying the invoice
+                if (window.webln && typeof window.webln.sendPayment === 'function') {
+                    await window.webln.sendPayment(body.pr);
+                    alert(`> ⚡ ZAP SENT: ${sats} sats to this profile!`);
+                } else {
+                    try { await navigator.clipboard.writeText(body.pr); alert(`> ⚡ INVOICE (${sats} sats) COPIED — pay in any Lightning wallet. Install WebLN to zap in one click.`); }
+                    catch (e) { alert(`> ⚡ ZAP INVOICE (${sats} sats):\n\n${body.pr}`); }
+                }
+            } catch (err) {
+                alert('> ERROR: Zap failed — ' + (err.message || err));
+            }
+        }
+
         async function initProfile() {
             if (!targetPubkey) { targetPubkey = currentUserPubkey; }
             isMyProfile = (targetPubkey === currentUserPubkey); updateAuthState();
@@ -734,7 +779,7 @@
                                     } else { profileBio.classList.add('hidden'); }
                                     
                                     if (profileData.nip05) { profileNip05Txt = profileData.nip05; profileNip05Container.innerHTML = `<strong>NIP-05:</strong> ${escapeHtml(profileNip05Txt)}`; } else { profileNip05Txt = ""; profileNip05Container.innerHTML = `<strong>NIP-05:</strong> -`; }
-                                    let lud = profileData.lud16 || profileData.lud06; if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); zapProfileMeta = ev; revealZapButtons(targetPubkey); }
+                                    let lud = profileData.lud16 || profileData.lud06; if (lud) { lndText.textContent = lud; profileLightning.classList.remove('hidden'); document.getElementById('zapPresets').classList.remove('hidden'); zapProfileMeta = ev; revealZapButtons(targetPubkey); }
                                     if (profileData.website) { webLink.href = profileData.website; webLink.textContent = profileData.website.replace(/^https?:\/\//, ''); profileWebsite.classList.remove('hidden'); }
                                     if (profileData.picture) { profileAvatarUrl = profileData.picture; profileAvatarBox.innerHTML = `<img src="${escapeHtml(profileData.picture)}" alt="Avatar">`; }
                                     if (profileData.banner) { profileBannerBox.innerHTML = `<img src="${escapeHtml(profileData.banner)}" alt="Banner">`; }
