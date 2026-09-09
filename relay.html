@@ -344,6 +344,12 @@
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) { el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; } }); }
 
+        function isExpiredEvent(ev) {
+            if (!ev.tags) return false;
+            const expTag = ev.tags.find(t => t[0] === 'expiration');
+            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+        }
+
         function connectNetworks() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
@@ -359,6 +365,7 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+                            if (isExpiredEvent(ev)) return;
                             if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`reply-${t[1]}`); if (oldCard) oldCard.remove(); if (eventsCache[t[1]]) delete eventsCache[t[1]]; } }); return; }
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) { if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) { myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); }); document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; }); } }
                             eventsCache[ev.id] = ev;

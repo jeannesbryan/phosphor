@@ -915,6 +915,12 @@
             } catch (err) { alert('> ERROR: Failed to broadcast repost.'); }
         }
 
+        function isExpiredEvent(ev) {
+            if (!ev.tags) return false;
+            const expTag = ev.tags.find(t => t[0] === 'expiration');
+            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+        }
+
         function connectMultiRelays() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
@@ -942,6 +948,7 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+                            if (isExpiredEvent(ev)) return;
                             if (ev.kind === 5) {
                                 ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`post-${t[1]}`); if (oldCard) oldCard.remove(); } });
                                 return;

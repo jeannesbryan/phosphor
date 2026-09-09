@@ -255,6 +255,12 @@
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
+        function isExpiredEvent(ev) {
+            if (!ev.tags) return false;
+            const expTag = ev.tags.find(t => t[0] === 'expiration');
+            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+        }
+
         function initNotes() {
             if (!articleId && !dTagParam && !authorParam) { mainPostContainer.innerHTML = '<p class="text-danger text-center">[ ERROR: Article parameters not found in URL ]</p>'; return; }
             let onlineCount = 0; let targetD = decodeURIComponent(dTagParam).trim();
@@ -276,6 +282,7 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+                            if (isExpiredEvent(ev)) return;
                             if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
                             if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
                             if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`reply-${t[1]}`); if (oldCard) oldCard.remove(); if (eventsCache[t[1]]) delete eventsCache[t[1]]; } }); return; }

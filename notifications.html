@@ -231,6 +231,12 @@
             try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); alert(`> SUCCESS: Reply/Quote broadcasted!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
+        function isExpiredEvent(ev) {
+            if (!ev.tags) return false;
+            const expTag = ev.tags.find(t => t[0] === 'expiration');
+            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+        }
+
         function connectMultiRelays() {
             let onlineCount = 0;
             RELAYS.forEach(url => {
@@ -247,6 +253,7 @@
                         let data = JSON.parse(event.data);
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
+                            if (isExpiredEvent(ev)) return;
                             if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
                             if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
                             if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); }
