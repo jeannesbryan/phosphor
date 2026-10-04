@@ -30,6 +30,9 @@
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
     <script src="/assets/nostr-embed.js"></script>
+    <!-- Aturan struktur catatan: mana yang balasan (NIP-10), mana yang mengutip
+         (NIP-18), dan kartu pratinjau tautan GitHub. -->
+    <script src="/assets/nostr-note.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -382,6 +385,9 @@
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
+                // Modul catatan perlu daftar relay untuk mengambil catatan yang
+                // dikutip (tag "q") — socket-nya terpisah dan hanya dibuka sebentar.
+                if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 BLOSSOM_SERVERS = config.blossom_servers || [];
                 
                 await checkLocalSessions();
@@ -1096,8 +1102,17 @@
                             }
 
                             if (ev.kind === 1 || ev.kind === 21 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
-                                eventsCache[ev.id] = ev; renderPost(ev);
+                                // Balasan tidak tampil sebagai catatan di linimasa (NIP-10).
+                                // Catatan yang MENGUTIP tetap tampil — yang dibuang hanya yang
+                                // menunjuk catatan induk lewat tag "e". Aturannya ada di
+                                // assets/nostr-note.js, dipakai bersama halaman lain.
+                                // Penghitung balasan di atas tidak terpengaruh: angkanya tetap
+                                // dihitung dari semua balasan yang masuk.
+                                let balasan = (ev.kind === 1 && window.NostrNote && window.NostrNote.isReply(ev));
+                                if (!balasan) {
+                                    if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
+                                    eventsCache[ev.id] = ev; renderPost(ev);
+                                }
                             } 
                             else if (ev.kind === 6 || ev.kind === 16) {
                                 try {
@@ -1466,6 +1481,7 @@
                         ${nsfwBadgeHtml}
                         ${contentHtml}
                         ${mediaHtml}
+                        <div class="t-quote-holder"></div>
                         <div class="t-feed-actions">
                             <a href="thread.html?id=${ev.id}" class="t-feed-btn text-success" title="Reply">[r] <span id="metric-replies-${ev.id}">0</span></a>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -1495,6 +1511,24 @@
             
             injectZapControls(card, ev);
             updateMetricsUI(ev.id);
+
+            if (window.NostrNote) {
+                // NIP-18: kalau catatan ini mengutip catatan lain, tampilkan kartunya.
+                // Kalau catatannya tidak ditemukan, tidak ada apa pun yang dipasang —
+                // catatan aslinya tetap utuh.
+                window.NostrNote.mountQuotes(card.querySelector('.t-quote-holder'), ev, {
+                    get: (id) => eventsCache[id],
+                    load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
+                    onEvent: (qev) => {
+                        eventsCache[qev.id] = qev;
+                        if (!profileCache[qev.pubkey]) requestProfileInfo(qev.pubkey);
+                    },
+                    after: () => window.NostrNote.upgradeLinks(card.querySelector('.t-quote-holder'))
+                });
+                // Preview tautan GitHub. Kalau permintaan gagal (misalnya batas
+                // permintaan GitHub habis), tautan aslinya tidak diubah.
+                window.NostrNote.upgradeLinks(card);
+            }
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }

@@ -21,6 +21,7 @@
     </style>
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Lihat catatan di berkasnya. -->
     <script src="/assets/nostr-embed.js"></script>
+    <script src="/assets/nostr-note.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -235,6 +236,8 @@
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 if (!RELAYS.includes(targetWsUrl)) RELAYS.push(targetWsUrl);
+                // Daftar relay sudah final di sini (termasuk relay yang dipilih dari URL).
+                if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 await checkLocalSessions(); connectNetworks();
             } catch (e) { alert("> ERROR: Missing config.json"); }
         }
@@ -606,6 +609,11 @@
             `;
             let inserted = false; for (let i = 0; i < feedContainer.children.length; i++) { let child = feedContainer.children[i]; let childId = child.id.replace('reply-', ''); let childEv = eventsCache[childId]; if (childEv && ev.created_at > childEv.created_at) { feedContainer.insertBefore(card, child); inserted = true; break; } }
             if (!inserted) { feedContainer.appendChild(card); } injectZapControls(card, targetEv); updateMetricsUI(targetEv.id);
+            if (window.NostrNote) window.NostrNote.decorateCard(card, targetEv, {
+                get: (id) => eventsCache[id],
+                load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
+                onEvent: (qev) => { eventsCache[qev.id] = qev; if (!profileCache[qev.pubkey]) requestProfileInfo(qev.pubkey); }
+            });
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }

@@ -26,6 +26,7 @@
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
     <script src="/assets/nostr-embed.js"></script>
+    <script src="/assets/nostr-note.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -301,6 +302,7 @@
                 let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 await checkLocalSessions(); initProfile();
             } catch (e) { alert("> ERROR: Missing config.json"); }
@@ -1077,6 +1079,11 @@
                     `;
                 }
                 userPostsContainer.appendChild(card); injectZapControls(card, targetEv); updateMetricsUI(targetEv.id);
+                if (window.NostrNote) window.NostrNote.decorateCard(card, targetEv, {
+                    get: (id) => (userEventsList || []).find(e => e.id === id) || null,
+                    load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
+                    onEvent: (qev) => { if (!followingProfilesCache[qev.pubkey]) requestProfileInfo(qev.pubkey); }
+                });
             });
             
             if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden'); else loadMoreBtn.classList.add('hidden');

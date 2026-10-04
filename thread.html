@@ -22,6 +22,9 @@
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
     <script src="/assets/nostr-embed.js"></script>
+    <!-- Aturan struktur catatan: mana yang balasan (NIP-10), mana yang mengutip
+         (NIP-18), dan kartu pratinjau tautan GitHub. -->
+    <script src="/assets/nostr-note.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -182,6 +185,8 @@
             try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
+                // Modul catatan butuh daftar relay untuk mengambil catatan yang dikutip (tag "q").
+                if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 await checkLocalSessions(); fetchMyAvatar(); initThread();
             } catch (e) { alert("> ERROR: Missing config.json"); }
         }
@@ -512,6 +517,7 @@
                             ${isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
                             ${contentHtml}
                             ${mediaHtml}
+                            <div class="t-quote-holder"></div>
                             <div class="t-feed-actions d-flex flex-wrap gap-2 mt-4" style="border-top: 1px dashed var(--t-green); padding-top: 1.5rem;">
                                 <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
                                 <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -529,7 +535,26 @@
                 </div>
             `;
             injectZapControls(mainPostContainer.lastElementChild, ev);
+            pasangCatatanTambahan(mainPostContainer.lastElementChild, ev);
             updateMetricsUI(ev.id);
+        }
+
+        /* Kutipan (NIP-18) + pratinjau tautan GitHub untuk satu kartu catatan.
+           Dipakai baik oleh catatan utama maupun balasan, jadi aturannya tetap
+           satu tempat. Kalau modulnya tidak termuat, tidak ada yang berubah. */
+        function pasangCatatanTambahan(card, ev) {
+            if (!card || !window.NostrNote) return;
+            let holder = card.querySelector('.t-quote-holder');
+            window.NostrNote.mountQuotes(holder, ev, {
+                get: (id) => eventsCache[id],
+                load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
+                onEvent: (qev) => {
+                    eventsCache[qev.id] = qev;
+                    if (!profileCache[qev.pubkey]) requestProfileInfo(qev.pubkey);
+                },
+                after: () => window.NostrNote.upgradeLinks(holder)
+            });
+            window.NostrNote.upgradeLinks(card);
         }
 
         function renderReply(ev) {
@@ -598,6 +623,7 @@
                         ${isPulse ? `<div class="t-badge warning mb-2">> 24H_PULSE / ${escapeHtml(parsed.expTimeStr)}</div>` : ""}
                         ${contentHtml}
                         ${mediaHtml}
+                        <div class="t-quote-holder"></div>
                         <div class="t-feed-actions d-flex flex-wrap gap-2 mt-3">
                             <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
@@ -614,6 +640,7 @@
                 </div>
             `;
             repliesContainer.appendChild(card);
+            pasangCatatanTambahan(card, ev);
             injectZapControls(card, ev);
             updateMetricsUI(ev.id);
         }

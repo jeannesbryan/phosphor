@@ -21,6 +21,7 @@
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
     <script src="/assets/nostr-embed.js"></script>
+    <script src="/assets/nostr-note.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -189,7 +190,8 @@
         async function loadConfig() {
             try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
-                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
+                RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                if (window.NostrNote) window.NostrNote.setRelays(RELAYS); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 await checkLocalSessions(); updateAuthState();
                 if (currentUserPubkey) { connectAndFetchBookmarks(); } else { document.getElementById('authWarning').classList.remove('hidden'); document.getElementById('bookmarkFeed').classList.add('hidden'); }
             } catch (e) { alert("> ERROR: Missing config.json"); }
@@ -624,6 +626,11 @@
                 `;
             }
             postsContainer.appendChild(card); injectZapControls(card, ev); updateMetricsUI(ev.id);
+            if (window.NostrNote) window.NostrNote.decorateCard(card, ev, {
+                get: (id) => eventsCache[id],
+                load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
+                onEvent: (qev) => { eventsCache[qev.id] = qev; if (!profileCache[qev.pubkey]) requestProfileInfo(qev.pubkey); }
+            });
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
