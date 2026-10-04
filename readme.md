@@ -12,6 +12,9 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Notifications & Mentions:** Dedicated hub to monitor network signals, replies, mentions, reposts, and telemetry reactions targeting your node.
 *   **Secure Bookmarks (NIP-51):** Save and organize your favorite posts, articles, and threads locally via decentralized lists synced securely across your relays.
 *   **Versatile Authentication:** Supports NIP-07 browser extensions (nos2x, Alby), Secure Encrypted Keys (NIP-49 / ncryptsec), NIP-46 Remote Signers (Bunker URI), and Raw Private Keys (nsec/hex) using an internal client-side signer powered by `nostr-tools`.
+*   **Quoted Notes (NIP-18):** A note that quotes another one shows the quoted note as a compact card. The quoted note is fetched from the relay named in its `q` tag, which is often not one of your own relays.
+*   **GitHub Link Cards:** A link to a repository or file on github.com renders a small card with the repo name, description, stars, language and file path. Cached locally for 6 hours; if the API is unreachable or rate-limited, the link simply stays a link.
+*   **Clean Timeline (NIP-10):** Replies stay out of the timeline and live in threads, where a note shows its replies. Quote posts are not affected — only notes that point at a parent with an `e` tag are held back. Reply counters still count every reply that arrives.
 *   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.
 *   **Dynamic Configuration:** Multi-relay lists and Blossom servers are easily managed externally via a `config.json` file.
 *   **Event Deletion & Editing:** Full support for replacing Long-form content (NIP-33) and editing regular Notes via Event Deletion signals (NIP-09).
@@ -45,7 +48,13 @@ No build step, no test framework — plain Node, no network:
 
 ```
 node tests/nostr-embed.test.mjs     # 64 assertions
+node tests/nostr-note.test.mjs      # 76 assertions
 ```
+
+`tests/nostr-note.test.mjs` covers reply detection (NIP-10), quote targets
+(NIP-18) and GitHub link parsing — including the cases that must *not* match,
+such as `github.com.evil.example`, `gist.github.com` and `javascript:` URLs.
+Its fixtures are three real notes taken from the relay, kept verbatim.
 
 `tests/nostr-embed.test.mjs` covers YouTube URL detection (including the URLs
 that must *not* match, like Vimeo and look-alike domains) and the media
