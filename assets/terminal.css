@@ -20,6 +20,8 @@ html {
     --t-orange: #ff7a00;
     --t-white: #f4fff7;
     --t-muted: #6abf7a;
+    /* Dipakai assets/nostr-embed.js untuk bingkai pemutar YouTube. */
+    --yt-border: var(--t-green-dim);
     --t-shadow-soft: rgba(0, 255, 65, 0.18);
     --t-shadow-strong: rgba(0, 255, 65, 0.35);
     --t-radius: 0;

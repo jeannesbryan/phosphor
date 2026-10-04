@@ -19,6 +19,9 @@
         .reply-container { margin-left: 15px; border-left: 2px dashed var(--t-green); padding-left: 15px; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
+    <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
+         satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
+    <script src="/assets/nostr-embed.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -473,8 +476,24 @@
             } else if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-3">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) { let lowerExt = ext.toLowerCase(); if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`); return ""; });
-                if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-3">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-3">${mediaElements[0]}</div>`; }
+                // Satu lintasan untuk semua media, supaya urutan di dalam catatan
+                // tetap seperti aslinya (gambar dulu, video kemudian, atau
+                // sebaliknya). Aturan "URL mana yang dianggap video YouTube" hidup
+                // di /assets/nostr-embed.js. Kalau berkas itu gagal dimuat, tautan
+                // YouTube kembali jadi teks biasa dan media berkas tetap tampil.
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+                    let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
+                    if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
+                    let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
+                    if (!m) return url;
+                    let src = m[1]; let lowerExt = m[2].toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video not supported.</video>` });
+                    else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Media"></div>` });
+                    return url.substring(src.length);
+                });
+                mediaHtml = window.NostrEmbed
+                    ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-3')
+                    : mediaElements.map(function (b) { return `<div class="mt-3">${b.html}</div>`; }).join('');
                 contentText = escapeHtml(contentText.trim());
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
                 contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
@@ -542,8 +561,22 @@
             } else if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
-                contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) { let lowerExt = ext.toLowerCase(); if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`); return ""; });
-                if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
+                // Satu lintasan untuk semua media, supaya urutan di dalam catatan
+                // tetap seperti aslinya. Aturan "URL mana yang dianggap video
+                // YouTube" hidup di /assets/nostr-embed.js.
+                contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+                    let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
+                    if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
+                    let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
+                    if (!m) return url;
+                    let src = m[1]; let lowerExt = m[2].toLowerCase();
+                    if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video not supported.</video>` });
+                    else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Media"></div>` });
+                    return url.substring(src.length);
+                });
+                mediaHtml = window.NostrEmbed
+                    ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-2')
+                    : mediaElements.map(function (b) { return `<div class="mt-2">${b.html}</div>`; }).join('');
                 contentText = escapeHtml(contentText.trim());
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
                 contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });

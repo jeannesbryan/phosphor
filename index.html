@@ -27,6 +27,9 @@
         
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
+    <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
+         satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
+    <script src="/assets/nostr-embed.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1408,21 +1411,31 @@
                     contentHtml = `<pre class="t-code mt-2 mb-3 ${blurClass}">${escapeHtml(parsedJsonContent)}</pre>`;
                 } else {
                     let mediaElements = [];
-                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                        let lowerExt = ext.toLowerCase();
+                    // Satu lintasan untuk semua media, supaya urutan di dalam
+                    // catatan tetap seperti aslinya. Aturan "URL mana yang
+                    // dianggap video YouTube" hidup di /assets/nostr-embed.js.
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+                        let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
+                        if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
+                        let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
+                        if (!m) return url;
+                        let src = m[1]; let lowerExt = m[2].toLowerCase();
                         if (['mp4', 'webm', 'ogg'].includes(lowerExt)) {
-                            mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`);
+                            mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video format not supported.</video>` });
                         } else {
-                            mediaElements.push(`<div class="t-media-item" onclick="if(this.parentNode.classList.contains('t-spoiler')) return; openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
+                            mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="if(this.parentNode.classList.contains('t-spoiler')) return; openLightbox('${src}')"><img src="${src}" alt="Media"></div>` });
                         }
-                        return "";
+                        return url.substring(src.length);
                     });
-                    
-                    if (mediaElements.length > 1) {
-                        mediaHtml = `<div class="t-media-grid ${blurClass}" onclick="this.classList.remove('t-spoiler'); event.stopPropagation();">${mediaElements.join('')}</div>`;
-                    } else if (mediaElements.length === 1) {
-                        mediaHtml = `<div class="${blurClass}" onclick="this.classList.remove('t-spoiler'); event.stopPropagation();">${mediaElements[0]}</div>`;
-                    }
+
+                    // Kelas t-spoiler dan onclick-nya harus menempel di elemen yang
+                    // SAMA dengan medianya, jadi atributnya diteruskan ke penyusun,
+                    // bukan dipasang sebagai pembungkus tambahan — kalau ditumpuk,
+                    // cek t-spoiler di dalam gambar tidak akan menemukannya lagi.
+                    let spoilerAttrs = `onclick="this.classList.remove('t-spoiler'); event.stopPropagation();"`;
+                    mediaHtml = window.NostrEmbed
+                        ? window.NostrEmbed.buildMediaHtml(mediaElements, `t-media-grid ${blurClass}`, blurClass, spoilerAttrs)
+                        : mediaElements.map(function (b) { return `<div class="${blurClass}" ${spoilerAttrs}>${b.html}</div>`; }).join('');
                     
                     contentText = escapeHtml(contentText.trim());
 

@@ -23,6 +23,9 @@
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
         .scrollable-list { max-height: 250px; overflow-y: auto; }
     </style>
+    <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
+         satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
+    <script src="/assets/nostr-embed.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -975,12 +978,22 @@
                 else if (isPulse) {
                     card.className = 't-feed-card';
                     let contentText = targetEv.content; let mediaElements = [];
-                    contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                        let lowerExt = ext.toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Pulse Media"></div>`);
-                        return "";
+                    // Satu lintasan untuk semua media, supaya urutan di dalam
+                    // catatan tetap seperti aslinya. Aturan "URL mana yang
+                    // dianggap video YouTube" hidup di /assets/nostr-embed.js.
+                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+                        let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
+                        if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
+                        let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
+                        if (!m) return url;
+                        let src = m[1]; let lowerExt = m[2].toLowerCase();
+                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video format not supported.</video>` });
+                        else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Pulse Media"></div>` });
+                        return url.substring(src.length);
                     });
-                    let mediaHtml = ""; if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
+                    let mediaHtml = window.NostrEmbed
+                        ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-2')
+                        : mediaElements.map(function (b) { return `<div class="mt-2">${b.html}</div>`; }).join('');
                     
                     contentText = escapeHtml(contentText.trim());
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
@@ -1015,10 +1028,18 @@
                     if (isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsedJsonContent)}</pre>`; } 
                     else {
                         let contentText = targetEv.content;
-                        contentText = contentText.replace(/(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/gi, function(url, match1, ext) {
-                            let lowerExt = ext.toLowerCase();
-                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push(`<video controls class="t-video-item"><source src="${url}" type="video/${lowerExt}">Video format not supported.</video>`); else mediaElements.push(`<div class="t-media-item" onclick="openLightbox('${url}')"><img src="${url}" alt="Media"></div>`);
-                            return "";
+                        // Satu lintasan untuk semua media, supaya urutan di dalam
+                        // catatan tetap seperti aslinya. Aturan "URL mana yang
+                        // dianggap video YouTube" hidup di /assets/nostr-embed.js.
+                        contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+                            let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
+                            if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
+                            let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
+                            if (!m) return url;
+                            let src = m[1]; let lowerExt = m[2].toLowerCase();
+                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video format not supported.</video>` });
+                            else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Media"></div>` });
+                            return url.substring(src.length);
                         });
 
                         contentText = escapeHtml(contentText.trim());
@@ -1027,7 +1048,9 @@
                         contentHtml = `<div class="t-feed-content">${contentText}</div>`;
                     }
                     
-                    let mediaHtml = ""; if (mediaElements.length > 1) { mediaHtml = `<div class="t-media-grid mt-2">${mediaElements.join('')}</div>`; } else if (mediaElements.length === 1) { mediaHtml = `<div class="mt-2">${mediaElements[0]}</div>`; }
+                    let mediaHtml = window.NostrEmbed
+                        ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-2')
+                        : mediaElements.map(function (b) { return `<div class="mt-2">${b.html}</div>`; }).join('');
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>

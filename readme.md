@@ -15,7 +15,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Long Form Article (NIP-23):** Read and author Markdown articles directly from the Nostr network with a built-in clean editor.
 *   **Dynamic Configuration:** Multi-relay lists and Blossom servers are easily managed externally via a `config.json` file.
 *   **Event Deletion & Editing:** Full support for replacing Long-form content (NIP-33) and editing regular Notes via Event Deletion signals (NIP-09).
-*   **Rich Media Support & Multi-Upload:** Automatically detects and renders inline image URLs and video formats (mp4, webm, ogg). Supports uploading up to 4 media files simultaneously via Blossom servers, neatly rendered in a responsive grid.
+*   **Rich Media Support & Multi-Upload:** Automatically detects and renders inline image URLs and video formats (mp4, webm, ogg), and turns a standalone YouTube link into a full-width click-to-load player — thumbnail first, no iframe, no third-party script, and no YouTube cookie until you press play. Links sitting mid-sentence are left as plain links. Supported on the timeline, profile, bookmarks, relay explorer, threads, notifications, and long-form articles. Supports uploading up to 4 media files simultaneously via Blossom servers, neatly rendered in a responsive grid. The rule set lives once in `assets/nostr-embed.js` and is shared by all pages; uploaded media keeps rendering exactly as it always did.
 *   **Content Warning (NIP-36):** Toggle NSFW tags easily on the composer and auto-blurs sensitive incoming feeds with a click-to-reveal interface.
 *   **NIP-19 Entity Support:** Automatically parses Nostr links (naddr, npub, note, nevent) into interactive embeds.
 *   **Ephemeral Events (NIP-40):** Supports 24-hour expiring Pulse stories with live expiration timers.
@@ -38,6 +38,24 @@ Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no d
 2. Ensure the `config.json` files are in the same directory. *(Edit `config.json` to customize your default relays).*
 3. You can run a local web server within the folder (e.g., `python -m http.server 5500`) or simply host it on static hosting providers like **Cloudflare Pages** or GitHub Pages.
 4. Open your browser and navigate to the address.
+
+## 🧪 Tests
+
+No build step, no test framework — plain Node, no network:
+
+```
+node tests/nostr-embed.test.mjs     # 64 assertions
+```
+
+`tests/nostr-embed.test.mjs` covers YouTube URL detection (including the URLs
+that must *not* match, like Vimeo and look-alike domains) and the media
+assembler: which blocks get packed into a grid, which stay full width, and why
+the original order inside a note is preserved.
+
+The code that assembles note content is inlined in each HTML page rather than
+shared, so the same patch has to be applied in ten places across seven files.
+`grep -n 'buildMediaHtml\|youTubeId' *.html` should find exactly ten call
+sites.
 
 ## 📜 License
 Developed for decentralization. Free to modify, fork, and use as needed. Hack the planet! 🌐
