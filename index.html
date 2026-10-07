@@ -703,7 +703,7 @@
                     let hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                     
                     let nowTimestamp = Math.floor(Date.now() / 1000);
-                    let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["payload", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
+                    let authEvent = { kind: 24242, created_at: nowTimestamp, tags: [ ["u", uploadEndpoint], ["method", "PUT"], ["x", hashHex], ["expiration", String(nowTimestamp + 60)], ["t", "upload"] ], content: "Phosphor Blossom Auth", pubkey: currentUserPubkey };
                     
                     let signedAuth = await window.nostr.signEvent(authEvent);
                     let authBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(signedAuth))));
