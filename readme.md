@@ -49,17 +49,25 @@ No build step, no test framework — plain Node, no network:
 ```
 node tests/nostr-embed.test.mjs     # 64 assertions
 node tests/nostr-note.test.mjs      # 76 assertions
-node tests/blossom-auth.test.mjs    # 57 assertions
+node tests/blossom-auth.test.mjs    # 100 assertions
 ```
 
-`tests/blossom-auth.test.mjs` reads the pages themselves, runs the
-`let authEvent = {...}` block it finds in each one, and inspects the tags
-that come out. It exists because of a real incident: blossom-server 6.4.1
+`tests/blossom-auth.test.mjs` guards a real incident: blossom-server 6.4.1
 started *requiring* the BUD-11 `x` tag (the sha256 of the blob) for uploads.
 Phosphor was sending a tag named `payload` instead, so every media upload was
 rejected with `403 Auth token does not authorize operation on blob …`.
 Verified against a real 6.4.1 server: `payload` → 403, `x` → 201. Keep the
 `x` tag.
+
+The rules for that upload — hashing the file, building the kind 24242
+authorisation event, signing it, and sending it as `Authorization: Nostr …` —
+live in **one** file, `assets/blossom-auth.js`, used by all seven pages. They
+used to be copied into each page, which is why the 6.4.1 change had to be
+fixed in seven places at once (and why one page, `bookmark.html`, never
+showed the server's rejection message at all). The test therefore checks two
+things: that the module really produces a matching `x` tag for the file being
+uploaded (it feeds a fake `fetch` and inspects the header actually sent), and
+that no page keeps a copy of the rules, so a copy cannot drift again.
 
 `tests/nostr-note.test.mjs` covers reply detection (NIP-10), quote targets
 (NIP-18) and GitHub link parsing — including the cases that must *not* match,
