@@ -21,16 +21,16 @@
     </style>
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
-    <script src="/assets/nostr-embed.js"></script>
+    <script src="/assets/nostr-embed.js?v=20261011b"></script>
     <!-- Aturan struktur catatan: mana yang balasan (NIP-10), mana yang mengutip
          (NIP-18), dan kartu pratinjau tautan GitHub. -->
-    <script src="/assets/nostr-note.js"></script>
+    <script src="/assets/nostr-note.js?v=20261011b"></script>
     <!-- Aturan unggah media ke Blossom (sha256 berkas + tag otorisasi
          BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
          salin isinya ke halaman. Lihat catatan di berkasnya. -->
-    <script src="/assets/blossom-auth.js"></script>
-    <script src="/assets/form-utils.js"></script>
-    <script src="/assets/nostr-like.js"></script>
+    <script src="/assets/blossom-auth.js?v=20261011b"></script>
+    <script src="/assets/form-utils.js?v=20261011b"></script>
+    <script src="/assets/nostr-like.js?v=20261011b"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -477,11 +477,14 @@
             // Catatan mesin (JSON presence/telemetri) tidak digambar — isinya bukan
             // tulisan manusia dan blok JSON-nya membuat halaman berat. Diganti
             // pemberitahuan ringkas supaya pengunjung tahu kenapa kosong.
-            if (window.NostrNote && window.NostrNote.isMachineNote(ev)) {
+            if (window.NostrNote && window.NostrNote.shouldHideNote(ev)) {
+                var sebab = window.NostrNote.isEmptyNote(ev)
+                    ? 'Catatan ini tidak berisi apa pun dan tidak punya media.'
+                    : 'Catatan ini berisi data mesin (JSON presence/telemetri), bukan tulisan.';
                 mainPostContainer.innerHTML = `
                     <div class="t-card">
-                        <div class="t-card-header">> CATATAN_TELEMETRI</div>
-                        <p class="text-muted mb-2">Catatan ini berisi data mesin (JSON presence/telemetri), bukan tulisan.</p>
+                        <div class="t-card-header">> CATATAN_TIDAK_DITAMPILKAN</div>
+                        <p class="text-muted mb-2">${sebab}</p>
                         <p class="text-muted fs-small mb-0">Tidak ditampilkan supaya halaman tetap ringan. Peristiwa: <code>${escapeHtml(ev.id.substring(0, 16))}...</code></p>
                     </div>`;
                 return;
@@ -587,8 +590,14 @@
         }
 
         function renderReply(ev) {
-            // Balasan berupa catatan mesin (JSON presence/telemetri) tidak digambar.
-            if (window.NostrNote && window.NostrNote.isMachineNote(ev)) return;
+            if (window.NostrNote) {
+                // Catatan mesin / kosong tidak digambar.
+                if (window.NostrNote.shouldHideNote(ev)) return;
+                // HANYA balasan tingkat satu: balasan dari balasan (dan seterusnya)
+                // tidak ditampilkan, supaya yang tampak murni tanggapan untuk
+                // catatan ini. Aturannya di assets/nostr-note.js (isDirectReply).
+                if (!window.NostrNote.isDirectReply(ev, postId)) return;
+            }
             if (repliesContainer.querySelector('p')) { repliesContainer.innerHTML = ''; }
             if (document.getElementById(`reply-${ev.id}`)) return;
             initMetrics(ev.id); requestMetrics(ev.id);

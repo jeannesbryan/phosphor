@@ -110,6 +110,48 @@ like.absorb({ id: 'r5', pubkey: ME, kind: 7, created_at: 1, tags: [['e', 't8']] 
 ok('tanda "suka" muncul walau fase riwayat', like.isLiked('t8') === true);
 eq('penghitung TIDAK berubah saat riwayat', counts, []);
 
+// ========== 4b. URUTAN KEDATANGAN (bug asli bos, 2026-10-11) ==========
+/* Bos punya EMPAT reaksi untuk satu catatan; salah satunya sudah dihapus, tapi
+   relay lain masih menyajikan yang basi itu. Versi lama ("reaksi terakhir
+   menang") membuat tanda suka HILANG kalau reaksi basi + surat hapusnya tiba
+   paling akhir — itu sebabnya index hijau padahal profil merah. */
+const T = 'bf967208bdd68c098b51c166bad31029bc2ed0c7a830cf3caada81fc60214e2e';
+const LIVE_A = { id: 'a1', pubkey: ME, kind: 7, created_at: 100, tags: [['e', T]] };
+const LIVE_B = { id: 'a2', pubkey: ME, kind: 7, created_at: 150, tags: [['e', T]] };
+const LIVE_C = { id: 'a3', pubkey: ME, kind: 7, created_at: 120, tags: [['e', T]] };
+const STALE_D = { id: 'a4', pubkey: ME, kind: 7, created_at: 175, tags: [['e', T]] };
+const DEL_D = { id: 'd4', pubkey: ME, kind: 5, created_at: 900, tags: [['e', 'a4']] };
+
+// (i) reaksi hidup dulu, lalu reaksi basi, BARU surat hapusnya
+setup();
+[LIVE_A, LIVE_B, LIVE_C, STALE_D, DEL_D].forEach(e => like.absorb(e));
+ok('urutan: hidup->basi->hapus tetap disukai', like.isLiked(T) === true);
+eq('urutan: reaksi hidup terlama yang dipakai', like.reactionFor(T), 'a2');
+
+// (ii) surat hapus tiba LEBIH DULU daripada reaksi basinya
+setup();
+[DEL_D, LIVE_A, STALE_D].forEach(e => like.absorb(e));
+ok('urutan: hapus->basi tetap disukai', like.isLiked(T) === true);
+ok('reaksi basi tidak dihitung walau tiba belakangan', like.reactionFor(T) === 'a1');
+
+// (iii) hanya ada reaksi basi + hapusnya -> memang tidak disukai
+setup();
+[STALE_D, DEL_D].forEach(e => like.absorb(e));
+ok('hanya reaksi terhapus -> tidak disukai', like.isLiked(T) === false);
+eq('tidak ada reaksi hidup tersisa', like.reactionFor(T), null);
+
+// (iv) penghitung hanya bergerak sekali walau banyak reaksi untuk catatan sama
+setup();
+[LIVE_A, LIVE_B, LIVE_C].forEach(e => like.absorb(e));
+eq('tiga reaksi, kenaikan hanya sekali', counts, [[T, 1]]);
+
+// (v) unlike hanya membatalkan yang jadi milik kita, sisanya tetap
+setup();
+[LIVE_A, LIVE_B].forEach(e => like.absorb(e));
+like.absorb({ id: 'd1', pubkey: ME, kind: 5, created_at: 1000, tags: [['e', like.reactionFor(T)]] });
+ok('unlike satu reaksi: masih disukai oleh reaksi lain', like.isLiked(T) === true);
+eq('yang tersisa reaksi terlama', like.reactionFor(T), 'a1');
+
 // ===================== 5. belum masuk =====================
 like.reset();
 sent = [];

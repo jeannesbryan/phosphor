@@ -46,11 +46,39 @@
         historyPhase: true,
         limit: DEFAULT_LIMIT,
         sockets: [],
-        byTarget: {},           // id catatan -> { reactionId, created_at }
-        reactionToTarget: {},   // id peristiwa suka -> id catatan
+        reactions: {},          // id peristiwa suka -> id catatan
+        reactionTime: {},       // id peristiwa suka -> created_at
+        deleted: {},            // id peristiwa suka yang sudah dihapus (NIP-09)
+        byTarget: {},           // id catatan -> id peristiwa suka (yang masih hidup)
         timer: null,
         pending: {}             // id catatan -> true, sedang diproses
     };
+
+    /* Keadaan "sudah suka" untuk satu catatan dihitung dari SELURUH reaksi yang
+       kita ketahui minus yang sudah dihapus — bukan dari reaksi terakhir yang
+       kebetulan lewat.
+
+       Kenapa: satu catatan bisa punya beberapa reaksi dari kita (bos punya
+       EMPAT untuk catatan yang sama), dan sebagian sudah dihapus. Relay lain
+       masih menyajikan reaksi basi yang sudah dihapus itu. Dengan aturan lama
+       ("reaksi terakhir menang"), urutan kedatangan menentukan hasil: kalau
+       reaksi basi + surat hapusnya tiba paling akhir, tanda suka hilang —
+       padahal tiga reaksi lain masih hidup. Itu sebabnya halaman ini kadang
+       hijau, padahal di halaman lain merah. Aturan sekarang tidak peduli
+       urutan. */
+    function recomputeTarget(target) {
+        var dulu = !!state.byTarget[target];
+        var terpilih = null;
+        Object.keys(state.reactions).forEach(function (rid) {
+            if (state.reactions[rid] !== target) return;
+            if (state.deleted[rid]) return;
+            var ts = state.reactionTime[rid] || 0;
+            if (!terpilih || ts >= terpilih.ts) terpilih = { id: rid, ts: ts };
+        });
+        if (terpilih) state.byTarget[target] = terpilih.id;
+        else delete state.byTarget[target];
+        return { dulu: dulu, sekarang: !!terpilih };
+    }
 
     // ---------------------------------------------------------------- util
     function eTags(ev) {
@@ -73,8 +101,7 @@
     }
 
     function reactionFor(targetId) {
-        var rec = state.byTarget[targetId];
-        return rec ? rec.reactionId : null;
+        return state.byTarget[targetId] || null;
     }
 
     function count() {
@@ -161,12 +188,13 @@
         if (ev.kind === 7) {
             var target = reactionTarget(ev);
             if (!target) return false;
-            var baru = !state.byTarget[target];
-            state.byTarget[target] = { reactionId: ev.id, created_at: ev.created_at };
-            state.reactionToTarget[ev.id] = target;
-            if (baru) {
+            state.reactions[ev.id] = target;
+            state.reactionTime[ev.id] = ev.created_at || 0;
+            // Reaksi yang sudah pernah kita lihat surat hapusnya tidak dihitung.
+            var hasil = recomputeTarget(target);
+            if (hasil.dulu !== hasil.sekarang) {
                 applyState(target);
-                if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, 1);
+                if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, hasil.sekarang ? 1 : -1);
             }
             return true;
         }
@@ -174,13 +202,15 @@
             var ids = eTags(ev);
             var changed = false;
             ids.forEach(function (id) {
-                var target = state.reactionToTarget[id];
-                if (!target) return;
-                delete state.byTarget[target];
-                delete state.reactionToTarget[id];
-                applyState(target);
+                state.deleted[id] = true;
+                var target = state.reactions[id];
+                if (!target) return;                 // reaksinya belum kita lihat; catat saja
+                var hasil = recomputeTarget(target);
+                if (hasil.dulu !== hasil.sekarang) {
+                    applyState(target);
+                    if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, -1);
+                }
                 changed = true;
-                if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, -1);
             });
             return changed;
         }
@@ -211,8 +241,9 @@
         };
         return signEvent(raw).then(function (signed) {
             broadcast(signed);
-            state.byTarget[targetId] = { reactionId: signed.id, created_at: signed.created_at };
-            state.reactionToTarget[signed.id] = targetId;
+            state.reactions[signed.id] = targetId;
+            state.reactionTime[signed.id] = signed.created_at || 0;
+            state.byTarget[targetId] = signed.id;
             applyState(targetId);
             if (typeof state.onCount === 'function') state.onCount(targetId, 1);
             return true;
@@ -220,22 +251,25 @@
     }
 
     function unlike(targetId) {
-        var rec = state.byTarget[targetId];
-        if (!rec) return Promise.resolve(false);
+        var reactionId = state.byTarget[targetId];
+        if (!reactionId) return Promise.resolve(false);
         var raw = {
             kind: 5,
             created_at: Math.floor(Date.now() / 1000),
-            tags: [['e', rec.reactionId], ['k', '7']],
+            tags: [['e', reactionId], ['k', '7']],
             content: '',
             pubkey: state.pubkey
         };
         return signEvent(raw).then(function (signed) {
             broadcast(signed);
-            delete state.byTarget[targetId];
-            delete state.reactionToTarget[rec.reactionId];
+            // Tandai terhapus dan hitung ulang: kalau ternyata masih ada reaksi
+            // lain yang hidup untuk catatan ini, keadaannya tetap "disukai".
+            state.deleted[reactionId] = true;
+            var hasil = recomputeTarget(targetId);
             applyState(targetId);
-            if (typeof state.onCount === 'function') state.onCount(targetId, -1);
-            return false;
+            // Kalau masih ada reaksi lain yang hidup, angkanya tidak berubah.
+            if (typeof state.onCount === 'function') state.onCount(targetId, hasil.sekarang ? 0 : -1);
+            return hasil.sekarang;
         });
     }
 
@@ -285,7 +319,9 @@
         closeSockets();
         if (state.timer) { global.clearTimeout(state.timer); state.timer = null; }
         state.byTarget = {};
-        state.reactionToTarget = {};
+        state.reactions = {};
+        state.reactionTime = {};
+        state.deleted = {};
         state.pending = {};
         state.pubkey = null;
         state.send = null;

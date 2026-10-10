@@ -49,6 +49,37 @@
         return eTags.some(function (t) { return !t[3]; });
     }
 
+    /* Siapa INDUK LANGSUNG sebuah balasan (NIP-10).
+       - Kalau ada tanda (marker): yang bertanda "reply" itulah induknya. Kalau
+         hanya ada "root" (dan tanpa "reply"), berarti balasan itu menempel
+         langsung ke akar.
+       - Kalau tanpa tanda sama sekali (gaya lama): satu tag "e" = induknya;
+         kalau beberapa, yang TERAKHIR adalah yang dibalas.
+       Mengembalikan null kalau tidak ada petunjuk apa pun. */
+    function replyParent(ev) {
+        if (!ev || !Array.isArray(ev.tags)) return null;
+        var eTags = ev.tags.filter(function (t) {
+            return Array.isArray(t) && t[0] === 'e' && typeof t[1] === 'string' && t[1];
+        });
+        if (!eTags.length) return null;
+        var bertanda = eTags.filter(function (t) { return t[3]; });
+        if (bertanda.length) {
+            var balasan = bertanda.filter(function (t) { return t[3] === 'reply'; });
+            if (balasan.length) return balasan[balasan.length - 1][1];
+            var akar = bertanda.filter(function (t) { return t[3] === 'root'; });
+            if (akar.length) return akar[akar.length - 1][1];
+            return null;                       // hanya "mention": bukan balasan
+        }
+        return eTags[eTags.length - 1][1];
+    }
+
+    /* Balasan TINGKAT SATU untuk sebuah catatan: induk langsungnya catatan itu
+       sendiri. Balasan dari balasan (dan seterusnya) tidak termasuk. */
+    function isDirectReply(ev, rootId) {
+        if (!rootId) return false;
+        return replyParent(ev) === rootId;
+    }
+
     // ------------------------------------------------------- catatan mesin
     /* Sebagian catatan kind 1 isinya bukan tulisan manusia, melainkan pesan JSON
        dari perangkat lunak lain — denyut "presence", telemetri, dsb. Contoh
@@ -68,11 +99,17 @@
          - kind 1
          - seluruh isinya satu objek JSON (bukan larik, bukan teks biasa)
          - bukan aktivitas olahraga
-         - punya >=2 kunci telemetri yang dikenal, ATAU tag "t" bernama
-           presence/type/telemetry/heartbeat/online
+         - punya >=2 kunci, ATAU tag penanda mesin
+
+       Kenapa >=2 kunci saja (bukan daftar nama kunci): sampel nyata berikutnya
+       memakai nama kunci yang tak terduga dan tetap harus disaring —
+         {"id":"p179…","n":"Abolfazll","t":"","ts":1791659484990,"ty":"p"}
+         {"proxies": [], "updated": 1791659463}
+       Sebuah tulisan manusia yang isinya SELURUHNYA satu objek JSON dengan >=2
+       kunci praktis tidak ada; kalau pun ada, menyembunyikannya jauh lebih
+       ringan daripada menampilkan blok JSON panjang yang membuat halaman berat.
+       Objek berkunci satu dibiarkan tampil sebagai pengaman.
     */
-    var MACHINE_KEYS = ['type', 'payload', 'v', 'ts', 'online', 'senderkey',
-        'sendername', 'timestamp', 'presence', 'heartbeat', 'clientid', 'deviceid'];
     var MACHINE_TAGS = ['presence', 'type', 'telemetry', 'heartbeat', 'online'];
 
     function parsedJsonObject(ev) {
@@ -93,16 +130,37 @@
         var obj = parsedJsonObject(ev);
         if (!obj) return false;
         if (isSportJson(obj)) return false;
-        var keys = Object.keys(obj).map(function (k) { return k.toLowerCase(); });
-        var telemetry = keys.filter(function (k) { return MACHINE_KEYS.indexOf(k) !== -1; });
-        if (telemetry.length >= 2) return true;
+        if (Object.keys(obj).length >= 2) return true;      // satu objek JSON penuh = mesin
         if (Array.isArray(ev.tags)) {
             return ev.tags.some(function (t) {
-                return Array.isArray(t) && t[0] === 't' && typeof t[1] === 'string'
+                return Array.isArray(t) && typeof t[1] === 'string'
+                    && (t[0] === 't' || t[0] === 'd')
                     && MACHINE_TAGS.indexOf(t[1].toLowerCase()) !== -1;
             });
         }
         return false;
+    }
+
+    /* Catatan tanpa isi sama sekali dan tanpa media — tidak ada yang bisa
+       ditampilkan, jadi jangan digambar sebagai kartu kosong. Contoh nyata dari
+       relay: kind 20000 dengan content "" dan tags []. */
+    function isEmptyNote(ev) {
+        if (!ev) return true;
+        if (ev.kind !== 1 && !(ev.kind >= 20000 && ev.kind < 30000)) return false;
+        if (typeof ev.content !== 'string' || ev.content.trim() !== '') return false;
+        if (Array.isArray(ev.tags)) {
+            var bermedia = ev.tags.some(function (t) {
+                return Array.isArray(t) && (t[0] === 'imeta' || t[0] === 'r' || t[0] === 'e' || t[0] === 'q');
+            });
+            if (bermedia) return false;
+        }
+        return true;
+    }
+
+    /* Satu pintu untuk "jangan gambar catatan ini". Dipakai halaman supaya
+       aturannya tidak tersebar. */
+    function shouldHideNote(ev) {
+        return isMachineNote(ev) || isEmptyNote(ev);
     }
 
     // ---------------------------------------------------------------- NIP-18
@@ -730,6 +788,10 @@
     var api = {
         isReply: isReply,
         isMachineNote: isMachineNote,
+        isEmptyNote: isEmptyNote,
+        shouldHideNote: shouldHideNote,
+        replyParent: replyParent,
+        isDirectReply: isDirectReply,
         quoteTargets: quoteTargets,
         nip19Decode: nip19Decode,
         nip19PageUrl: nip19PageUrl,

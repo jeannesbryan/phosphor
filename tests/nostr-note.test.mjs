@@ -234,6 +234,56 @@ ok('catatan kosong bukan mesin', note.isMachineNote({ kind: 1, content: '', tags
 ok('tanpa field content aman', note.isMachineNote({ kind: 1, tags: [] }) === false);
 ok('ev null aman', note.isMachineNote(null) === false);
 
+// ======== 9b. sampel mesin GELOMBANG KEDUA (laporan bos 2026-10-11) ========
+console.log('--- 9b. catatan mesin gelombang kedua ---');
+const MACHINE2 = [
+    // payamresan: kunci tak terduga, tag "d" = presence
+    { kind: 1, content: '{"id":"p1791659484990230","n":"Abolfazll","t":"","ts":1791659484990,"ty":"p"}', tags: [['t', 'payamresan-general'], ['d', 'presence']] },
+    // siaran daftar proxy
+    { kind: 1, content: '{"proxies": [], "updated": 1791659463}', tags: [] },
+];
+for (const ev of MACHINE2) ok('mesin2: ' + ev.content.slice(0, 42), note.isMachineNote(ev) === true);
+// penjaga: aktivitas Gaspool tetap tampil walau berkunci banyak
+ok('mesin2: aktivitas Gaspool tetap tampil',
+    note.isMachineNote({ kind: 1, content: '{"sport":"cycling","distance":28.6,"duration":6064,"title":"Jumat Gaul"}', tags: [] }) === false);
+
+// ============ 9c. catatan kosong ============
+console.log('--- 9c. catatan kosong ---');
+ok('20000 kosong tanpa tag = kosong', note.isEmptyNote({ kind: 20000, content: '', tags: [] }) === true);
+ok('kind 1 konten spasi saja = kosong', note.isEmptyNote({ kind: 1, content: '   \n  ', tags: [] }) === true);
+ok('kind 1 dengan imeta bukan kosong', note.isEmptyNote({ kind: 1, content: '', tags: [['imeta', 'url https://x/y.jpg']] }) === false);
+ok('kind 1 berisi teks bukan kosong', note.isEmptyNote({ kind: 1, content: 'halo', tags: [] }) === false);
+ok('kind 3 (following) bukan urusan kosong', note.isEmptyNote({ kind: 3, content: '', tags: [] }) === false);
+ok('shouldHideNote menggabungkan keduanya',
+    note.shouldHideNote({ kind: 20000, content: '', tags: [] }) === true &&
+    note.shouldHideNote({ kind: 1, content: '{"type":"presence","payload":"online"}', tags: [] }) === true &&
+    note.shouldHideNote({ kind: 1, content: 'tulisan biasa', tags: [] }) === false);
+
+// ============ 9d. balasan tingkat satu (NIP-10) ============
+console.log('--- 9d. balasan tingkat satu ---');
+const ROOT = 'r'.repeat(64), MID = 'm'.repeat(64), OTHER = 'o'.repeat(64);
+// gaya Amethyst/primal: root + reply bertanda
+const L1mark = { kind: 1, tags: [['e', ROOT, '', 'root']] };
+const L1mark2 = { kind: 1, tags: [['e', ROOT, '', 'root'], ['p', 'x'], ['e', ROOT, '', 'reply']] };
+const L2mark = { kind: 1, tags: [['e', ROOT, '', 'root'], ['e', MID, '', 'reply']] };
+eq('root saja -> induk = root', note.replyParent(L1mark), ROOT);
+eq('root+reply ke root -> induk = root', note.replyParent(L1mark2), ROOT);
+eq('root+reply ke tengah -> induk = tengah', note.replyParent(L2mark), MID);
+ok('L1 langsung: ya', note.isDirectReply(L1mark, ROOT) === true);
+ok('L1 (root+reply ke root): ya', note.isDirectReply(L1mark2, ROOT) === true);
+ok('L2 (balasan dari balasan): BUKAN', note.isDirectReply(L2mark, ROOT) === false);
+// gaya lama tanpa tanda
+eq('gaya lama satu tag e -> itu induknya', note.replyParent({ kind: 1, tags: [['e', ROOT]] }), ROOT);
+eq('gaya lama banyak tag e -> yang terakhir induknya', note.replyParent({ kind: 1, tags: [['e', ROOT], ['e', MID]] }), MID);
+ok('gaya lama balasan-dari-balasan bukan L1',
+    note.isDirectReply({ kind: 1, tags: [['e', ROOT], ['e', MID]] }, ROOT) === false);
+// hanya mention
+eq('hanya mention -> tidak ada induk', note.replyParent({ kind: 1, tags: [['e', MID, '', 'mention']] }), null);
+ok('hanya mention bukan L1', note.isDirectReply({ kind: 1, tags: [['e', MID, '', 'mention']] }, ROOT) === false);
+ok('tanpa tag e bukan L1', note.isDirectReply({ kind: 1, tags: [['p', OTHER]] }, ROOT) === false);
+ok('rootId kosong bukan L1', note.isDirectReply(L1mark, '') === false);
+ok('catatan null aman', note.replyParent(null) === null);
+
 // ============ 10. NIP-19 -> tautan dalam + kartu kutipan ============
 // Data ASLI: catatan bos 0000004893… mengutip 5850f17f… lewat tag "q"
 // sekaligus menyisipkan nostr:nevent1… di dalam isinya (gaya Amethyst).

@@ -25,14 +25,14 @@
     </style>
     <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
          satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
-    <script src="/assets/nostr-embed.js"></script>
-    <script src="/assets/nostr-note.js"></script>
+    <script src="/assets/nostr-embed.js?v=20261011b"></script>
+    <script src="/assets/nostr-note.js?v=20261011b"></script>
     <!-- Aturan unggah media ke Blossom (sha256 berkas + tag otorisasi
          BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
          salin isinya ke halaman. Lihat catatan di berkasnya. -->
-    <script src="/assets/blossom-auth.js"></script>
-    <script src="/assets/form-utils.js"></script>
-    <script src="/assets/nostr-like.js"></script>
+    <script src="/assets/blossom-auth.js?v=20261011b"></script>
+    <script src="/assets/form-utils.js?v=20261011b"></script>
+    <script src="/assets/nostr-like.js?v=20261011b"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -827,7 +827,7 @@
                                 // assets/nostr-note.js supaya tidak ada salinan kedua.
                                 let balasanProfil = (ev.kind === 1 && window.NostrNote && window.NostrNote.isReply(ev));
                                 // Catatan mesin (JSON presence/telemetri) tidak ditampilkan.
-                                let mesinProfil = (ev.kind === 1 && window.NostrNote && window.NostrNote.isMachineNote(ev));
+                                let mesinProfil = (window.NostrNote && window.NostrNote.shouldHideNote(ev));
                                 if (!balasanProfil && !mesinProfil && !userEventsList.some(item => item.id === ev.id)) { userEventsList.push(ev); triggerDebouncedRender(); }
                                 if (ev.kind === 6 || ev.kind === 16) { try { let innerEv = JSON.parse(ev.content); if (innerEv.pubkey !== targetPubkey) { requestProfileInfo(innerEv.pubkey); } } catch(e){} }
                             }
