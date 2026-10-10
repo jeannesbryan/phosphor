@@ -49,6 +49,62 @@
         return eTags.some(function (t) { return !t[3]; });
     }
 
+    // ------------------------------------------------------- catatan mesin
+    /* Sebagian catatan kind 1 isinya bukan tulisan manusia, melainkan pesan JSON
+       dari perangkat lunak lain — denyut "presence", telemetri, dsb. Contoh
+       nyata dari relay bos (2026-10-11):
+         {"type":"presence","payload":"online"}
+         {"v":1,"online":true,"ts":1791657534}
+         {"type":"PresenceHeartbeat","senderKey":"...","senderName":"test999",...}
+       Catatan begini membanjiri linimasa dan membuat browser berat, karena
+       isinya digambar sebagai <pre> JSON yang panjang tanpa makna bagi pembaca.
+       Karena itu halaman tidak menampilkannya sama sekali.
+
+       PENTING: aktivitas olahraga Gaspool JUGA berbentuk JSON dan HARUS tetap
+       tampil (ada kartu khususnya). Maka JSON berpenanda "sport"/"activity"
+       dikecualikan dari aturan ini.
+
+       Syarat catatan mesin:
+         - kind 1
+         - seluruh isinya satu objek JSON (bukan larik, bukan teks biasa)
+         - bukan aktivitas olahraga
+         - punya >=2 kunci telemetri yang dikenal, ATAU tag "t" bernama
+           presence/type/telemetry/heartbeat/online
+    */
+    var MACHINE_KEYS = ['type', 'payload', 'v', 'ts', 'online', 'senderkey',
+        'sendername', 'timestamp', 'presence', 'heartbeat', 'clientid', 'deviceid'];
+    var MACHINE_TAGS = ['presence', 'type', 'telemetry', 'heartbeat', 'online'];
+
+    function parsedJsonObject(ev) {
+        if (!ev || ev.kind !== 1 || typeof ev.content !== 'string') return null;
+        var s = ev.content.trim();
+        if (s.charAt(0) !== '{' || s.charAt(s.length - 1) !== '}') return null;
+        try {
+            var o = JSON.parse(s);
+            return (o && typeof o === 'object' && !Array.isArray(o)) ? o : null;
+        } catch (e) { return null; }
+    }
+
+    function isSportJson(obj) {
+        return !!(obj && (obj.sport || obj.activity || obj.type === 'sport'));
+    }
+
+    function isMachineNote(ev) {
+        var obj = parsedJsonObject(ev);
+        if (!obj) return false;
+        if (isSportJson(obj)) return false;
+        var keys = Object.keys(obj).map(function (k) { return k.toLowerCase(); });
+        var telemetry = keys.filter(function (k) { return MACHINE_KEYS.indexOf(k) !== -1; });
+        if (telemetry.length >= 2) return true;
+        if (Array.isArray(ev.tags)) {
+            return ev.tags.some(function (t) {
+                return Array.isArray(t) && t[0] === 't' && typeof t[1] === 'string'
+                    && MACHINE_TAGS.indexOf(t[1].toLowerCase()) !== -1;
+            });
+        }
+        return false;
+    }
+
     // ---------------------------------------------------------------- NIP-18
     /* Daftar catatan yang dikutip. Bentuk tag:
          ["q", <id event>, <relay, opsional>, <pubkey, opsional>]
@@ -446,6 +502,7 @@
 
     var api = {
         isReply: isReply,
+        isMachineNote: isMachineNote,
         quoteTargets: quoteTargets,
         githubRepo: githubRepo,
         repoCardHtml: repoCardHtml,

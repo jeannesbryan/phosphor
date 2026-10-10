@@ -909,6 +909,12 @@
             if(et) et.textContent = m.reposts;
             if(el) el.textContent = m.likes;
             if(ez) ez.textContent = m.zapSats;
+            // Terapkan tanda "sudah suka" pada tombol yang baru saja digambar.
+            // updateMetricsUI() dipanggil tepat setelah setiap kartu disisipkan,
+            // jadi di sinilah waktunya: keadaan dari relay bisa saja tiba SEBELUM
+            // kartunya ada (dulu itulah sebabnya tombol tetap hijau walau sudah
+            // disukai). Aman kalau elemennya belum ada.
+            if (window.NostrLike) window.NostrLike.applyState(id);
         }
 
         function requestMetrics(eventId) {
@@ -1124,7 +1130,10 @@
                                 // Penghitung balasan di atas tidak terpengaruh: angkanya tetap
                                 // dihitung dari semua balasan yang masuk.
                                 let balasan = (ev.kind === 1 && window.NostrNote && window.NostrNote.isReply(ev));
-                                if (!balasan) {
+                                // Catatan mesin (JSON presence/telemetri) juga tidak ditampilkan:
+                                // isinya bukan tulisan manusia dan membuat halaman berat.
+                                let mesin = (ev.kind === 1 && window.NostrNote && window.NostrNote.isMachineNote(ev));
+                                if (!balasan && !mesin) {
                                     if (!profileCache[ev.pubkey]) requestProfileInfo(ev.pubkey);
                                     eventsCache[ev.id] = ev; renderPost(ev);
                                 }

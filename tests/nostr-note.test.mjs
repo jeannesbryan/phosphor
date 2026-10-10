@@ -206,6 +206,34 @@ eq('daftar relay kosong -> null', await note.fetchEventById('a'.repeat(64)), nul
 note.setRelays('bukan array');
 eq('daftar relay bukan array -> null', await note.fetchEventById('a'.repeat(64)), null);
 
+// ============ 9. catatan mesin (JSON presence/telemetri) ============
+// Sampel ASLI dari relay bos, 2026-10-11.
+console.log('--- 9. catatan mesin ---');
+const MACHINE = [
+    { kind: 1, content: '{"type":"presence","payload":"online"}', tags: [["t", "type"]] },
+    { kind: 1, content: '{"v":1,"online":true,"ts":1791657534}', tags: [["t", "presence"]] },
+    { kind: 1, content: '{"type":"PresenceHeartbeat","senderKey":"74cc6f02","senderName":"test999","timestamp":1791657554377}', tags: [["t", "t"]] },
+    { kind: 1, content: '  {"type":"presence"}  ', tags: [["t", "presence"]] }, // spasi + tag mesin
+];
+for (const ev of MACHINE) ok('mesin: ' + ev.content.slice(0, 40), note.isMachineNote(ev) === true);
+
+// Aktivitas olahraga Gaspool JUGA JSON — HARUS tetap tampil.
+const SPORT = {
+    kind: 1, content: '{"sport":"cycling","title":"Jumat Gaul","distance":28.6,"duration":"01:41:04"}',
+    tags: [["t", "activity"]]
+};
+ok('aktivitas Gaspool TIDAK dianggap mesin', note.isMachineNote(SPORT) === false);
+
+// Yang jelas bukan mesin.
+ok('tulisan biasa bukan mesin', note.isMachineNote({ kind: 1, content: 'Halo dunia', tags: [] }) === false);
+ok('JSON bukan objek (larik) bukan mesin', note.isMachineNote({ kind: 1, content: '[1,2,3]', tags: [] }) === false);
+ok('JSON satu kunci tanpa tag bukan mesin', note.isMachineNote({ kind: 1, content: '{"foo":"bar"}', tags: [] }) === false);
+ok('teks yang dimulai { tapi bukan JSON bukan mesin', note.isMachineNote({ kind: 1, content: '{ halo }', tags: [] }) === false);
+ok('kind lain bukan mesin', note.isMachineNote({ kind: 7, content: '{"type":"presence","payload":"online"}', tags: [] }) === false);
+ok('catatan kosong bukan mesin', note.isMachineNote({ kind: 1, content: '', tags: [] }) === false);
+ok('tanpa field content aman', note.isMachineNote({ kind: 1, tags: [] }) === false);
+ok('ev null aman', note.isMachineNote(null) === false);
+
 console.log(results.join('\n'));
 console.log(`\n${pass} ok, ${fail} gagal`);
 process.exit(fail ? 1 : 0);
