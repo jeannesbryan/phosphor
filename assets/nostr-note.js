@@ -283,6 +283,196 @@
         return count;
     }
 
+    // ------------------------------------------------- NIP-19 / tautan dalam
+    /* Sebelumnya setiap halaman mengganti `nostr:nevent1…` dengan tautan
+       ber-href "nostr:…". Di peramban, href semacam itu memicu pengendali
+       protokol — tampak "mau membuka aplikasi" padahal tidak ada aplikasinya.
+       Sekarang id NIP-19 diterjemahkan ke halaman Phosphor sendiri
+       (thread.html / profile.html / notes.html) supaya seperti aplikasi Nostr
+       pada umumnya: klik = pindah halaman, bukan membuka tab aneh.
+
+       Ukuran berkas ini kecil dan murni, jadi bisa diuji tanpa peramban. */
+    var B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+    var B32MAP = {};
+    for (var bi = 0; bi < B32.length; bi++) B32MAP[B32.charAt(bi)] = bi;
+    var B32GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+
+    function bech32Polymod(values) {
+        var chk = 1;
+        for (var p = 0; p < values.length; p++) {
+            var top = chk >> 25;
+            chk = ((chk & 0x1ffffff) << 5) ^ values[p];
+            for (var i = 0; i < 5; i++) if ((top >> i) & 1) chk ^= B32GEN[i];
+        }
+        return chk;
+    }
+
+    function bech32Verify(hrp, data) {
+        var values = [];
+        var i;
+        for (i = 0; i < hrp.length; i++) values.push(hrp.charCodeAt(i) >> 5);
+        values.push(0);
+        for (i = 0; i < hrp.length; i++) values.push(hrp.charCodeAt(i) & 31);
+        for (i = 0; i < data.length; i++) values.push(data[i]);
+        return bech32Polymod(values) === 1;
+    }
+
+    function bech32Decode(str) {
+        if (typeof str !== 'string' || str.length < 8) return null;
+        var lower = str.toLowerCase();
+        if (lower !== str && str.toUpperCase() !== str) return null;   // campur besar-kecil
+        var pos = lower.lastIndexOf('1');
+        if (pos < 1 || pos + 7 > lower.length) return null;
+        var hrp = lower.slice(0, pos);
+        var words = [];
+        for (var i = pos + 1; i < lower.length; i++) {
+            var v = B32MAP[lower.charAt(i)];
+            if (v === undefined) return null;
+            words.push(v);
+        }
+        if (!bech32Verify(hrp, words)) return null;
+        return { hrp: hrp, words: words.slice(0, -6) };   // buang 6 kata checksum
+    }
+
+    function wordsToBytes(words) {
+        var out = [], acc = 0, bits = 0;
+        for (var i = 0; i < words.length; i++) {
+            acc = (acc << 5) | words[i];
+            bits += 5;
+            if (bits >= 8) { bits -= 8; out.push((acc >> bits) & 0xff); }
+        }
+        return out;
+    }
+
+    function bytesToHex(bytes) {
+        var s = '';
+        for (var i = 0; i < bytes.length; i++) s += ('0' + bytes[i].toString(16)).slice(-2);
+        return s;
+    }
+
+    function bytesToUtf8(bytes) {
+        if (typeof TextDecoder === 'function') {
+            try { return new TextDecoder().decode(new Uint8Array(bytes)); } catch (e) {}
+        }
+        var s = '';
+        for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+        return s;
+    }
+
+    function bytesToUint(bytes) {
+        var n = 0;
+        for (var i = 0; i < bytes.length; i++) n = (n * 256) + bytes[i];
+        return n;
+    }
+
+    function parseTlv(bytes) {
+        var out = [], i = 0;
+        while (i + 2 <= bytes.length) {
+            var t = bytes[i], l = bytes[i + 1];
+            var v = bytes.slice(i + 2, i + 2 + l);
+            if (v.length !== l) break;
+            out.push({ type: t, value: v });
+            i += 2 + l;
+        }
+        return out;
+    }
+
+    /* Terjemahkan id NIP-19 menjadi bagian yang kita perlukan. Mengembalikan
+       null kalau bukan bech32 yang sah — pemanggil membiarkan teksnya apa adanya. */
+    function nip19Decode(id) {
+        if (typeof id !== 'string') return null;
+        var d = bech32Decode(id);
+        if (!d) return null;
+        var bytes = wordsToBytes(d.words);
+        if (d.hrp === 'note') {
+            return bytes.length === 32 ? { type: 'note', id: bytesToHex(bytes) } : null;
+        }
+        if (d.hrp === 'npub') {
+            return bytes.length === 32 ? { type: 'npub', pubkey: bytesToHex(bytes) } : null;
+        }
+        if (d.hrp === 'nevent') {
+            var r = { type: 'nevent', relays: [] };
+            parseTlv(bytes).forEach(function (e) {
+                if (e.type === 0 && e.value.length === 32) r.id = bytesToHex(e.value);
+                else if (e.type === 1) r.relays.push(bytesToUtf8(e.value));
+                else if (e.type === 2 && e.value.length === 32) r.author = bytesToHex(e.value);
+                else if (e.type === 3) r.kind = bytesToUint(e.value);
+            });
+            return r.id ? r : null;
+        }
+        if (d.hrp === 'nprofile') {
+            var p = { type: 'nprofile', relays: [] };
+            parseTlv(bytes).forEach(function (e) {
+                if (e.type === 0 && e.value.length === 32) p.pubkey = bytesToHex(e.value);
+                else if (e.type === 1) p.relays.push(bytesToUtf8(e.value));
+            });
+            return p.pubkey ? p : null;
+        }
+        if (d.hrp === 'naddr') {
+            var a = { type: 'naddr', relays: [] };
+            parseTlv(bytes).forEach(function (e) {
+                if (e.type === 0) a.identifier = bytesToUtf8(e.value);
+                else if (e.type === 1) a.relays.push(bytesToUtf8(e.value));
+                else if (e.type === 2 && e.value.length === 32) a.author = bytesToHex(e.value);
+                else if (e.type === 3) a.kind = bytesToUint(e.value);
+            });
+            return a;
+        }
+        return { type: d.hrp };
+    }
+
+    /* Halaman Phosphor untuk sebuah peristiwa. Artikel long-form (kind 30023)
+       tidak punya halaman thread, jadi diarahkan ke notes.html dengan `d`. */
+    function notePageUrl(ev) {
+        if (!ev || !ev.id) return null;
+        if (ev.kind === 30023) {
+            var d = '';
+            (ev.tags || []).forEach(function (t) { if (Array.isArray(t) && t[0] === 'd') d = t[1]; });
+            return 'notes.html?d=' + encodeURIComponent(d) + '&author=' + encodeURIComponent(ev.pubkey || '');
+        }
+        return 'thread.html?id=' + encodeURIComponent(ev.id);
+    }
+
+    function nip19PageUrl(id) {
+        var d = nip19Decode(id);
+        if (!d) return null;
+        if (d.type === 'note') return 'thread.html?id=' + d.id;
+        if (d.type === 'nevent') {
+            if (d.kind === 30023) return 'notes.html?d=&author=' + (d.author || '');
+            return 'thread.html?id=' + d.id;
+        }
+        if (d.type === 'npub' || d.type === 'nprofile') return 'profile.html?pubkey=' + d.pubkey;
+        if (d.type === 'naddr') {
+            return 'notes.html?d=' + encodeURIComponent(d.identifier || '')
+                + '&author=' + (d.author || '') + '&kind=' + (d.kind || '');
+        }
+        return null;
+    }
+
+    /* Ganti setiap id NIP-19 di dalam isi catatan (yang sudah di-escape halaman)
+       dengan tautan dalam. Satu pengecualian penting: kalau id itu menunjuk
+       catatan yang SEDANG digambar sebagai kartu kutipan, tautannya dibuang —
+       kalau tidak, catatan yang sama tampil dua kali (satu sebagai kartu, satu
+       sebagai baris [NOSTR: …]). Itu yang membingungkan bos. */
+    function linkifyNostrUris(text, ev) {
+        if (typeof text !== 'string') return text;
+        var quoteIds = ev ? quoteTargets(ev).map(function (t) { return t.id; }) : [];
+        var removed = 0;
+        var out = text.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function (match, id) {
+            var decoded = nip19Decode(id);
+            if (decoded && decoded.id && quoteIds.indexOf(decoded.id) !== -1) { removed++; return ''; }
+            var shortId = id.substring(0, 10) + '...' + id.substring(id.length - 4);
+            var url = nip19PageUrl(id);
+            if (url) {
+                return '<a href="' + url + '" class="nostr-embed-link" onclick="event.stopPropagation()">[NOSTR: ' + shortId + ']</a>';
+            }
+            return '<a href="nostr:' + id + '" class="nostr-embed-link" target="_blank" rel="noopener" onclick="event.stopPropagation()">[NOSTR: ' + shortId + ']</a>';
+        });
+        // Kalau ada id yang dibuang karena duplikat, sisa baris kosongnya ikut dibersihkan.
+        if (removed) out = out.replace(/\s+$/, '');
+        return out;
+    }
+
     // ------------------------------------------------------------- kutipan
     /* Kartu ringkas untuk catatan yang dikutip. Kelas author-<pubkey> dan
        avatar-<pubkey> sengaja dipakai supaya mekanisme profil yang sudah ada
@@ -300,14 +490,26 @@
 
         var img = firstImageUrl(ev);
 
-        return '<div class="t-quote-card">'
+        /* Seluruh kartu adalah tautan ke catatan yang DIKUTIP (bukan catatan
+           yang mengutip) — seperti kartu kutipan X. Karena ada dua catatan
+           berbeda di satu kartu, tautannya harus memakai id catatan kutipan. */
+        var url = notePageUrl(ev);
+        var tag = url ? 'a' : 'div';
+        var open = url
+            ? '<a class="t-quote-card" href="' + esc(url) + '" onclick="event.stopPropagation()">'
+            : '<div class="t-quote-card">';
+
+        return open
             + '<div class="t-quote-head">'
             + '<span class="avatar-' + esc(pk) + ' t-quote-avatar">' + (pk ? '[' + esc(pk.slice(0, 2).toUpperCase()) + ']' : '[?]') + '</span>'
+            + '<span class="t-quote-authorbox">'
             + '<span class="author-' + esc(pk) + ' t-quote-author">' + esc(pk ? pk.slice(0, 8) : '?') + '</span>'
+            + '<span class="handle-' + esc(pk) + ' t-quote-handle"></span>'
+            + '</span>'
             + '</div>'
             + (body ? '<div class="t-quote-body">' + esc(body) + (truncated ? '\u2026' : '') + '</div>' : '')
             + (img ? '<div class="t-quote-media"><img src="' + esc(img) + '" alt="" loading="lazy"></div>' : '')
-            + '</div>';
+            + '</' + tag + '>';
     }
 
     /* Gambar pertama di dalam isi catatan, kalau ada. Dipakai hanya untuk
@@ -386,7 +588,25 @@
         if (!el) return null;
         holder.appendChild(el);
         try { onEvent(ev, el); } catch (e) {}
+        /* Data profil penulis kutipan bisa saja SUDAH ada di singgahan halaman
+           sebelum kartu ini dibuat (mis. penulisnya sama dengan penulis catatan
+           utama, atau profilnya sudah diambil untuk kartu lain). Kalau begitu,
+           halaman tidak akan memanggil pengisi UI-nya lagi dan nama/avatar
+           kartu ini tetap kosong — persis keluhan bos. Jadi setelah kartu
+           dipasang kami minta halaman menerapkannya sekali lagi; kalau datanya
+           belum ada, fungsinya tidak melakukan apa-apa (aman). */
+        applyPageProfile(ev.pubkey);
         return el;
+    }
+
+    /* Halaman pemanggil punya fungsi updatePostUI(pubkey) yang mengisi elemen
+       berkelas author-<pk> / handle-<pk> / avatar-<pk>. Namanya sama di semua
+       halaman supaya cukup satu panggilan di sini — halaman baru cukup
+       menyediakan fungsi itu, tidak perlu mengubah modul. */
+    function applyPageProfile(pubkey) {
+        if (!pubkey) return;
+        var fn = global.updatePostUI;
+        if (typeof fn === 'function') { try { fn(pubkey); } catch (e) {} }
     }
 
     // ----------------------------------------------------------- relay bantu
@@ -477,11 +697,18 @@
         '.gh-card-desc{font-size:0.85em;opacity:0.85;margin-top:2px;word-break:break-word;}',
         '.gh-card-path{font-size:0.78em;opacity:0.6;margin-top:4px;word-break:break-all;}',
         '.gh-card-meta{font-size:0.78em;opacity:0.7;margin-top:4px;}',
-        '.t-quote-card{border-left:3px solid var(--yt-border, var(--left-border, #2a2a2a));'
-            + 'padding:8px 12px;margin-top:10px;background:rgba(255,255,255,0.02);}',
+        /* Kartu kutipan kini sebuah <a>: blok penuh, warna mewarisi, dan ada
+           tanda hover supaya jelas bisa diklik (menuju catatan yang dikutip). */
+        '.t-quote-card{display:block;border-left:3px solid var(--yt-border, var(--left-border, #2a2a2a));'
+            + 'padding:8px 12px;margin-top:10px;background:rgba(255,255,255,0.02);'
+            + 'text-decoration:none;color:inherit;cursor:pointer;transition:background 0.15s,border-color 0.15s;}',
+        '.t-quote-card:hover{background:rgba(255,255,255,0.06);border-left-color:var(--t-green);}',
         '.t-quote-head{display:flex;align-items:center;gap:8px;font-size:0.85em;}',
-        '.t-quote-avatar{font-size:0.9em;opacity:0.9;}',
+        '.t-quote-avatar{font-size:0.9em;opacity:0.9;flex-shrink:0;}',
+        '.t-quote-avatar img{width:20px;height:20px;border-radius:3px;object-fit:cover;display:block;}',
+        '.t-quote-authorbox{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden;}',
         '.t-quote-author{font-weight:bold;}',
+        '.t-quote-handle{font-size:0.92em;opacity:0.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
         '.t-quote-body{font-size:0.9em;margin-top:6px;white-space:pre-wrap;word-break:break-word;}',
         '.t-quote-media img{max-width:100%;margin-top:8px;border:1px solid var(--yt-border, #2a2a2a);}'
     ];
@@ -504,6 +731,10 @@
         isReply: isReply,
         isMachineNote: isMachineNote,
         quoteTargets: quoteTargets,
+        nip19Decode: nip19Decode,
+        nip19PageUrl: nip19PageUrl,
+        notePageUrl: notePageUrl,
+        linkifyNostrUris: linkifyNostrUris,
         githubRepo: githubRepo,
         repoCardHtml: repoCardHtml,
         formatCount: formatCount,

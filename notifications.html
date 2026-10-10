@@ -332,7 +332,7 @@
                 
                 contentText = escapeHtml(contentText.trim());
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, url => `<a href="${url.replace(/&amp;/g, '&')}" target="_blank" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`);
-                contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`; });
+                contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, ev) : contentText;
 
                 contentHtml = `<div class="t-feed-content">${contentText}</div>${mediaHtml}`;
                 actionButtonsHtml = `

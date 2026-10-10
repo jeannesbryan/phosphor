@@ -296,6 +296,20 @@
         let targetFollowingPubkeys = []; let targetFollowersPubkeys = []; let targetMutedPubkeys = [];
         let myFollowingPubkeys = []; let myMutedPubkeys = []; let myMuteEvent = null;
         let followingProfilesCache = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
+
+        /* Halaman ini mengisi nama/avatar/handle saat MENGGAMBAR kartu (bukan lewat
+           panggilan seperti halaman lain). Kartu kutipan muncul belakangan —
+           setelah pengambilan catatan kutipan selesai — jadi ia selalu kosong.
+           Modul kutipan memanggil updatePostUI(pubkey) tepat setelah memasang
+           kartunya; fungsi di bawah ini yang melayaninya, memakai singgahan yang
+           memang dipakai halaman ini. */
+        function updatePostUI(pubkey) {
+            let info = followingProfilesCache[pubkey] || profileCache[pubkey];
+            if (!info || info.pending) return;
+            document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { if (info.handle) el.textContent = info.handle; });
+            document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; });
+        }
         let repostedEvents = new Set();
         let myBookmarks = new Set(); let myBookmarkEvent = null;
 
@@ -790,8 +804,11 @@
                                     profileHandle.innerHTML = domainPart ? `${profileHandleTxt} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" class="text-success" style="text-decoration:none;">${domainPart}</a>` : profileHandleTxt;
                                     
                                     if (profileData.about && profileData.about.trim() !== "") {
-                                        let bioText = profileData.about; let nostrRegex = /(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi;
-                                        bioText = escapeHtml(bioText).replace(nostrRegex, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank">[NOSTR: ${shortId}]</a>`; });
+                                        // Bio juga memakai aturan tautan yang sama (id NIP-19 ->
+                                        // halaman Phosphor). Tanpa `ev` karena bio bukan catatan,
+                                        // jadi tidak ada sasaran kutipan yang perlu dicek.
+                                        let bioText = escapeHtml(profileData.about);
+                                        bioText = window.NostrNote ? window.NostrNote.linkifyNostrUris(bioText, null) : bioText;
                                         profileBio.innerHTML = bioText; profileBio.classList.remove('hidden');
                                     } else { profileBio.classList.add('hidden'); }
                                     
@@ -1018,7 +1035,7 @@
                     
                     contentText = escapeHtml(contentText.trim());
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
-                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
+                    contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, targetEv) : contentText;
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
@@ -1065,7 +1082,7 @@
 
                         contentText = escapeHtml(contentText.trim());
                         contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
-                        contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) { let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4); return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`; });
+                        contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, targetEv) : contentText;
                         contentHtml = `<div class="t-feed-content">${contentText}</div>`;
                     }
                     

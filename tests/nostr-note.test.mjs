@@ -234,6 +234,73 @@ ok('catatan kosong bukan mesin', note.isMachineNote({ kind: 1, content: '', tags
 ok('tanpa field content aman', note.isMachineNote({ kind: 1, tags: [] }) === false);
 ok('ev null aman', note.isMachineNote(null) === false);
 
+// ============ 10. NIP-19 -> tautan dalam + kartu kutipan ============
+// Data ASLI: catatan bos 0000004893… mengutip 5850f17f… lewat tag "q"
+// sekaligus menyisipkan nostr:nevent1… di dalam isinya (gaya Amethyst).
+console.log('--- 10. NIP-19 dan kartu kutipan ---');
+const NEVENT = 'nevent1qqs9s58307yckh6tk2c6xvftmhkjmaad0asqfcp4cv7gpjmg0fw4atspz9mhxue69uhkummnw3ezuamfdejj7q3qgcxzte5zlkncx26j68ez60fzkvtkm9e0vrwdcvsjakxf9mu9qewqxpqqqqqqzwgzuaz';
+const NOTE1 = 'note1tpg0zluf3d05hv435vcjhh0d9hm66lmqqnsrtseusr9ks7jat6hqsp6f3f';
+const NPUB = 'npub1gcxzte5zlkncx26j68ez60fzkvtkm9e0vrwdcvsjakxf9mu9qewqlfnj5z';
+const QUOTED_ID = '5850f17f898b5f4bb2b1a3312bdded2df7ad7f6004e035c33c80cb687a5d5eae';
+const MAIN_ID = '0000004893b8e8f09e316e721dff65a1b087e4bb949c86e470429473213c0c63';
+const MAIN_PK = '460c25e682fda7832b52d1f22d3d22b3176d972f60dcdc3212ed8c92ef85065c';
+const MAIN_EV = {
+    id: MAIN_ID, kind: 1, pubkey: MAIN_PK, created_at: 1,
+    content: 'I should have done this desktop version a long time ago. Agents have so much trouble testing.\nnostr:' + NEVENT,
+    tags: [['p', MAIN_PK, 'wss://vitor.nostr1.com/'], ['q', QUOTED_ID, 'wss://nostr.wine/', MAIN_PK], ['client', 'Amethyst']]
+};
+
+const dN = note.nip19Decode(NEVENT);
+ok('nevent: id benar', dN && dN.id === QUOTED_ID);
+eq('nevent: relay terbaca', dN && dN.relays, ['wss://nostr.wine/']);
+ok('nevent: penulis terbaca', dN && dN.author === MAIN_PK);
+eq('nevent: kind terbaca', dN && dN.kind, 1);
+ok('note1: id benar', note.nip19Decode(NOTE1).id === QUOTED_ID);
+ok('npub: pubkey benar', note.nip19Decode(NPUB).pubkey === MAIN_PK);
+ok('bech32 rusak -> null', note.nip19Decode('nevent1qqsqqqqqqqqqqqqqqqqqqqqqqqqqqqq') === null);
+ok('bukan nip19 -> null', note.nip19Decode('halo dunia') === null);
+ok('campur besar-kecil -> null', note.nip19Decode('NeVent1qqs9s58307') === null);
+ok('bukan teks -> null', note.nip19Decode(null) === null);
+
+eq('nevent -> halaman thread', note.nip19PageUrl(NEVENT), 'thread.html?id=' + QUOTED_ID);
+eq('note -> halaman thread', note.nip19PageUrl(NOTE1), 'thread.html?id=' + QUOTED_ID);
+eq('npub -> halaman profil', note.nip19PageUrl(NPUB), 'profile.html?pubkey=' + MAIN_PK);
+eq('id tak dikenal -> null', note.nip19PageUrl('nevent1qqsxx'), null);
+eq('peristiwa kind 1 -> thread', note.notePageUrl(MAIN_EV), 'thread.html?id=' + MAIN_ID);
+ok('artikel kind 30023 -> notes',
+    /^notes\.html\?d=abc&author=/.test(note.notePageUrl({ id: 'x', kind: 30023, pubkey: MAIN_PK, tags: [['d', 'abc']] })));
+
+// --- linkify: id yang jadi sasaran kutipan dibuang (tidak tampil dua kali) ---
+const linked = note.linkifyNostrUris(MAIN_EV.content, MAIN_EV);
+ok('nevent duplikat dibuang dari isi', linked.indexOf('NOSTR') === -1);
+ok('nevent duplikat: tidak ada href nostr:', linked.indexOf('nostr:') === -1);
+ok('teks aslinya tetap utuh', linked.indexOf('I should have done this desktop version') === 0);
+ok('baris kosong sisa ikut dibersihkan', !/\n\s*$/.test(linked));
+
+// --- linkify: id lain (bukan sasaran kutipan) jadi tautan DALAM ---
+const lain = note.linkifyNostrUris(MAIN_EV.content, { tags: [['q', 'f'.repeat(64)]] });
+ok('nevent lain -> tautan dalam', lain.indexOf('href="thread.html?id=' + QUOTED_ID + '"') !== -1);
+ok('nevent lain bukan tautan protokol', lain.indexOf('href="nostr:') === -1);
+ok('nevent lain: stopPropagation dipasang', lain.indexOf('event.stopPropagation()') !== -1);
+
+const dgnNpub = note.linkifyNostrUris('hai nostr:' + NPUB, null);
+ok('npub -> tautan profil dalam', dgnNpub.indexOf('href="profile.html?pubkey=' + MAIN_PK + '"') !== -1);
+ok('npub: label dipendekkan', dgnNpub.indexOf('[NOSTR: npub1gcxzt...') !== -1);
+ok('tanpa id: teks tidak berubah', note.linkifyNostrUris('cuma teks biasa', MAIN_EV) === 'cuma teks biasa');
+ok('teks bukan string aman', note.linkifyNostrUris(null, MAIN_EV) === null);
+
+// --- kartu kutipan: tautan ke catatan YANG DIKUTIP, bukan yang mengutip ---
+const quotedEv = { id: QUOTED_ID, kind: 1, pubkey: MAIN_PK, created_at: 1, content: "It's finally getting ready. Full Amethyst running on the Desktop.", tags: [] };
+const kartuKutipan = note.quoteCardHtml(quotedEv);
+ok('kartu kutipan berupa tautan', kartuKutipan.indexOf('<a class="t-quote-card"') === 0);
+ok('kartu kutipan -> id catatan kutipan', kartuKutipan.indexOf('href="thread.html?id=' + QUOTED_ID + '"') !== -1);
+ok('kartu kutipan TIDAK -> id catatan pengutip', kartuKutipan.indexOf(MAIN_ID) === -1);
+ok('kartu punya kelas author-', kartuKutipan.indexOf('class="author-' + MAIN_PK) !== -1);
+ok('kartu punya kelas avatar-', kartuKutipan.indexOf('class="avatar-' + MAIN_PK) !== -1);
+ok('kartu punya kelas handle-', kartuKutipan.indexOf('class="handle-' + MAIN_PK) !== -1);
+ok('kartu kutipan artikel -> notes',
+    note.quoteCardHtml({ id: 'x', kind: 30023, pubkey: MAIN_PK, content: 'a', tags: [['d', 'art']] }).indexOf('notes.html?d=art') !== -1);
+
 console.log(results.join('\n'));
 console.log(`\n${pass} ok, ${fail} gagal`);
 process.exit(fail ? 1 : 0);

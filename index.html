@@ -1483,10 +1483,11 @@
                         return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
                     });
 
-                    contentText = contentText.replace(/(?:nostr:)?(n(?:pub|sec|ote|profile|event|addr|relay)1[a-z0-9]+)/gi, function(match, nip19Id) {
-                        let shortId = nip19Id.substring(0, 10) + '...' + nip19Id.substring(nip19Id.length - 4);
-                        return `<a href="nostr:${nip19Id}" class="nostr-embed-link" target="_blank" onclick="event.stopPropagation()">[NOSTR: ${shortId}]</a>`;
-                    });
+                    // Id NIP-19 -> tautan DALAM (thread/profil/notes). Kalau id itu
+                    // menunjuk catatan yang sedang digambar sebagai kartu kutipan,
+                    // taatannya dibuang supaya tidak tampil dua kali. Aturannya satu
+                    // di assets/nostr-note.js (linkifyNostrUris).
+                    contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, ev) : contentText;
 
                     contentHtml = `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>`;
                 }
