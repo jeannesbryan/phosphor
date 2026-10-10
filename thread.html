@@ -29,6 +29,8 @@
          BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
          salin isinya ke halaman. Lihat catatan di berkasnya. -->
     <script src="/assets/blossom-auth.js"></script>
+    <script src="/assets/form-utils.js"></script>
+    <script src="/assets/nostr-like.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -177,7 +179,7 @@
         let RELAYS = []; let BLOSSOM_SERVERS = [];
         const urlParams = new URLSearchParams(window.location.search); const postId = urlParams.get('id');
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let parentEvent = null; let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let eventsCache = {};
-        let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null; let likedEvents = new Set(); let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
+        let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null; let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn');
         const mainPostContainer = document.getElementById('mainPostContainer'); const repliesContainer = document.getElementById('repliesContainer'); const replyContentInput = document.getElementById('replyContentInput'); const sendReplyBtn = document.getElementById('sendReplyBtn'); const myReplyAvatar = document.getElementById('myReplyAvatar'); const replyComposer = document.getElementById('replyComposer');
@@ -191,7 +193,7 @@
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 // Modul catatan butuh daftar relay untuk mengambil catatan yang dikutip (tag "q").
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
-                await checkLocalSessions(); fetchMyAvatar(); initThread();
+                await checkLocalSessions(); fetchMyAvatar(); initThread(); initLikeModule();
             } catch (e) { alert("> ERROR: Missing config.json"); }
         }
 
@@ -287,7 +289,17 @@
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, zapSats: 0, processed: new Set() }; }
         function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); let ez = document.getElementById(`metric-zaps-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; if(ez) ez.textContent = m.zapSats; }
         function requestMetrics(eventId) { pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout); metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16, 9735] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500); }
-        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; } let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey }; try { let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId); } catch (err) { alert('> ERROR: Failed to broadcast like.'); } }
+        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js gagal dimuat.'); await window.NostrLike.toggle(eventId, ev.pubkey); }
+
+        function initLikeModule() {
+            if (!window.NostrLike) return;
+            window.NostrLike.init({
+                pubkey: currentUserPubkey,
+                relays: RELAYS,
+                send: (ev) => { activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", ev])); }); },
+                onCount: (targetId, delta) => { initMetrics(targetId); metricsCache[targetId].likes = Math.max(0, metricsCache[targetId].likes + delta); updateMetricsUI(targetId); }
+            });
+        }
         async function repostEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; } if (!confirm('> Repost this post to your timeline?')) return; let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey }; try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId); alert(`> SUCCESS: Reposted to ${sentCount} relays!`); } catch (err) { alert('> ERROR: Failed to broadcast repost.'); } }
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }

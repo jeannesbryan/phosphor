@@ -42,6 +42,7 @@
     <div id="relayModal" class="t-modal"><div class="t-modal-content"><div class="t-card-header">> SYSTEM_RELAY_STATUS</div><div id="relayListContainer" class="mb-3"><p class="text-muted">Checking network connections...</p></div><div class="text-right"><button class="t-btn danger" onclick="closeRelayModal()">[CLOSE]</button></div></div></div>
 
     <script src="/assets/terminal.js"></script>
+    <script src="/assets/form-utils.js"></script>
     <script>
         let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let relayStatusMap = {}; let activeSockets = [];
         const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn'); const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const editorContainer = document.getElementById('editorContainer');

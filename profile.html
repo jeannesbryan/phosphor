@@ -31,6 +31,8 @@
          BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
          salin isinya ke halaman. Lihat catatan di berkasnya. -->
     <script src="/assets/blossom-auth.js"></script>
+    <script src="/assets/form-utils.js"></script>
+    <script src="/assets/nostr-like.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -294,7 +296,7 @@
         let targetFollowingPubkeys = []; let targetFollowersPubkeys = []; let targetMutedPubkeys = [];
         let myFollowingPubkeys = []; let myMutedPubkeys = []; let myMuteEvent = null;
         let followingProfilesCache = {}; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
-        let likedEvents = new Set(); let repostedEvents = new Set();
+        let repostedEvents = new Set();
         let myBookmarks = new Set(); let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const profileName = document.getElementById('profileName'); const profileHandle = document.getElementById('profileHandle'); const profilePubkeyDisplay = document.getElementById('profilePubkeyDisplay'); const profileBio = document.getElementById('profileBio'); const profileAvatarBox = document.getElementById('profileAvatarBox'); const profileBannerBox = document.getElementById('profileBannerBox'); const profileLightning = document.getElementById('profileLightning'); const lndText = document.getElementById('lndText'); const profileWebsite = document.getElementById('profileWebsite'); const webLink = document.getElementById('webLink'); const profileNip05Container = document.getElementById('profileNip05Container'); const userPostsContainer = document.getElementById('user-posts-container'); const loadMoreBtn = document.getElementById('loadMoreBtn'); const broadcastProfileBtn = document.getElementById('broadcastProfileBtn'); const shareProfileBtn = document.getElementById('shareProfileBtn'); const muteBtn = document.getElementById('muteBtn'); const followBtn = document.getElementById('followBtn'); const followingCountText = document.getElementById('followingCountText'); const followersCountText = document.getElementById('followersCountText'); const mutedCountText = document.getElementById('mutedCountText'); const quoteModal = document.getElementById('quoteModal'); const quoteTargetPreview = document.getElementById('quoteTargetPreview'); const quoteContentInput = document.getElementById('quoteContentInput'); const sendQuoteBtn = document.getElementById('sendQuoteBtn'); const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn'); const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput'); const editModal = document.getElementById('editModal'); const editContentInput = document.getElementById('editContentInput'); const sendEditBtn = document.getElementById('sendEditBtn'); const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const followingModal = document.getElementById('followingModal'); const followingListContainer = document.getElementById('followingListContainer'); const modalFollowingCount = document.getElementById('modalFollowingCount'); const followersModal = document.getElementById('followersModal'); const followersListContainer = document.getElementById('followersListContainer'); const modalFollowersCount = document.getElementById('modalFollowersCount'); const mutedModal = document.getElementById('mutedModal'); const mutedListContainer = document.getElementById('mutedListContainer'); const modalMutedCount = document.getElementById('modalMutedCount'); const rawModal = document.getElementById('rawModal'); const rawEventContent = document.getElementById('rawEventContent');
@@ -518,10 +520,18 @@
 
         async function likeEvent(eventId) {
             let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
-            let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
-            try { let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId); } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
+            if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js gagal dimuat.');
+            await window.NostrLike.toggle(eventId, ev.pubkey);
+        }
+
+        function initLikeModule() {
+            if (!window.NostrLike) return;
+            window.NostrLike.init({
+                pubkey: currentUserPubkey,
+                relays: RELAYS,
+                send: (ev) => { activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", ev])); }); },
+                onCount: (targetId, delta) => { initMetrics(targetId); metricsCache[targetId].likes = Math.max(0, metricsCache[targetId].likes + delta); updateMetricsUI(targetId); }
+            });
         }
 
         async function repostEvent(eventId) {
@@ -593,7 +603,7 @@
             if (!targetPubkey) { targetPubkey = currentUserPubkey; }
             isMyProfile = (targetPubkey === currentUserPubkey); updateAuthState();
             if (!targetPubkey) { relayStatusBtn.textContent = '[ RELAYS: DISCONNECTED ]'; profilePubkeyDisplay.textContent = 'Data not found.'; return; }
-            profilePubkeyDisplay.textContent = targetPubkey; profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`; connectMultiRelays();
+            profilePubkeyDisplay.textContent = targetPubkey; profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`; connectMultiRelays(); initLikeModule();
         }
 
         function isExpiredEvent(ev) {
@@ -794,7 +804,12 @@
                             }
 
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || ev.kind === 21 || ev.kind === 22 || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
-                                if (!userEventsList.some(item => item.id === ev.id)) { userEventsList.push(ev); triggerDebouncedRender(); }
+                                // Balasan (NIP-10) tidak ditampilkan di feed profil — sama seperti
+                                // linimasa. Catatan yang MENGUTIP tetap tampil; yang dibuang hanya
+                                // yang menunjuk catatan induk lewat tag "e". Aturannya ada di
+                                // assets/nostr-note.js supaya tidak ada salinan kedua.
+                                let balasanProfil = (ev.kind === 1 && window.NostrNote && window.NostrNote.isReply(ev));
+                                if (!balasanProfil && !userEventsList.some(item => item.id === ev.id)) { userEventsList.push(ev); triggerDebouncedRender(); }
                                 if (ev.kind === 6 || ev.kind === 16) { try { let innerEv = JSON.parse(ev.content); if (innerEv.pubkey !== targetPubkey) { requestProfileInfo(innerEv.pubkey); } } catch(e){} }
                             }
                         }

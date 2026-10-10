@@ -37,6 +37,10 @@
          BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
          salin isinya ke halaman. Lihat catatan di berkasnya. -->
     <script src="/assets/blossom-auth.js"></script>
+    <!-- Tombol lihat/sembunyikan sandi + Enter-untuk-kirim. Satu modul, sembilan halaman. -->
+    <script src="/assets/form-utils.js"></script>
+    <!-- Aturan suka/batal (NIP-25 + NIP-09), satu modul untuk enam halaman. -->
+    <script src="/assets/nostr-like.js"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -340,7 +344,8 @@
         let pendingMetricsIds = new Set();
         let metricsTimeout = null;
         
-        let likedEvents = new Set();
+        // Keadaan "sudah suka" tidak lagi disimpan di halaman ini: assets/nostr-like.js
+        // yang membangunnya dari relay, sehingga perangkat lain ikut berubah.
         let repostedEvents = new Set();
 
         let myBookmarks = new Set();
@@ -399,6 +404,7 @@
                 updateAuthState();
                 fetchMyAvatarAndBookmarks();
                 connectMultiRelays();
+                initLikeModule();
             } catch (e) {
                 console.error("Failed to load config.json", e);
                 alert("> ERROR: Missing config.json");
@@ -406,6 +412,20 @@
         }
 
         // ================= TIMELINE TABS LOGIC =================
+        // Kirim REQ feed-FOLLOWING ke satu soket. Dipakai saat soket terbuka dan
+        // saat daftar following bertambah belakangan.
+        function followingSubscribeTo(socket) {
+            let authors = Array.from(myFollowing);
+            if (!authors.length) return;
+            socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "authors": authors, "limit": 40 }]));
+        }
+        // Minta ulang feed-FOLLOWING ke semua soket yang sudah terbuka.
+        function refollowFeed() {
+            activeSockets.forEach(sock => {
+                if (sock && sock.readyState === WebSocket.OPEN) { try { followingSubscribeTo(sock); } catch (e) {} }
+            });
+        }
+
         function switchTimeline(tab) {
             activeTab = tab;
             let container = document.getElementById('posts-container');
@@ -667,6 +687,10 @@
                 document.getElementById('unlockModal').style.display = 'none';
                 
                 tabFollowing.classList.remove('hidden');
+                // Setelah masuk (atau kunci sesi terbuka) linimasa harus mendarat di
+                // FOLLOWING, bukan GLOBAL. Dulu keadaan itu hanya "kebetulan" benar
+                // karena class awal di HTML; sekarang dinyatakan tegas di sini.
+                if (activeTab !== 'following') switchTimeline('following');
                 
             } else {
                 navLoginBtn.classList.remove('hidden');
@@ -812,12 +836,17 @@
                         if (d[2].kind === 3) {
                             if (!myContactEvent || d[2].created_at > myContactEvent.created_at) {
                                 myContactEvent = d[2];
+                                let followingBefore = myFollowing.size;
                                 d[2].tags.forEach(t => { if (t[0] === 'p') myFollowing.add(t[1]); });
                                 localStorage.setItem('phosphor_following', JSON.stringify(Array.from(myFollowing)));
                                 document.querySelectorAll('.t-feed-card').forEach(card => {
                                     let author = card.dataset.author;
                                     if (myFollowing.has(author)) card.classList.add('is-followed');
                                 });
+                                // Daftar following baru saja bertambah SETELAH soket linimasa
+                                // terbuka: minta ulang feed-following supaya catatan dari akun
+                                // yang diikuti ikut dimuat (dulu feed berikut tampak kosong).
+                                if (myFollowing.size > followingBefore) refollowFeed();
                             }
                         }
                     }
@@ -894,16 +923,22 @@
             }, 1500);
         }
 
+        // Aturan suka/batal satu tempat: assets/nostr-like.js (dipakai enam halaman).
+        // Halaman ini hanya meneruskan dan menyesuaikan penghitungnya.
         async function likeEvent(eventId) {
             let ev = eventsCache[eventId]; if (!ev) return;
-            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
-            if (likedEvents.has(eventId)) { alert('> ERROR: You have already liked this event.'); return; }
-            let rawEvent = { kind: 7, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, ""], ["p", ev.pubkey, ""]], content: "+", pubkey: currentUserPubkey };
-            try {
-                let signedEvent = await window.nostr.signEvent(rawEvent);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); });
-                likedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].likes++; updateMetricsUI(eventId);
-            } catch (err) { alert('> ERROR: Failed to broadcast like.'); }
+            if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js gagal dimuat.');
+            await window.NostrLike.toggle(eventId, ev.pubkey);
+        }
+
+        function initLikeModule() {
+            if (!window.NostrLike) return;
+            window.NostrLike.init({
+                pubkey: currentUserPubkey,
+                relays: RELAYS,
+                send: (ev) => { activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", ev])); }); },
+                onCount: (targetId, delta) => { initMetrics(targetId); metricsCache[targetId].likes = Math.max(0, metricsCache[targetId].likes + delta); updateMetricsUI(targetId); }
+            });
         }
 
         async function repostEvent(eventId) {
@@ -1025,10 +1060,11 @@
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[RELAYS: ${onlineCount}/${RELAYS.length} ONLINE]`;
                     
-                    let followingAuthors = Array.from(myFollowing);
-                    if (followingAuthors.length > 0) {
-                        socket.send(JSON.stringify(["REQ", "feed-following-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "authors": followingAuthors, "limit": 40 }]));
-                    }
+                    // Minta linimasa FOLLOWING. Dipusatkan di satu fungsi karena harus
+                    // dipanggil ULANG begitu daftar following dari kind-3 bertambah —
+                    // kalau tidak, akun yang diikuti tidak akan pernah muncul saat soket
+                    // ini terbuka lebih dulu daripada kedatangan kind-3.
+                    followingSubscribeTo(socket);
                     if (globalSubscribed) {
                         socket.send(JSON.stringify(["REQ", "feed-global-" + Math.random(), { "kinds": [1, 6, 16, 21, 22, 1301, 30023, 20000], "limit": 40 }]));
                     }
