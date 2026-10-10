@@ -493,6 +493,10 @@
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
                             if (isExpiredEvent(ev)) return;
+                            // Catatan mesin (JSON presence/telemetri) tidak ditampilkan —
+                            // penjelajah relay paling banjir olehnya dan blok JSON-nya
+                            // membuat halaman berat. Aturannya di assets/nostr-note.js.
+                            if (ev.kind === 1 && window.NostrNote && window.NostrNote.isMachineNote(ev)) return;
                             if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`reply-${t[1]}`); if (oldCard) oldCard.remove(); if (eventsCache[t[1]]) delete eventsCache[t[1]]; } }); return; }
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) { if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) { myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); }); document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; }); } }
                             eventsCache[ev.id] = ev;
