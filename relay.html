@@ -24,6 +24,8 @@
     <script src="/assets/nostr-note.js?v=20261011d"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261011d"></script>
+    <!-- NIP-11 relay information document. The relay's own metadata is untrusted, so the module escapes it. -->
+    <script src="/assets/nostr-relay-info.js?v=20261011d"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
@@ -60,6 +62,10 @@
             <div class="font-bold fs-4 text-success" id="displayDomain" style="word-break: break-all;">...</div>
             <div class="fs-small opacity-75 mt-2" id="displayWsUrl">Establishing persistent link...</div>
         </div>
+
+        <!-- NIP-11 relay information document. Filled in once we know which
+             WebSocket URL really answered; left empty before that. -->
+        <div id="relayInfoPanel" class="t-card mb-4 hidden"></div>
 
         <div class="d-flex flex-column gap-3" id="feedContainer">
             <p class="text-muted text-center">[ Waiting for relay transmission... ]</p>
@@ -218,7 +224,7 @@
         let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn');
-        const feedContainer = document.getElementById('feedContainer'); const displayDomain = document.getElementById('displayDomain'); const displayWsUrl = document.getElementById('displayWsUrl');
+        const feedContainer = document.getElementById('feedContainer'); const displayDomain = document.getElementById('displayDomain'); const displayWsUrl = document.getElementById('displayWsUrl'); const relayInfoPanel = document.getElementById('relayInfoPanel');
         const quoteModal = document.getElementById('quoteModal'); const quoteTargetPreview = document.getElementById('quoteTargetPreview'); const quoteContentInput = document.getElementById('quoteContentInput'); const sendQuoteBtn = document.getElementById('sendQuoteBtn'); const uploadQuoteMediaBtn = document.getElementById('uploadQuoteMediaBtn'); const quoteMediaUploadInput = document.getElementById('quoteMediaUploadInput');
         const editModal = document.getElementById('editModal'); const editContentInput = document.getElementById('editContentInput'); const sendEditBtn = document.getElementById('sendEditBtn');
         const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const rawModal = document.getElementById('rawModal'); const rawEventContent = document.getElementById('rawEventContent');
@@ -244,6 +250,9 @@
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 if (!RELAYS.includes(targetWsUrl)) RELAYS.push(targetWsUrl);
+                // NIP-11: show the relay's own information document. Optional —
+                // if the relay does not answer, the explorer below is unaffected.
+                if (window.NostrRelayInfo && relayInfoPanel) { relayInfoPanel.classList.remove('hidden'); window.NostrRelayInfo.load(targetWsUrl, relayInfoPanel); }
                 // The relay list is final here (including a relay chosen from the URL).
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 await checkLocalSessions(); connectNetworks(); initLikeModule();

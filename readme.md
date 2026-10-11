@@ -53,6 +53,7 @@ node tests/blossom-auth.test.mjs     # 100 assertions
 node tests/nostr-like.test.mjs       # 113 assertions
 node tests/reply-thread.test.mjs     # 20 assertions
 node tests/nostr-nip05.test.mjs      # 79 assertions
+node tests/nostr-relay-info.test.mjs # 66 assertions
 ```
 
 `tests/blossom-auth.test.mjs` guards a real incident: blossom-server 6.4.1
