@@ -1,11 +1,11 @@
-/* Tes untuk assets/nostr-like.js
-   Jalankan: node tests/nostr-like.test.mjs
-   Murni — tanpa browser, tanpa jaringan (WebSocket sengaja tidak ada supaya
-   modul memakai jalur `send` yang diberikan halaman).
+/* Tests for assets/nostr-like.js
+   Run: node tests/nostr-like.test.mjs
+   Pure — no browser, no network (WebSocket is deliberately absent so the module
+   takes the `send` path the page provides).
 
-   Yang dijaga tes ini adalah janji ke bos (2026-10-11): suka harus bisa
-   DIBATALKAN, tanda "sudah suka" harus muncul, dan keadaan harus dibangun dari
-   relay (bukan dari memori perangkat) supaya HP dan laptop sepakat.
+   What this test guards is the promise made to bos (2026-10-11): a like must be
+   UNDOABLE, the "already liked" mark must appear, and the state must be built
+   from the relay (not from per-device memory) so the phone and the laptop agree.
 */
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -23,7 +23,7 @@ function ok(name, cond) { if (cond) { pass++; results.push('  ok   ' + name); } 
 function eq(name, got, want) {
     const g = JSON.stringify(got), w = JSON.stringify(want);
     if (g === w) { pass++; results.push('  ok   ' + name); }
-    else { fail++; results.push(`  FAIL ${name}\n         dapat: ${g}\n         ingin: ${w}`); }
+    else { fail++; results.push(`  FAIL ${name}\n         got: ${g}\n         want: ${w}`); }
 }
 
 const ME = 'aa'.repeat(32);
@@ -47,74 +47,75 @@ function setup(opts) {
     }, opts || {}));
 }
 
-// ===================== 1. suka =====================
+// ===================== 1. like =====================
 setup();
-ok('awalnya belum disukai', like.isLiked('t1') === false);
+ok('not liked at first', like.isLiked('t1') === false);
 const liked = await like.toggle('t1', OTHER);
-eq('toggle pertama -> true', liked, true);
-ok('isLiked sekarang true', like.isLiked('t1') === true);
-eq('satu peristiwa terkirim', sent.length, 1);
-eq('jenisnya kind 7', sent[0].kind, 7);
-eq('tag e menunjuk catatan', sent[0].tags[0], ['e', 't1', '']);
-eq('tag p menunjuk penulis', sent[0].tags[1], ['p', OTHER, '']);
-eq('isi "+"', sent[0].content, '+');
-eq('penghitung naik sekali', counts, [['t1', 1]]);
-ok('id peristiwa suka dicatat', like.reactionFor('t1') === 'sig1');
+eq('first toggle -> true', liked, true);
+ok('isLiked is now true', like.isLiked('t1') === true);
+eq('one event sent', sent.length, 1);
+eq('its kind is 7', sent[0].kind, 7);
+eq('tag e points at the note', sent[0].tags[0], ['e', 't1', '']);
+eq('tag p points at the author', sent[0].tags[1], ['p', OTHER, '']);
+eq('content "+"', sent[0].content, '+');
+eq('the counter goes up once', counts, [['t1', 1]]);
+ok('the like event id is recorded', like.reactionFor('t1') === 'sig1');
 
-// ===================== 2. batal (bagian yang dulu tidak ada) =====================
+// ===================== 2. undo (the part that did not exist before) =====================
 const after = await like.toggle('t1', OTHER);
-eq('toggle kedua -> false', after, false);
-ok('isLiked kembali false', like.isLiked('t1') === false);
-eq('dua peristiwa terkirim', sent.length, 2);
-eq('yang kedua kind 5 (NIP-09)', sent[1].kind, 5);
-eq('menunjuk id peristiwa suka', sent[1].tags[0], ['e', 'sig1']);
-eq('menyebut kind yang dihapus', sent[1].tags[1], ['k', '7']);
-eq('penghitung turun sekali', counts, [['t1', 1], ['t1', -1]]);
-eq('jejak suka dibersihkan', like.reactionFor('t1'), null);
-ok('tidak ada alert (bukan lagi jalan buntu)', (globalThis.__alerts || 0) === 0);
+eq('second toggle -> false', after, false);
+ok('isLiked is false again', like.isLiked('t1') === false);
+eq('two events sent', sent.length, 2);
+eq('the second is kind 5 (NIP-09)', sent[1].kind, 5);
+eq('points at the like event id', sent[1].tags[0], ['e', 'sig1']);
+eq('names the deleted kind', sent[1].tags[1], ['k', '7']);
+eq('the counter goes down once', counts, [['t1', 1], ['t1', -1]]);
+eq('the like trace is cleared', like.reactionFor('t1'), null);
+ok('no alert (no longer a dead end)', (globalThis.__alerts || 0) === 0);
 
-// ===================== 3. keadaan dibangun dari relay =====================
+// ===================== 3. state built from the relay =====================
 setup();
 like.absorb({ id: 'r1', pubkey: ME, kind: 7, created_at: 100, tags: [['e', 't9']] });
-ok('suka dari perangkat lain terbaca', like.isLiked('t9') === true);
-eq('penghitung ikut naik', counts, [['t9', 1]]);
+ok('a like from another device is read', like.isLiked('t9') === true);
+eq('the counter goes up too', counts, [['t9', 1]]);
 like.absorb({ id: 'r1', pubkey: ME, kind: 7, created_at: 100, tags: [['e', 't9']] });
-eq('peristiwa sama tidak dihitung dua kali', counts, [['t9', 1]]);
+eq('the same event is not counted twice', counts, [['t9', 1]]);
 
 setup();
 like.absorb({ id: 'r2', pubkey: ME, kind: 7, created_at: 100, tags: [['e', 't9']] });
 like.absorb({ id: 'd1', pubkey: ME, kind: 5, created_at: 101, tags: [['e', 'r2']] });
-ok('pembatalan dari perangkat lain terbaca', like.isLiked('t9') === false);
-eq('penghitung turun', counts, [['t9', 1], ['t9', -1]]);
+ok('an undo from another device is read', like.isLiked('t9') === false);
+eq('the counter goes down', counts, [['t9', 1], ['t9', -1]]);
 
-// peristiwa milik orang lain diabaikan
+// another person's events are ignored
 setup();
-ok('kind 7 orang lain diabaikan', like.absorb({ id: 'x', pubkey: OTHER, kind: 7, created_at: 1, tags: [['e', 't3']] }) === false);
-ok('tidak jadi disukai', like.isLiked('t3') === false);
+ok("another person's kind 7 is ignored", like.absorb({ id: 'x', pubkey: OTHER, kind: 7, created_at: 1, tags: [['e', 't3']] }) === false);
+ok('it does not become liked', like.isLiked('t3') === false);
 
-// sasaran diambil dari tag "e" TERAKHIR (NIP-25)
+// the target comes from the LAST "e" tag (NIP-25)
 setup();
 like.absorb({ id: 'r3', pubkey: ME, kind: 7, created_at: 1, tags: [['e', 'root'], ['e', 'last']] });
-ok('tag e terakhir yang jadi sasaran', like.isLiked('last') === true && like.isLiked('root') === false);
+ok('the last e tag is the target', like.isLiked('last') === true && like.isLiked('root') === false);
 
-// ===================== 4. fase riwayat tidak mengubah penghitung =====================
+// ===================== 4. the history phase must not change the counter =====================
 setup();
 like.absorb({ id: 'r4', pubkey: ME, kind: 7, created_at: 1, tags: [['e', 't7']] });
-// setup() memakai historyMs: 0 -> fase riwayat sudah lewat. Sekarang uji
-// kebalikannya: fase riwayat aktif (historyMs besar) harus TIDAK menambah angka,
-// karena angka kartu sudah dihitung dari permintaan metrics halaman.
+// setup() uses historyMs: 0 -> the history phase is already over. Now test the
+// opposite: an ACTIVE history phase (large historyMs) must NOT add to the
+// number, because the card counter was already computed from the page's metrics
+// request.
 like.reset();
 like.init({ pubkey: ME, relays: [], send: () => {}, onCount: (id, d) => counts.push([id, d]), historyMs: 60000 });
 counts.length = 0;
 like.absorb({ id: 'r5', pubkey: ME, kind: 7, created_at: 1, tags: [['e', 't8']] });
-ok('tanda "suka" muncul walau fase riwayat', like.isLiked('t8') === true);
-eq('penghitung TIDAK berubah saat riwayat', counts, []);
+ok('the like mark appears even in the history phase', like.isLiked('t8') === true);
+eq('the counter does NOT change during history', counts, []);
 
-// ========== 4b. URUTAN KEDATANGAN (bug asli bos, 2026-10-11) ==========
-/* Bos punya EMPAT reaksi untuk satu catatan; salah satunya sudah dihapus, tapi
-   relay lain masih menyajikan yang basi itu. Versi lama ("reaksi terakhir
-   menang") membuat tanda suka HILANG kalau reaksi basi + surat hapusnya tiba
-   paling akhir — itu sebabnya index hijau padahal profil merah. */
+// ========== 4b. ARRIVAL ORDER (bos's original bug, 2026-10-11) ==========
+/* Bos had FOUR reactions for one note; one of them was deleted, but another
+   relay still serves that stale one. The old version ("last reaction wins")
+   made the like mark VANISH when the stale reaction plus its deletion notice
+   arrived last — that is why the index was green while the profile was red. */
 const T = 'bf967208bdd68c098b51c166bad31029bc2ed0c7a830cf3caada81fc60214e2e';
 const LIVE_A = { id: 'a1', pubkey: ME, kind: 7, created_at: 100, tags: [['e', T]] };
 const LIVE_B = { id: 'a2', pubkey: ME, kind: 7, created_at: 150, tags: [['e', T]] };
@@ -122,74 +123,74 @@ const LIVE_C = { id: 'a3', pubkey: ME, kind: 7, created_at: 120, tags: [['e', T]
 const STALE_D = { id: 'a4', pubkey: ME, kind: 7, created_at: 175, tags: [['e', T]] };
 const DEL_D = { id: 'd4', pubkey: ME, kind: 5, created_at: 900, tags: [['e', 'a4']] };
 
-// (i) reaksi hidup dulu, lalu reaksi basi, BARU surat hapusnya
+// (i) live reactions first, then the stale one, and the deletion notice last
 setup();
 [LIVE_A, LIVE_B, LIVE_C, STALE_D, DEL_D].forEach(e => like.absorb(e));
-ok('urutan: hidup->basi->hapus tetap disukai', like.isLiked(T) === true);
-eq('urutan: reaksi hidup terlama yang dipakai', like.reactionFor(T), 'a2');
+ok('order: live->stale->delete stays liked', like.isLiked(T) === true);
+eq('order: the newest live reaction is used', like.reactionFor(T), 'a2');
 
-// (ii) surat hapus tiba LEBIH DULU daripada reaksi basinya
+// (ii) the deletion notice arrives BEFORE its stale reaction
 setup();
 [DEL_D, LIVE_A, STALE_D].forEach(e => like.absorb(e));
-ok('urutan: hapus->basi tetap disukai', like.isLiked(T) === true);
-ok('reaksi basi tidak dihitung walau tiba belakangan', like.reactionFor(T) === 'a1');
+ok('order: delete->stale stays liked', like.isLiked(T) === true);
+ok('a stale reaction is not counted even when it arrives late', like.reactionFor(T) === 'a1');
 
-// (iii) hanya ada reaksi basi + hapusnya -> memang tidak disukai
+// (iii) only a stale reaction plus its deletion -> genuinely not liked
 setup();
 [STALE_D, DEL_D].forEach(e => like.absorb(e));
-ok('hanya reaksi terhapus -> tidak disukai', like.isLiked(T) === false);
-eq('tidak ada reaksi hidup tersisa', like.reactionFor(T), null);
+ok('only a deleted reaction -> not liked', like.isLiked(T) === false);
+eq('no live reaction left', like.reactionFor(T), null);
 
-// (iv) penghitung hanya bergerak sekali walau banyak reaksi untuk catatan sama
+// (iv) the counter moves only once even with many reactions for the same note
 setup();
 [LIVE_A, LIVE_B, LIVE_C].forEach(e => like.absorb(e));
-eq('tiga reaksi, kenaikan hanya sekali', counts, [[T, 1]]);
+eq('three reactions, only one increase', counts, [[T, 1]]);
 
-// (v) unlike hanya membatalkan yang jadi milik kita, sisanya tetap
+// (v) an unlike only cancels the one that is ours; the rest stay
 setup();
 [LIVE_A, LIVE_B].forEach(e => like.absorb(e));
 like.absorb({ id: 'd1', pubkey: ME, kind: 5, created_at: 1000, tags: [['e', like.reactionFor(T)]] });
-ok('unlike satu reaksi: masih disukai oleh reaksi lain', like.isLiked(T) === true);
-eq('yang tersisa reaksi terlama', like.reactionFor(T), 'a1');
+ok('unlike one reaction: still liked by another', like.isLiked(T) === true);
+eq('the one left is the older reaction', like.reactionFor(T), 'a1');
 
-// ===================== 5. belum masuk =====================
+// ===================== 5. not logged in =====================
 like.reset();
 sent = [];
 like.init({ pubkey: null, relays: [], send: (ev) => sent.push(ev) });
 globalThis.__alerts = 0;
 const r = await like.toggle('t5', OTHER);
-eq('toggle tanpa pubkey -> false', r, false);
-eq('tanpa pubkey tidak mengirim apa pun', sent.length, 0);
-ok('tanpa pubkey memberi tahu pengguna', (globalThis.__alerts || 0) === 1);
+eq('toggle without a pubkey -> false', r, false);
+eq('without a pubkey nothing is sent', sent.length, 0);
+ok('without a pubkey the user is told', (globalThis.__alerts || 0) === 1);
 
-// ===================== 6. struktur halaman =====================
+// ===================== 6. page structure =====================
 const PAGES = ['index.html', 'thread.html', 'notes.html', 'bookmark.html', 'relay.html', 'profile.html'];
 const ALL_PAGES = PAGES.concat(['activity.html', 'compose.html']);
 for (const p of ALL_PAGES) {
     const html = readFileSync(join(root, p), 'utf8');
     const src = readFileSync(join(root, 'assets', 'form-utils.js'), 'utf8');
-    ok(`${p}: memuat form-utils.js`, html.includes('/assets/form-utils.js'));
+    ok(`${p}: loads form-utils.js`, html.includes('/assets/form-utils.js'));
     if (!html.includes('type="password"')) continue;
     const ids = [...html.matchAll(/<input[^>]*type="password"[^>]*id="([^"]+)"/g)].map(m => m[1]);
     for (const id of ids) {
-        ok(`${p}: kolom sandi ${id} terdaftar untuk Enter`, src.includes(`'${id}'`));
+        ok(`${p}: password field ${id} is registered for Enter`, src.includes(`'${id}'`));
     }
 }
 for (const p of PAGES) {
     const html = readFileSync(join(root, p), 'utf8');
-    ok(`${p}: memuat nostr-like.js`, html.includes('/assets/nostr-like.js'));
-    ok(`${p}: memanggil initLikeModule()`, html.includes('initLikeModule();'));
-    ok(`${p}: likeEvent meneruskan ke modul`, html.includes('NostrLike.toggle'));
-    ok(`${p}: tidak lagi menyimpan likedEvents sendiri`, !html.includes('likedEvents'));
-    ok(`${p}: tidak lagi menyimpan aturan kind 7 sendiri`, !html.includes('kind: 7'));
+    ok(`${p}: loads nostr-like.js`, html.includes('/assets/nostr-like.js'));
+    ok(`${p}: calls initLikeModule()`, html.includes('initLikeModule();'));
+    ok(`${p}: likeEvent forwards to the module`, html.includes('NostrLike.toggle'));
+    ok(`${p}: no longer keeps its own likedEvents`, !html.includes('likedEvents'));
+    ok(`${p}: no longer keeps its own kind 7 rule`, !html.includes('kind: 7'));
 }
 
-// ===================== 7. balasan disembunyikan (index + profile) =====================
+// ===================== 7. replies are hidden (index + profile) =====================
 for (const p of ['index.html', 'profile.html']) {
     const html = readFileSync(join(root, p), 'utf8');
-    ok(`${p}: memakai NostrNote.isReply untuk menyaring balasan`, html.includes('NostrNote.isReply'));
+    ok(`${p}: uses NostrNote.isReply to filter replies`, html.includes('NostrNote.isReply'));
 }
 
 console.log(results.join('\n'));
-console.log(`\n${pass} ok, ${fail} gagal`);
+console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

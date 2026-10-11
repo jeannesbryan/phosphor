@@ -19,18 +19,18 @@
         .reply-container { margin-left: 15px; border-left: 2px dashed var(--t-green); padding-left: 15px; }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
-    <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
-         satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
-    <script src="/assets/nostr-embed.js?v=20261011b"></script>
-    <!-- Aturan struktur catatan: mana yang balasan (NIP-10), mana yang mengutip
-         (NIP-18), dan kartu pratinjau tautan GitHub. -->
-    <script src="/assets/nostr-note.js?v=20261011b"></script>
-    <!-- Aturan unggah media ke Blossom (sha256 berkas + tag otorisasi
-         BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
-         salin isinya ke halaman. Lihat catatan di berkasnya. -->
-    <script src="/assets/blossom-auth.js?v=20261011b"></script>
-    <script src="/assets/form-utils.js?v=20261011b"></script>
-    <script src="/assets/nostr-like.js?v=20261011b"></script>
+    <!-- YouTube links inside notes become video players. The rules live in one
+         file; pages only use them. See the note in that file. -->
+    <script src="/assets/nostr-embed.js?v=20261011c"></script>
+    <!-- Note structure rules: which notes are replies (NIP-10), which quote
+         (NIP-18), and the GitHub link preview card. -->
+    <script src="/assets/nostr-note.js?v=20261011c"></script>
+    <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
+         tag). One file is shared by all seven pages — do not copy its content
+         into a page. See the note in that file. -->
+    <script src="/assets/blossom-auth.js?v=20261011c"></script>
+    <script src="/assets/form-utils.js?v=20261011c"></script>
+    <script src="/assets/nostr-like.js?v=20261011c"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -191,7 +191,7 @@
             try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
-                // Modul catatan butuh daftar relay untuk mengambil catatan yang dikutip (tag "q").
+                // The note module needs the relay list to fetch quoted notes (tag "q").
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
                 await checkLocalSessions(); fetchMyAvatar(); initThread(); initLikeModule();
             } catch (e) { alert("> ERROR: Missing config.json"); }
@@ -219,19 +219,19 @@
         function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
         logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
-        /* Aturan unggah ke Blossom (sha256 berkas, tag otorisasi BUD-11 `x`,
-           header `Nostr <base64>`) hidup di /assets/blossom-auth.js — JANGAN
-           salin ke halaman ini. Dulu salinannya ada di tujuh halaman, dan saat
-           blossom dinaikkan ke 6.4.1 semuanya harus diperbaiki satu per satu
-           (kalau tidak, setiap unggahan ditolak 403). */
+        /* The Blossom upload rules (file sha256, BUD-11 `x` authorization tag,
+           `Nostr <base64>` header) live in /assets/blossom-auth.js — do NOT
+           copy them into this page. They used to be copied in seven pages, and
+           when blossom was upgraded to 6.4.1 all of them had to be fixed one by
+           one (otherwise every upload was rejected with 403). */
         function handleMediaUpload(files, btnElement, textareaElement) {
-            if (!window.BlossomAuth) return alert('> ERROR: assets/blossom-auth.js gagal dimuat — unggahan dibatalkan.');
+            if (!window.BlossomAuth) return alert('> ERROR: assets/blossom-auth.js failed to load — upload cancelled.');
             return window.BlossomAuth.uploadSelectedFiles(files, btnElement, textareaElement, {
                 servers: BLOSSOM_SERVERS,
                 fallbackServer: 'https://blossom.jeannesbryan.my.id',
                 pubkey: currentUserPubkey,
-                // Tanpa penanda tangan (ekstensi hilang/terlepas) modul memberi
-                // pesan "belum masuk", bukan pesan "server tidak bisa dihubungi".
+                // With no signer (extension missing/detached) the module reports
+                // "not logged in" instead of a misleading "server unreachable".
                 sign: window.nostr ? (ev) => window.nostr.signEvent(ev) : null
             });
         }
@@ -289,7 +289,7 @@
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, zapSats: 0, processed: new Set() }; }
         function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); let ez = document.getElementById(`metric-zaps-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; if(ez) ez.textContent = m.zapSats; if (window.NostrLike) window.NostrLike.applyState(id); }
         function requestMetrics(eventId) { pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout); metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16, 9735] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500); }
-        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js gagal dimuat.'); await window.NostrLike.toggle(eventId, ev.pubkey); }
+        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js failed to load.'); await window.NostrLike.toggle(eventId, ev.pubkey); }
 
         function initLikeModule() {
             if (!window.NostrLike) return;
@@ -474,18 +474,18 @@
         }
 
         function renderMainPost(ev) {
-            // Catatan mesin (JSON presence/telemetri) tidak digambar — isinya bukan
-            // tulisan manusia dan blok JSON-nya membuat halaman berat. Diganti
-            // pemberitahuan ringkas supaya pengunjung tahu kenapa kosong.
+            // Machine notes (JSON presence/telemetry) are not drawn — their
+            // content is not human writing and the JSON block makes the page
+            // heavy. A short notice replaces them so a visitor knows why.
             if (window.NostrNote && window.NostrNote.shouldHideNote(ev)) {
-                var sebab = window.NostrNote.isEmptyNote(ev)
-                    ? 'Catatan ini tidak berisi apa pun dan tidak punya media.'
-                    : 'Catatan ini berisi data mesin (JSON presence/telemetri), bukan tulisan.';
+                var reason = window.NostrNote.isEmptyNote(ev)
+                    ? 'This note has no content and no media.'
+                    : 'This note carries machine data (JSON presence/telemetry), not writing.';
                 mainPostContainer.innerHTML = `
                     <div class="t-card">
-                        <div class="t-card-header">> CATATAN_TIDAK_DITAMPILKAN</div>
-                        <p class="text-muted mb-2">${sebab}</p>
-                        <p class="text-muted fs-small mb-0">Tidak ditampilkan supaya halaman tetap ringan. Peristiwa: <code>${escapeHtml(ev.id.substring(0, 16))}...</code></p>
+                        <div class="t-card-header">> NOTE_NOT_SHOWN</div>
+                        <p class="text-muted mb-2">${reason}</p>
+                        <p class="text-muted fs-small mb-0">Hidden to keep the page light. Event: <code>${escapeHtml(ev.id.substring(0, 16))}...</code></p>
                     </div>`;
                 return;
             }
@@ -513,11 +513,11 @@
             } else if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-3">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
-                // Satu lintasan untuk semua media, supaya urutan di dalam catatan
-                // tetap seperti aslinya (gambar dulu, video kemudian, atau
-                // sebaliknya). Aturan "URL mana yang dianggap video YouTube" hidup
-                // di /assets/nostr-embed.js. Kalau berkas itu gagal dimuat, tautan
-                // YouTube kembali jadi teks biasa dan media berkas tetap tampil.
+                // One pass for all media, so the order inside the note stays as
+                // it was written (images first, videos later, or the other way
+                // round). The rules for "which URLs count as YouTube video" live
+                // in /assets/nostr-embed.js. If that file fails to load, YouTube
+                // links fall back to plain text and file media still shows.
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
                     let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
                     if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
@@ -567,14 +567,14 @@
                 </div>
             `;
             injectZapControls(mainPostContainer.lastElementChild, ev);
-            pasangCatatanTambahan(mainPostContainer.lastElementChild, ev);
+            attachNoteExtras(mainPostContainer.lastElementChild, ev);
             updateMetricsUI(ev.id);
         }
 
-        /* Kutipan (NIP-18) + pratinjau tautan GitHub untuk satu kartu catatan.
-           Dipakai baik oleh catatan utama maupun balasan, jadi aturannya tetap
-           satu tempat. Kalau modulnya tidak termuat, tidak ada yang berubah. */
-        function pasangCatatanTambahan(card, ev) {
+        /* Quotes (NIP-18) + GitHub link previews for one note card. Used by
+           both the main post and replies, so the rules stay in one place. If
+           the module did not load, nothing changes. */
+        function attachNoteExtras(card, ev) {
             if (!card || !window.NostrNote) return;
             let holder = card.querySelector('.t-quote-holder');
             window.NostrNote.mountQuotes(holder, ev, {
@@ -591,11 +591,11 @@
 
         function renderReply(ev) {
             if (window.NostrNote) {
-                // Catatan mesin / kosong tidak digambar.
+                // Machine / empty notes are not drawn.
                 if (window.NostrNote.shouldHideNote(ev)) return;
-                // HANYA balasan tingkat satu: balasan dari balasan (dan seterusnya)
-                // tidak ditampilkan, supaya yang tampak murni tanggapan untuk
-                // catatan ini. Aturannya di assets/nostr-note.js (isDirectReply).
+                // LEVEL-ONE replies ONLY: replies to replies (and beyond) are
+                // not shown, so what appears is purely a response to this note.
+                // The rule is in assets/nostr-note.js (isDirectReply).
                 if (!window.NostrNote.isDirectReply(ev, postId)) return;
             }
             if (repliesContainer.querySelector('p')) { repliesContainer.innerHTML = ''; }
@@ -626,9 +626,9 @@
             } else if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`;
             } else {
                 let contentText = ev.content || "";
-                // Satu lintasan untuk semua media, supaya urutan di dalam catatan
-                // tetap seperti aslinya. Aturan "URL mana yang dianggap video
-                // YouTube" hidup di /assets/nostr-embed.js.
+                // One pass for all media, so the order inside the note stays as
+                // written. The rules for "which URLs count as YouTube video"
+                // live in /assets/nostr-embed.js.
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
                     let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
                     if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }

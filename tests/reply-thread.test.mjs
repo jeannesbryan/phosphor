@@ -67,5 +67,5 @@ for (const page of ['thread.html', 'notes.html']) {
 }
 
 console.log(results.join('\n'));
-console.log(`\n${pass} ok, ${fail} gagal`);
+console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

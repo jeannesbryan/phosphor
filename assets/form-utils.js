@@ -1,28 +1,28 @@
-/* form-utils.js — perbaikan kecil yang dulu disalin ke sembilan halaman.
+/* form-utils.js — small fixes that used to be copied into nine pages.
  *
- * Dua hal, keduanya soal kenyamanan mengisi kata sandi:
+ * Two things, both about the comfort of typing a password:
  *
- *   1. Tombol lihat/sembunyikan kata sandi pada SETIAP <input type="password">.
- *      Input tidak disentuh; modul ini membungkusnya dengan wadah posisi-relatif
- *      lalu menaruh tombol [SHOW]/[HIDE] di kanan. Pemanggil tidak perlu
- *      mengubah HTML halaman.
+ *   1. A show/hide button on EVERY <input type="password">. The input itself
+ *      is left alone; this module wraps it in a position:relative box and puts
+ *      the [SHOW]/[HIDE] button on the right. Callers do not need to change
+ *      the page HTML.
  *
- *   2. Menekan Enter di kolom kata sandi = menekan tombolnya. Pemetaan ada di
- *      ENTER_SUBMIT supaya cukup diperbarui di satu tempat kalau halaman baru
- *      menambah kolom.
+ *   2. Pressing Enter in a password field = clicking its button. The mapping
+ *      lives in ENTER_SUBMIT so it only has to be updated in one place when a
+ *      new page adds a field.
  *
- * Kenapa modul: dulu tiap halaman menulis sendiri penanganan tombol dekripsi,
- * jadi perbaikan UX harus diulang sembilan kali (persis seperti aturan unggah
- * Blossom sebelum disatukan). Satu tempat lebih mudah dijaga.
+ * Why a module: each page used to write its own decryption-button handling, so
+ * a UX fix had to be repeated nine times (exactly like the Blossom upload
+ * rules before they were unified). One place is easier to keep correct.
  *
- * Aman kalau gagal: kalau modul tidak dimuat, halaman tetap berjalan seperti
- * sebelumnya — hanya tanpa tombol mata dan tanpa Enter.
+ * Safe to fail: if the module does not load, the page keeps working as before
+ * — just without the eye button and without Enter.
  */
 (function (global) {
     'use strict';
 
-    // Kolom -> tombol yang ditekan saat Enter. Hanya kolom yang memang punya
-    // tombol aksi yang didaftarkan; sisanya dibiarkan.
+    // Field -> button pressed on Enter. Only fields that actually have an
+    // action button are registered; the rest are left alone.
     var ENTER_SUBMIT = {
         'unlockPassword': 'unlockBtn',
         'nsecInput': 'nsecLoginBtn',
@@ -32,8 +32,8 @@
         'bunkerInput': 'bunkerLoginBtn'
     };
 
-    // Satu-satunya aturan pergantian tipe. Dipakai tombol mata; diekspor supaya
-    // bisa diuji tanpa browser.
+    // The single rule for switching the input type. Used by the eye button;
+    // exported so it can be tested without a browser.
     function toggleType(current) {
         return current === 'password' ? 'text' : 'password';
     }
@@ -67,8 +67,8 @@
         (doc.head || doc.documentElement).appendChild(style);
     }
 
-    /* Bungkus satu kolom kata sandi dengan tombol mata. Aman dipanggil dua kali:
-       kalau sudah dibungkus, tidak melakukan apa-apa. */
+    /* Wrap one password field with the eye button. Safe to call twice: if it is
+       already wrapped, it does nothing. */
     function enhance(input) {
         if (!input || !input.parentNode) return null;
         if (input.parentNode.classList && input.parentNode.classList.contains('pw-field')) return null;
@@ -91,7 +91,7 @@
             input.setAttribute('type', next);
             btn.textContent = labelFor(next);
             btn.setAttribute('aria-pressed', next === 'text' ? 'true' : 'false');
-            // Kursor di akhir teks supaya mengetik lanjut tidak melompat.
+            // Keep the caret at the end of the text so continued typing does not jump.
             try { input.focus(); var v = input.value; input.value = v; } catch (e) {}
         });
 
@@ -109,7 +109,7 @@
         return n;
     }
 
-    /* Enter di kolom = klik tombolnya. Kalau tombolnya tidak ada, tidak apa-apa. */
+    /* Enter in the field = click its button. If the button is missing, that is fine. */
     function submitOnEnter(input) {
         if (!input) return false;
         var id = input.id;

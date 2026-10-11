@@ -1,33 +1,34 @@
-/* nostr-like.js — satu tempat untuk urusan "suka" (NIP-25) dan pembatalannya.
+/* nostr-like.js — one place for "like" (NIP-25) and its undo.
  *
- * Masalah yang diselesaikan (laporan bos, 2026-10-11):
- *   1. Tidak ada tanda apa pun bahwa kita sudah menyukai sebuah catatan.
- *   2. Menyukai dua kali memunculkan alert, dan TIDAK ada cara membatalkannya.
- *   3. Suka dari HP tidak terlihat di laptop — tiap perangkat menyimpan
- *      catatannya sendiri di memori, tidak pernah bertanya ke relay.
+ * Problem being solved (bos report, 2026-10-11):
+ *   1. There was no sign at all that a note had already been liked.
+ *   2. Liking twice popped an alert, and there was NO way to undo it.
+ *   3. A like from the phone was invisible on the laptop — each device kept
+ *      its own note of it in memory, never asking the relay.
  *
- * Aturan:
- *   - Suka   = kind 7, tag ["e", <id catatan>], ["p", <penulis>], content "+".
- *   - Batal  = kind 5 (NIP-09) yang menunjuk id peristiwa suka tadi — bukan
- *              mengirim suka baru, karena itu akan jadi "dislike", bukan batal.
- *   - Keadaan "sudah suka" SELALU dibangun dari relay: modul berlangganan
- *              kind 7 + 5 milik pubkey kita sendiri. Karena itu perangkat lain
- *              ikut berubah, dan yang baru dibuka tahu keadaan sebenarnya.
+ * Rules:
+ *   - Like = kind 7, tags ["e", <note id>], ["p", <author>], content "+".
+ *   - Undo = kind 5 (NIP-09) pointing at the id of that like event — not a
+ *            fresh like, because that would be a "dislike", not an undo.
+ *   - The "already liked" state is ALWAYS built from the relay: the module
+ *            subscribes to kind 7 + 5 events from our own pubkey. That is why
+ *            another device follows along, and a freshly opened one knows the
+ *            real state.
  *
- * Kenapa satu modul: dulu tiap halaman menulis likeEvent-nya sendiri (enam
- * salinan), jadi setiap perbaikan harus diulang enam kali — persis kesalahan
- * yang pernah terjadi pada aturan unggah Blossom.
+ * Why one module: each page used to write its own likeEvent (six copies), so
+ * every fix had to be repeated six times — exactly the mistake that once
+ * happened with the Blossom upload rules.
  *
- * KONTRAK untuk halaman (lihat pemanggil di index/profile/thread/notes/
+ * CONTRACT for pages (see callers in index/profile/thread/notes/
  * bookmark/relay):
  *   NostrLike.init({
- *     pubkey:   currentUserPubkey,           // boleh null (belum masuk)
+ *     pubkey:   currentUserPubkey,           // may be null (not logged in)
  *     relays:   RELAYS,
- *     send:     (ev) => { ... },             // kirim EVENT ke relay yang terbuka
- *     onCount:  (id, delta) => { ... },      // sesuaikan angka di kartu
- *     historyMs: 6000                        // opsional
+ *     send:     (ev) => { ... },             // broadcast EVENT to open relays
+ *     onCount:  (id, delta) => { ... },      // adjust the number on the card
+ *     historyMs: 6000                        // optional
  *   });
- *   NostrLike.toggle(id, targetPubkey)       // dipanggil dari tombol like
+ *   NostrLike.toggle(id, targetPubkey)       // called from the like button
  */
 (function (global) {
     'use strict';
@@ -46,38 +47,38 @@
         historyPhase: true,
         limit: DEFAULT_LIMIT,
         sockets: [],
-        reactions: {},          // id peristiwa suka -> id catatan
-        reactionTime: {},       // id peristiwa suka -> created_at
-        deleted: {},            // id peristiwa suka yang sudah dihapus (NIP-09)
-        byTarget: {},           // id catatan -> id peristiwa suka (yang masih hidup)
+        reactions: {},          // like event id -> note id
+        reactionTime: {},       // like event id -> created_at
+        deleted: {},            // like event ids already deleted (NIP-09)
+        byTarget: {},           // note id -> live like event id
         timer: null,
-        pending: {}             // id catatan -> true, sedang diproses
+        pending: {}             // note id -> true, request in flight
     };
 
-    /* Keadaan "sudah suka" untuk satu catatan dihitung dari SELURUH reaksi yang
-       kita ketahui minus yang sudah dihapus — bukan dari reaksi terakhir yang
-       kebetulan lewat.
+    /* The "already liked" state for one note is computed from EVERY reaction we
+       know about minus the deleted ones — not from whichever reaction happened
+       to pass by last.
 
-       Kenapa: satu catatan bisa punya beberapa reaksi dari kita (bos punya
-       EMPAT untuk catatan yang sama), dan sebagian sudah dihapus. Relay lain
-       masih menyajikan reaksi basi yang sudah dihapus itu. Dengan aturan lama
-       ("reaksi terakhir menang"), urutan kedatangan menentukan hasil: kalau
-       reaksi basi + surat hapusnya tiba paling akhir, tanda suka hilang —
-       padahal tiga reaksi lain masih hidup. Itu sebabnya halaman ini kadang
-       hijau, padahal di halaman lain merah. Aturan sekarang tidak peduli
-       urutan. */
+       Why: one note can carry several reactions from us (bos had FOUR for the
+       same note), and some were deleted. Other relays still serve the stale,
+       already-deleted reaction. Under the old rule ("last reaction wins") the
+       arrival order decided the outcome: if the stale reaction plus its
+       deletion notice arrived last, the like mark vanished — even though three
+       other reactions were still live. That is why this page was sometimes
+       green while another page was red. The current rule does not care about
+       order. */
     function recomputeTarget(target) {
-        var dulu = !!state.byTarget[target];
-        var terpilih = null;
+        var before = !!state.byTarget[target];
+        var winner = null;
         Object.keys(state.reactions).forEach(function (rid) {
             if (state.reactions[rid] !== target) return;
             if (state.deleted[rid]) return;
             var ts = state.reactionTime[rid] || 0;
-            if (!terpilih || ts >= terpilih.ts) terpilih = { id: rid, ts: ts };
+            if (!winner || ts >= winner.ts) winner = { id: rid, ts: ts };
         });
-        if (terpilih) state.byTarget[target] = terpilih.id;
+        if (winner) state.byTarget[target] = winner.id;
         else delete state.byTarget[target];
-        return { dulu: dulu, sekarang: !!terpilih };
+        return { before: before, now: !!winner };
     }
 
     // ---------------------------------------------------------------- util
@@ -88,8 +89,8 @@
         }).map(function (t) { return t[1]; });
     }
 
-    /* Tag "e" yang jadi SASARAN suka. NIP-25: kalau ada beberapa, yang terakhir
-       adalah sasarannya (yang di depan biasanya akar/balasan). */
+    /* The "e" tag that is the TARGET of the like. NIP-25: if there are several,
+       the last one is the target (the leading ones are usually root/reply). */
     function reactionTarget(ev) {
         var ids = eTags(ev);
         return ids.length ? ids[ids.length - 1] : null;
@@ -108,9 +109,9 @@
         return Object.keys(state.byTarget).length;
     }
 
-    /* Tandai UI kartu. Tombol like tidak punya id khusus, jadi dicari lewat
-       angka penghitungnya (`metric-likes-<id>`) yang sudah ada di semua
-       halaman — dengan begitu tidak perlu mengubah template enam halaman. */
+    /* Mark the card UI. The like button has no id of its own, so it is found
+       through its counter (`metric-likes-<id>`), which every page already has
+       — that way the six page templates do not need to be changed. */
     function applyState(targetId) {
         if (typeof document === 'undefined' || !document.getElementById) return;
         var span = document.getElementById('metric-likes-' + targetId);
@@ -129,22 +130,22 @@
         Object.keys(state.byTarget).forEach(applyState);
     }
 
-    /* Terapkan ulang setelah kartu digambar ulang (mis. LOAD MORE). Halaman
-       boleh memanggil ini kapan saja; aman kalau tidak ada apa-apa. */
+    /* Re-apply after cards are redrawn (e.g. LOAD MORE). Pages may call this at
+       any time; it is safe when there is nothing to do. */
     function refreshUI() {
         applyAll();
     }
 
-    // ------------------------------------------------------------- jaringan
+    // ------------------------------------------------------------- network
     function closeSockets() {
         state.sockets.forEach(function (s) { try { s.close(); } catch (e) {} });
         state.sockets = [];
     }
 
-    /* Jendela "riwayat" dimulai di sini, BUKAN di connect(): kalau ditaruh di
-       connect(), daftar relay yang kosong akan membuat fungsi itu keluar lebih
-       awal dan fase riwayat tidak pernah ditutup — akibatnya penghitung tidak
-       pernah ikut berubah saat perangkat lain menyukai catatan. */
+    /* The "history" window starts here, NOT in connect(): if it lived in
+       connect(), an empty relay list would make that function return early and
+       the history phase would never be closed — the counter would then never
+       move when another device likes a note. */
     function startHistoryWindow() {
         if (state.timer) { global.clearTimeout(state.timer); state.timer = null; }
         state.historyPhase = state.historyMs > 0;
@@ -182,7 +183,7 @@
         });
     }
 
-    /* Proses satu peristiwa milik kita sendiri (kind 7 suka / kind 5 batal). */
+    /* Process one of our own events (kind 7 like / kind 5 undo). */
     function absorb(ev) {
         if (!ev || ev.pubkey !== state.pubkey) return false;
         if (ev.kind === 7) {
@@ -190,11 +191,11 @@
             if (!target) return false;
             state.reactions[ev.id] = target;
             state.reactionTime[ev.id] = ev.created_at || 0;
-            // Reaksi yang sudah pernah kita lihat surat hapusnya tidak dihitung.
-            var hasil = recomputeTarget(target);
-            if (hasil.dulu !== hasil.sekarang) {
+            // A reaction whose deletion notice we already saw is not counted.
+            var result = recomputeTarget(target);
+            if (result.before !== result.now) {
                 applyState(target);
-                if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, hasil.sekarang ? 1 : -1);
+                if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, result.now ? 1 : -1);
             }
             return true;
         }
@@ -204,9 +205,9 @@
             ids.forEach(function (id) {
                 state.deleted[id] = true;
                 var target = state.reactions[id];
-                if (!target) return;                 // reaksinya belum kita lihat; catat saja
-                var hasil = recomputeTarget(target);
-                if (hasil.dulu !== hasil.sekarang) {
+                if (!target) return;                 // reaction not seen yet; just record it
+                var result = recomputeTarget(target);
+                if (result.before !== result.now) {
                     applyState(target);
                     if (!state.historyPhase && typeof state.onCount === 'function') state.onCount(target, -1);
                 }
@@ -219,7 +220,7 @@
 
     function broadcast(signed) {
         if (typeof state.send === 'function') { try { state.send(signed); return; } catch (e) {} }
-        // Cadangan: pakai soket langganan sendiri kalau halaman tidak memberi `send`.
+        // Fallback: use our own subscription socket if the page gave no `send`.
         state.sockets.forEach(function (s) {
             try { if (s.readyState === 1) s.send(JSON.stringify(['EVENT', signed])); } catch (e) {}
         });
@@ -230,7 +231,7 @@
         return global.nostr.signEvent(tpl);
     }
 
-    // ---------------------------------------------------------------- suka
+    // ----------------------------------------------------------------- like
     function like(targetId, targetPubkey) {
         var raw = {
             kind: 7,
@@ -262,23 +263,23 @@
         };
         return signEvent(raw).then(function (signed) {
             broadcast(signed);
-            // Tandai terhapus dan hitung ulang: kalau ternyata masih ada reaksi
-            // lain yang hidup untuk catatan ini, keadaannya tetap "disukai".
+            // Mark as deleted and recompute: if another live reaction still
+            // exists for this note, the state stays "liked".
             state.deleted[reactionId] = true;
-            var hasil = recomputeTarget(targetId);
+            var result = recomputeTarget(targetId);
             applyState(targetId);
-            // Kalau masih ada reaksi lain yang hidup, angkanya tidak berubah.
-            if (typeof state.onCount === 'function') state.onCount(targetId, hasil.sekarang ? 0 : -1);
-            return hasil.sekarang;
+            // If another live reaction remains, the number does not change.
+            if (typeof state.onCount === 'function') state.onCount(targetId, result.now ? 0 : -1);
+            return result.now;
         });
     }
 
-    /* Satu tombol untuk dua arah: belum suka -> suka, sudah suka -> batal. */
+    /* One button for both directions: not liked -> like, already liked -> undo. */
     function toggle(targetId, targetPubkey) {
         if (!targetId) return Promise.resolve(false);
         if (!state.pubkey) { alert('> ERROR: Not logged in!'); return Promise.resolve(false); }
         if (!global.nostr || typeof global.nostr.signEvent !== 'function') {
-            alert('> ERROR: Tidak ada penanda tangan. Masuk dulu, ya.');
+            alert('> ERROR: No signer available. Log in first.');
             return Promise.resolve(false);
         }
         if (state.pending[targetId]) return Promise.resolve(isLiked(targetId));
@@ -290,7 +291,7 @@
             return liked;
         }).catch(function () {
             delete state.pending[targetId];
-            alert('> ERROR: Gagal mengirim. Coba lagi.');
+            alert('> ERROR: Failed to send. Try again.');
             return isLiked(targetId);
         });
     }
@@ -314,7 +315,7 @@
         state.relays = Array.isArray(list) ? list.slice() : [];
     }
 
-    /* Untuk uji: bersihkan seluruh keadaan tanpa menyentuh jaringan. */
+    /* For tests: clear the whole state without touching the network. */
     function reset() {
         closeSockets();
         if (state.timer) { global.clearTimeout(state.timer); state.timer = null; }
@@ -329,10 +330,10 @@
         state.historyPhase = true;
     }
 
-    // ----------------------------------------------------------------- gaya
+    // ---------------------------------------------------------------- style
     var CSS = [
-        /* Tombol yang sudah disukai: warna hangat + pendar, supaya jelas beda
-           dari tombol lain yang hijau. Dua kelas -> menang dari .text-success. */
+        /* A liked button: warm colour + glow, so it clearly differs from the
+           other, green buttons. Two classes -> beats .text-success. */
         '.t-feed-btn.is-liked{color:#ff4d6d !important;text-shadow:0 0 8px rgba(255,77,109,0.65);}',
         '.t-feed-btn.is-liked:hover{color:#ff8095 !important;}'
     ];

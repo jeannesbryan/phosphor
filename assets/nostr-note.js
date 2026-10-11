@@ -1,44 +1,45 @@
 /* ==========================================================================
-   nostr-note.js — aturan tentang STRUKTUR catatan, plus preview tautan GitHub.
+   nostr-note.js — rules about note STRUCTURE, plus GitHub link previews.
 
-   Untuk apa saja (2026-10-04)
-   --------------------------
-   1. NIP-10: mana catatan yang merupakan BALASAN. Timeline tidak boleh
-      menampilkannya sebagai catatan biasa — waktu itu ada balasan "Yes 100%"
-      yang ikut muncul di linimasa, padahal klien lain menyembunyikannya.
-   2. NIP-18: mana catatan yang MENGUTIP catatan lain. Waktu itu ada kutipan
-      yang tampil kosong, karena penanda kutipan pada catatan itu ada di tag
-      "q" — dan Phosphor belum pernah membaca tag itu sama sekali.
-   3. Preview tautan GitHub: tautan repo berkas seperti
-      github.com/owner/repo/blob/main/docs/FILE.md yang tadinya cuma teks,
-      sekarang jadi kartu kecil berisi nama repo, deskripsi, bintang, bahasa.
+   What it covers (2026-10-04)
+   ---------------------------
+   1. NIP-10: which notes are REPLIES. The timeline must not show them as
+      ordinary notes — back then a reply "Yes 100%" showed up in the timeline
+      even though other clients hid it.
+   2. NIP-18: which notes QUOTE another note. Back then a quote rendered
+      empty, because the quote marker on that note was in the "q" tag — and
+      Phosphor had never read that tag at all.
+   3. GitHub link previews: repo/file links such as
+      github.com/owner/repo/blob/main/docs/FILE.md that used to be plain text
+      are now a small card with the repo name, description, stars, language.
 
-   Kenapa dijadikan satu berkas
-   ----------------------------
-   Tujuh halaman Phosphor masing-masing menyusun isi catatan sendiri (sepuluh
-   tempat). Kalau aturan-aturan ini ditulis di dalam tiap halaman, perbaikan
-   berikutnya akan mendarat di sebagian saja — itu sudah pernah terjadi.
-   Semua aturan murni di bawah bisa diuji tanpa browser dan tanpa jaringan:
+   Why one file
+   ------------
+   The seven Phosphor pages each assemble note content themselves (ten places).
+   If these rules were written inside each page, the next fix would land in
+   only some of them — that has already happened.
+   All the pure rules below can be tested without a browser and without a
+   network:
        node tests/nostr-note.test.mjs
 
-   Gagal ≠ hilang
-   --------------
-   Kalau berkas ini tidak termuat, atau GitHub tidak bisa dihubungi (misalnya
-   kena batas permintaan), halaman tetap menampilkan tautan seperti semula.
-   Tidak ada yang disembunyikan dan tidak ada kotak kosong yang menggantung.
+   Failure != loss
+   ---------------
+   If this file does not load, or GitHub cannot be reached (rate limit, for
+   example), pages keep showing the link as before. Nothing is hidden and no
+   empty box is left hanging.
    ========================================================================== */
 
 (function (global) {
     'use strict';
 
     // ---------------------------------------------------------------- NIP-10
-    /* Catatan dianggap BALASAN kalau ia menunjuk catatan induk lewat tag "e".
-       Pembedanya:
-         - tag "e" dengan penanda "root"/"reply"  -> pasti balasan
-         - tag "e" tanpa penanda                  -> gaya lama NIP-10; tag itu
-                                                     menunjuk induk, jadi balasan
-         - tag "e" yang SEMUANYA ditandai "mention" -> cuma menyebut, bukan balasan
-       Kalau tidak ada tag "e" sama sekali, itu catatan biasa. */
+    /* A note counts as a REPLY when it points at a parent note through an "e"
+       tag. What tells them apart:
+         - "e" tag with a "root"/"reply" marker  -> definitely a reply
+         - "e" tag with no marker                -> old-style NIP-10; the tag
+                                                    points at the parent, so a reply
+         - "e" tags ALL marked "mention"         -> only a mention, not a reply
+       With no "e" tag at all, it is an ordinary note. */
     function isReply(ev) {
         if (!ev || !Array.isArray(ev.tags)) return false;
         var eTags = ev.tags.filter(function (t) {
@@ -49,66 +50,65 @@
         return eTags.some(function (t) { return !t[3]; });
     }
 
-    /* Siapa INDUK LANGSUNG sebuah balasan (NIP-10).
-       - Kalau ada tanda (marker): yang bertanda "reply" itulah induknya. Kalau
-         hanya ada "root" (dan tanpa "reply"), berarti balasan itu menempel
-         langsung ke akar.
-       - Kalau tanpa tanda sama sekali (gaya lama): satu tag "e" = induknya;
-         kalau beberapa, yang TERAKHIR adalah yang dibalas.
-       Mengembalikan null kalau tidak ada petunjuk apa pun. */
+    /* Who the DIRECT PARENT of a reply is (NIP-10).
+       - With markers: the one marked "reply" is the parent. If only "root" is
+         present (and no "reply"), the reply hangs directly off the root.
+       - With no markers at all (old style): a single "e" tag is the parent;
+         with several, the LAST one is what was replied to.
+       Returns null when there is no hint at all. */
     function replyParent(ev) {
         if (!ev || !Array.isArray(ev.tags)) return null;
         var eTags = ev.tags.filter(function (t) {
             return Array.isArray(t) && t[0] === 'e' && typeof t[1] === 'string' && t[1];
         });
         if (!eTags.length) return null;
-        var bertanda = eTags.filter(function (t) { return t[3]; });
-        if (bertanda.length) {
-            var balasan = bertanda.filter(function (t) { return t[3] === 'reply'; });
-            if (balasan.length) return balasan[balasan.length - 1][1];
-            var akar = bertanda.filter(function (t) { return t[3] === 'root'; });
-            if (akar.length) return akar[akar.length - 1][1];
-            return null;                       // hanya "mention": bukan balasan
+        var marked = eTags.filter(function (t) { return t[3]; });
+        if (marked.length) {
+            var replies = marked.filter(function (t) { return t[3] === 'reply'; });
+            if (replies.length) return replies[replies.length - 1][1];
+            var root = marked.filter(function (t) { return t[3] === 'root'; });
+            if (root.length) return root[root.length - 1][1];
+            return null;                       // "mention" only: not a reply
         }
         return eTags[eTags.length - 1][1];
     }
 
-    /* Balasan TINGKAT SATU untuk sebuah catatan: induk langsungnya catatan itu
-       sendiri. Balasan dari balasan (dan seterusnya) tidak termasuk. */
+    /* A LEVEL-ONE reply to a note: its direct parent is that note itself.
+       Replies to replies (and beyond) are not included. */
     function isDirectReply(ev, rootId) {
         if (!rootId) return false;
         return replyParent(ev) === rootId;
     }
 
-    // ------------------------------------------------------- catatan mesin
-    /* Sebagian catatan kind 1 isinya bukan tulisan manusia, melainkan pesan JSON
-       dari perangkat lunak lain — denyut "presence", telemetri, dsb. Contoh
-       nyata dari relay bos (2026-10-11):
+    // ------------------------------------------------------- machine notes
+    /* Some kind 1 notes are not human writing but JSON messages from other
+       software — "presence" heartbeats, telemetry, etc. Real examples from
+       bos's relay (2026-10-11):
          {"type":"presence","payload":"online"}
          {"v":1,"online":true,"ts":1791657534}
          {"type":"PresenceHeartbeat","senderKey":"...","senderName":"test999",...}
-       Catatan begini membanjiri linimasa dan membuat browser berat, karena
-       isinya digambar sebagai <pre> JSON yang panjang tanpa makna bagi pembaca.
-       Karena itu halaman tidak menampilkannya sama sekali.
+       Notes like these flood the timeline and weigh the browser down, because
+       their content is drawn as a long <pre> JSON block with no meaning for a
+       reader. So pages do not show them at all.
 
-       PENTING: aktivitas olahraga Gaspool JUGA berbentuk JSON dan HARUS tetap
-       tampil (ada kartu khususnya). Maka JSON berpenanda "sport"/"activity"
-       dikecualikan dari aturan ini.
+       IMPORTANT: Gaspool SPORT activities are ALSO JSON and MUST keep showing
+       (they have a dedicated card). So JSON carrying "sport"/"activity" is
+       exempt from this rule.
 
-       Syarat catatan mesin:
+       Requirements for a machine note:
          - kind 1
-         - seluruh isinya satu objek JSON (bukan larik, bukan teks biasa)
-         - bukan aktivitas olahraga
-         - punya >=2 kunci, ATAU tag penanda mesin
+         - the whole content is one JSON object (not an array, not plain text)
+         - not a sport activity
+         - has >=2 keys, OR a machine marker tag
 
-       Kenapa >=2 kunci saja (bukan daftar nama kunci): sampel nyata berikutnya
-       memakai nama kunci yang tak terduga dan tetap harus disaring —
+       Why just >=2 keys (instead of a list of key names): the next real
+       samples used unexpected key names and still had to be filtered —
          {"id":"p179…","n":"Abolfazll","t":"","ts":1791659484990,"ty":"p"}
          {"proxies": [], "updated": 1791659463}
-       Sebuah tulisan manusia yang isinya SELURUHNYA satu objek JSON dengan >=2
-       kunci praktis tidak ada; kalau pun ada, menyembunyikannya jauh lebih
-       ringan daripada menampilkan blok JSON panjang yang membuat halaman berat.
-       Objek berkunci satu dibiarkan tampil sebagai pengaman.
+       Human writing whose entire content is one JSON object with >=2 keys
+       practically does not exist; and even if it did, hiding it is far cheaper
+       than rendering a long JSON block that makes the page heavy.
+       A single-key object is left visible as a safety valve.
     */
     var MACHINE_TAGS = ['presence', 'type', 'telemetry', 'heartbeat', 'online'];
 
@@ -130,7 +130,7 @@
         var obj = parsedJsonObject(ev);
         if (!obj) return false;
         if (isSportJson(obj)) return false;
-        if (Object.keys(obj).length >= 2) return true;      // satu objek JSON penuh = mesin
+        if (Object.keys(obj).length >= 2) return true;      // a whole JSON object = machine
         if (Array.isArray(ev.tags)) {
             return ev.tags.some(function (t) {
                 return Array.isArray(t) && typeof t[1] === 'string'
@@ -141,33 +141,33 @@
         return false;
     }
 
-    /* Catatan tanpa isi sama sekali dan tanpa media — tidak ada yang bisa
-       ditampilkan, jadi jangan digambar sebagai kartu kosong. Contoh nyata dari
-       relay: kind 20000 dengan content "" dan tags []. */
+    /* A note with no content at all and no media — nothing can be shown, so do
+       not draw it as an empty card. Real example from the relay: kind 20000
+       with content "" and tags []. */
     function isEmptyNote(ev) {
         if (!ev) return true;
         if (ev.kind !== 1 && !(ev.kind >= 20000 && ev.kind < 30000)) return false;
         if (typeof ev.content !== 'string' || ev.content.trim() !== '') return false;
         if (Array.isArray(ev.tags)) {
-            var bermedia = ev.tags.some(function (t) {
+            var hasMedia = ev.tags.some(function (t) {
                 return Array.isArray(t) && (t[0] === 'imeta' || t[0] === 'r' || t[0] === 'e' || t[0] === 'q');
             });
-            if (bermedia) return false;
+            if (hasMedia) return false;
         }
         return true;
     }
 
-    /* Satu pintu untuk "jangan gambar catatan ini". Dipakai halaman supaya
-       aturannya tidak tersebar. */
+    /* One door for "do not draw this note". Used by pages so the rule does not
+       spread. */
     function shouldHideNote(ev) {
         return isMachineNote(ev) || isEmptyNote(ev);
     }
 
     // ---------------------------------------------------------------- NIP-18
-    /* Daftar catatan yang dikutip. Bentuk tag:
-         ["q", <id event>, <relay, opsional>, <pubkey, opsional>]
-       Hanya id berbentuk heksadesimal 64 karakter yang diterima, supaya tag
-       rusak tidak membuat halaman meminta id sampah ke relay. */
+    /* List of quoted notes. Tag shape:
+         ["q", <event id>, <relay, optional>, <pubkey, optional>]
+       Only 64-character hexadecimal ids are accepted, so a broken tag does not
+       make the page ask the relay for a garbage id. */
     function quoteTargets(ev) {
         if (!ev || !Array.isArray(ev.tags)) return [];
         return ev.tags
@@ -180,9 +180,9 @@
             });
     }
 
-    // ------------------------------------------------------- tautan GitHub
-    /* Halaman tingkat pertama github.com yang bukan repo. Daftar ini menjaga
-       supaya github.com/settings/profile tidak dianggap repo "settings/profile". */
+    // -------------------------------------------------------- GitHub links
+    /* Top-level github.com pages that are not repos. This list keeps
+       github.com/settings/profile from being read as the repo "settings/profile". */
     var RESERVED_OWNERS = [
         'settings', 'explore', 'topics', 'collections', 'sponsors', 'marketplace',
         'notifications', 'pulls', 'issues', 'orgs', 'users', 'about', 'features',
@@ -190,8 +190,9 @@
         'gist', 'dashboard', 'codespaces', 'account'
     ];
 
-    /* Ubah tautan GitHub jadi {owner, repo, path, url}, atau null kalau bukan
-       tautan repo. Host diperiksa ketat: github.com.evil.com TIDAK lolos. */
+    /* Turn a GitHub link into {owner, repo, path, url}, or null if it is not a
+       repo link. The host is checked strictly: github.com.evil.com does NOT
+       pass. */
     function githubRepo(url) {
         if (typeof url !== 'string') return null;
         var u;
@@ -217,8 +218,8 @@
         };
     }
 
-    /* Kartu repo. Datanya dari api.github.com, jadi hanya field yang benar-benar
-       dipakai yang masuk; kalau ada yang kosong, bagian itu tidak dirender. */
+    /* The repo card. Its data comes from api.github.com, so only the fields
+       actually used are kept; if one is empty, that part is not rendered. */
     function repoCardHtml(info, data) {
         if (!info || !data) return '';
         var esc = escapeAttr;
@@ -247,8 +248,8 @@
             + '</div></a>';
     }
 
-    /* 1200 -> "1.2k". Hanya untuk tampilan; angkanya tidak pernah dibulatkan
-       ke atas supaya tidak terlihat lebih populer daripada kenyataan. */
+    /* 1200 -> "1.2k". Display only; the number is never rounded up, so it does
+       not look more popular than it really is. */
     function formatCount(n) {
         if (n < 1000) return String(n);
         var k = Math.floor(n / 100) / 10;
@@ -273,13 +274,13 @@
         try {
             if (!global.localStorage) return;
             global.localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: value }));
-        } catch (e) { /* kuota penuh / mode privat: cukup dilewati */ }
+        } catch (e) { /* full quota / private mode: just skip it */ }
     }
 
-    /* Ambil data repo dengan singgahan. Selalu selesai (resolve null kalau
-       gagal) supaya pemanggil tidak perlu menangani galat jaringan.
-       Kunci singgahan memakai owner/repo huruf kecil, jadi satu repo yang
-       ditautkan berkali-kali hanya meminta sekali. */
+    /* Fetch repo data with caching. Always settles (resolves null on failure)
+       so callers do not need to handle network errors.
+       The cache key uses lowercase owner/repo, so one repo linked many times is
+       requested once. */
     function fetchRepo(info) {
         if (!info) return Promise.resolve(null);
         var key = CACHE_PREFIX + info.owner.toLowerCase() + '/' + info.repo.toLowerCase();
@@ -293,8 +294,8 @@
             + encodeURIComponent(info.owner) + '/' + encodeURIComponent(info.repo), {
             headers: { 'Accept': 'application/vnd.github+json' }
         }).then(function (res) {
-            /* 403 = batas permintaan habis, 404 = repo privat/tidak ada.
-               Keduanya bukan kesalahan halaman; cukup jangan tampilkan kartu. */
+            /* 403 = rate limit hit, 404 = private/missing repo.
+               Neither is a page error; just do not show a card. */
             if (!res.ok) return null;
             return res.json();
         }).then(function (d) {
@@ -311,10 +312,10 @@
         }).catch(function () { return null; });
     }
 
-    /* Ganti tautan GitHub di dalam root menjadi kartu. Kartu disisipkan SETELAH
-       tautannya (tautan aslinya tetap ada) supaya kalau permintaan gagal,
-       tidak ada yang berubah. Setiap tautan ditandai agar tidak diproses dua
-       kali saat halaman menggambar ulang. */
+    /* Turn GitHub links inside root into cards. The card is inserted AFTER the
+       link (the original link stays) so that if the request fails, nothing
+       changes. Each link is marked so it is not processed twice when the page
+       redraws. */
     function upgradeLinks(root, opts) {
         if (!root || typeof root.querySelectorAll !== 'function') return 0;
         opts = opts || {};
@@ -341,15 +342,16 @@
         return count;
     }
 
-    // ------------------------------------------------- NIP-19 / tautan dalam
-    /* Sebelumnya setiap halaman mengganti `nostr:nevent1…` dengan tautan
-       ber-href "nostr:…". Di peramban, href semacam itu memicu pengendali
-       protokol — tampak "mau membuka aplikasi" padahal tidak ada aplikasinya.
-       Sekarang id NIP-19 diterjemahkan ke halaman Phosphor sendiri
-       (thread.html / profile.html / notes.html) supaya seperti aplikasi Nostr
-       pada umumnya: klik = pindah halaman, bukan membuka tab aneh.
+    // -------------------------------------------------- NIP-19 / in-page links
+    /* Previously each page replaced `nostr:nevent1…` with a link whose href was
+       "nostr:…". In a browser such an href triggers a protocol handler — it
+       looks like "opening an app" even though no app exists. Now NIP-19 ids
+       are translated to Phosphor's own pages (thread.html / profile.html /
+       notes.html), like Nostr apps generally do: a click = go to a page, not
+       open a strange tab.
 
-       Ukuran berkas ini kecil dan murni, jadi bisa diuji tanpa peramban. */
+       This part of the file is small and pure, so it can be tested without a
+       browser. */
     var B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
     var B32MAP = {};
     for (var bi = 0; bi < B32.length; bi++) B32MAP[B32.charAt(bi)] = bi;
@@ -378,7 +380,7 @@
     function bech32Decode(str) {
         if (typeof str !== 'string' || str.length < 8) return null;
         var lower = str.toLowerCase();
-        if (lower !== str && str.toUpperCase() !== str) return null;   // campur besar-kecil
+        if (lower !== str && str.toUpperCase() !== str) return null;   // mixed case
         var pos = lower.lastIndexOf('1');
         if (pos < 1 || pos + 7 > lower.length) return null;
         var hrp = lower.slice(0, pos);
@@ -389,7 +391,7 @@
             words.push(v);
         }
         if (!bech32Verify(hrp, words)) return null;
-        return { hrp: hrp, words: words.slice(0, -6) };   // buang 6 kata checksum
+        return { hrp: hrp, words: words.slice(0, -6) };   // drop the 6 checksum words
     }
 
     function wordsToBytes(words) {
@@ -435,8 +437,8 @@
         return out;
     }
 
-    /* Terjemahkan id NIP-19 menjadi bagian yang kita perlukan. Mengembalikan
-       null kalau bukan bech32 yang sah — pemanggil membiarkan teksnya apa adanya. */
+    /* Translate a NIP-19 id into the parts we need. Returns null when it is not
+       valid bech32 — the caller then leaves the text as it is. */
     function nip19Decode(id) {
         if (typeof id !== 'string') return null;
         var d = bech32Decode(id);
@@ -479,8 +481,8 @@
         return { type: d.hrp };
     }
 
-    /* Halaman Phosphor untuk sebuah peristiwa. Artikel long-form (kind 30023)
-       tidak punya halaman thread, jadi diarahkan ke notes.html dengan `d`. */
+    /* The Phosphor page for an event. Long-form articles (kind 30023) have no
+       thread page, so they go to notes.html with `d`. */
     function notePageUrl(ev) {
         if (!ev || !ev.id) return null;
         if (ev.kind === 30023) {
@@ -507,11 +509,11 @@
         return null;
     }
 
-    /* Ganti setiap id NIP-19 di dalam isi catatan (yang sudah di-escape halaman)
-       dengan tautan dalam. Satu pengecualian penting: kalau id itu menunjuk
-       catatan yang SEDANG digambar sebagai kartu kutipan, tautannya dibuang —
-       kalau tidak, catatan yang sama tampil dua kali (satu sebagai kartu, satu
-       sebagai baris [NOSTR: …]). Itu yang membingungkan bos. */
+    /* Replace every NIP-19 id inside note content (already escaped by the page)
+       with an in-page link. One important exception: if the id points at a note
+       that is CURRENTLY being drawn as a quote card, its link is dropped —
+       otherwise the same note shows twice (once as a card, once as a
+       [NOSTR: …] line). That is what confused bos. */
     function linkifyNostrUris(text, ev) {
         if (typeof text !== 'string') return text;
         var quoteIds = ev ? quoteTargets(ev).map(function (t) { return t.id; }) : [];
@@ -526,16 +528,16 @@
             }
             return '<a href="nostr:' + id + '" class="nostr-embed-link" target="_blank" rel="noopener" onclick="event.stopPropagation()">[NOSTR: ' + shortId + ']</a>';
         });
-        // Kalau ada id yang dibuang karena duplikat, sisa baris kosongnya ikut dibersihkan.
+        // If an id was dropped as a duplicate, clean up the leftover empty line too.
         if (removed) out = out.replace(/\s+$/, '');
         return out;
     }
 
-    // ------------------------------------------------------------- kutipan
-    /* Kartu ringkas untuk catatan yang dikutip. Kelas author-<pubkey> dan
-       avatar-<pubkey> sengaja dipakai supaya mekanisme profil yang sudah ada
-       di halaman (updatePostUI) ikut mengisi nama dan avatar begitu data
-       profilnya tiba — tanpa jalur kedua yang harus dirawat. */
+    // ------------------------------------------------------------- quotes
+    /* A compact card for a quoted note. The classes author-<pubkey> and
+       avatar-<pubkey> are used on purpose so the page's existing profile
+       mechanism (updatePostUI) also fills in the name and avatar once the
+       profile data arrives — with no second path to maintain. */
     function quoteCardHtml(ev, opts) {
         if (!ev || typeof ev !== 'object') return '';
         opts = opts || {};
@@ -548,9 +550,9 @@
 
         var img = firstImageUrl(ev);
 
-        /* Seluruh kartu adalah tautan ke catatan yang DIKUTIP (bukan catatan
-           yang mengutip) — seperti kartu kutipan X. Karena ada dua catatan
-           berbeda di satu kartu, tautannya harus memakai id catatan kutipan. */
+        /* The whole card is a link to the QUOTED note (not the quoting one) —
+           like an X quote card. Since there are two different notes in one
+           card, the link must use the quoted note's id. */
         var url = notePageUrl(ev);
         var tag = url ? 'a' : 'div';
         var open = url
@@ -570,21 +572,20 @@
             + '</' + tag + '>';
     }
 
-    /* Gambar pertama di dalam isi catatan, kalau ada. Dipakai hanya untuk
-       pratinjau kutipan; media utama tetap ditangani penyusun media. */
+    /* The first image inside the note content, if any. Used only for the quote
+       preview; the main media is still handled by the media assembler. */
     function firstImageUrl(ev) {
         if (!ev || typeof ev.content !== 'string') return null;
         var m = ev.content.match(/https?:\/\/[^\s<]+?\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/i);
         return m ? m[0] : null;
     }
 
-    /* Pasang kartu kutipan ke dalam `holder`. Halaman memberi tahu cara
-       mengambil catatan (`load`) dan apa yang harus dilakukan setelahnya
-       (`onEvent`), sehingga logika ini hidup satu kali saja dan tetap bisa
-       dipakai linimasa maupun halaman thread.
+    /* Mount quote cards into `holder`. The page supplies how to fetch a note
+       (`load`) and what to do afterwards (`onEvent`), so this logic lives once
+       and works for both the timeline and the thread page.
 
-       `get` opsional: kalau catatan kutipan sudah ada di singgahan halaman,
-       tidak perlu meminta ke relay sama sekali. */
+       `get` is optional: if the quoted note is already in the page cache,
+       there is no need to ask the relay at all. */
     function mountQuotes(holder, ev, opts) {
         if (!holder || !ev) return 0;
         opts = opts || {};
@@ -601,7 +602,7 @@
             if (cached) { if (appendQuoteCard(holder, cached, onEvent)) shown++; return; }
 
             load(t.id, t.relay).then(function (fetched) {
-                if (!fetched) return;            // gagal: biarkan saja, tanpa kotak kosong
+                if (!fetched) return;            // failure: leave it, no empty box
                 if (appendQuoteCard(holder, fetched, onEvent) && typeof opts.after === 'function') {
                     opts.after(fetched);
                 }
@@ -610,10 +611,10 @@
         return shown;
     }
 
-    /* Wadah kartu kutipan di dalam sebuah kartu catatan. Kalau halamannya belum
-       menyediakan .t-quote-holder, wadahnya dibuat di sini — tepat sebelum baris
-       tombol, supaya posisinya selalu sama di semua halaman. Dengan begitu
-       halaman baru cukup memanggil decorateCard() tanpa mengubah templatenya. */
+    /* The quote-card holder inside a note card. If the page does not provide
+       .t-quote-holder, the holder is created here — right before the action
+       row, so its position is always the same on every page. That way a new
+       page just calls decorateCard() without touching its template. */
     function quoteHolderIn(card) {
         if (!card || typeof document === 'undefined') return null;
         var existing = card.querySelector('.t-quote-holder');
@@ -626,9 +627,9 @@
         return holder;
     }
 
-    /* Satu panggilan untuk semua tambahan pada sebuah kartu catatan: kartu
-       kutipan (NIP-18) dan pratinjau tautan GitHub. Dipakai semua halaman
-       supaya tidak ada halaman yang tertinggal saat aturannya berubah. */
+    /* One call for all extras on a note card: quote cards (NIP-18) and GitHub
+       link previews. Used by every page so none is left behind when the rules
+       change. */
     function decorateCard(card, ev, opts) {
         if (!card || !ev) return 0;
         opts = opts || {};
@@ -646,41 +647,41 @@
         if (!el) return null;
         holder.appendChild(el);
         try { onEvent(ev, el); } catch (e) {}
-        /* Data profil penulis kutipan bisa saja SUDAH ada di singgahan halaman
-           sebelum kartu ini dibuat (mis. penulisnya sama dengan penulis catatan
-           utama, atau profilnya sudah diambil untuk kartu lain). Kalau begitu,
-           halaman tidak akan memanggil pengisi UI-nya lagi dan nama/avatar
-           kartu ini tetap kosong — persis keluhan bos. Jadi setelah kartu
-           dipasang kami minta halaman menerapkannya sekali lagi; kalau datanya
-           belum ada, fungsinya tidak melakukan apa-apa (aman). */
+        /* The quote author's profile data may ALREADY be in the page cache
+           before this card is created (e.g. the author is the same as the main
+           note's, or the profile was fetched for another card). In that case
+           the page will not call its UI filler again and this card's
+           name/avatar stay empty — exactly bos's complaint. So after mounting
+           the card we ask the page to apply it once more; if the data is not
+           there yet, the function does nothing (safe). */
         applyPageProfile(ev.pubkey);
         return el;
     }
 
-    /* Halaman pemanggil punya fungsi updatePostUI(pubkey) yang mengisi elemen
-       berkelas author-<pk> / handle-<pk> / avatar-<pk>. Namanya sama di semua
-       halaman supaya cukup satu panggilan di sini — halaman baru cukup
-       menyediakan fungsi itu, tidak perlu mengubah modul. */
+    /* Calling pages have an updatePostUI(pubkey) function that fills elements
+       with the classes author-<pk> / handle-<pk> / avatar-<pk>. The name is the
+       same on every page so one call here is enough — a new page just provides
+       that function and does not change the module. */
     function applyPageProfile(pubkey) {
         if (!pubkey) return;
         var fn = global.updatePostUI;
         if (typeof fn === 'function') { try { fn(pubkey); } catch (e) {} }
     }
 
-    // ----------------------------------------------------------- relay bantu
-    /* Phosphor punya socket sendiri untuk linimasa, tapi modul ini butuh cara
-       mengambil satu catatan berdasarkan id (untuk kutipan). Socket terpisah,
-       dibuka sebentar lalu ditutup — tidak mengganggu socket linimasa. */
+    // -------------------------------------------------------- helper relay
+    /* Phosphor has its own socket for the timeline, but this module needs a way
+       to fetch a single note by id (for quotes). A separate socket, opened
+       briefly and then closed — it does not disturb the timeline socket. */
     var relayList = [];
 
     function setRelays(list) {
         relayList = Array.isArray(list) ? list.filter(function (r) { return typeof r === 'string'; }) : [];
     }
 
-    /* extraRelays: relay tambahan untuk catatan ini saja. Penting untuk kutipan:
-       tag "q" biasanya menyebut relay asal catatan yang dikutip, dan catatan itu
-       sering TIDAK ada di relay kita sendiri. Tanpa mencoba relay asalnya,
-       kutipan dari relay lain akan tampak kosong. */
+    /* extraRelays: additional relays for this note only. Important for quotes:
+       the "q" tag usually names the origin relay of the quoted note, and that
+       note is often NOT on our own relay. Without trying its origin relay, a
+       quote from another relay looks empty. */
     function fetchEventById(id, timeoutMs, extraRelays) {
         if (!/^[0-9a-f]{64}$/i.test(String(id || ''))) return Promise.resolve(null);
         if (typeof global.WebSocket !== 'function') return Promise.resolve(null);
@@ -727,13 +728,13 @@
                 ws.onerror = function () {};
             });
 
-            /* Kalau tidak ada relay yang bisa dibuka sama sekali, jangan
-               menggantung sampai waktu habis. */
+            /* If no relay could be opened at all, do not hang until the
+               timeout expires. */
             if (!sockets.length) { global.clearTimeout(timer); finish(null); }
         });
     }
 
-    // ------------------------------------------------------------------ alat
+    // ----------------------------------------------------------------- utils
     function escapeAttr(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
@@ -743,7 +744,7 @@
             .replace(/'/g, '&#39;');
     }
 
-    // ------------------------------------------------------------------ gaya
+    // ---------------------------------------------------------------- styles
     var CSS = [
         '.gh-card{display:flex;gap:10px;align-items:flex-start;margin:10px 0;padding:10px 12px;'
             + 'border:1px solid var(--yt-border, var(--left-border, #2a2a2a));background:rgba(255,255,255,0.02);'
@@ -755,8 +756,8 @@
         '.gh-card-desc{font-size:0.85em;opacity:0.85;margin-top:2px;word-break:break-word;}',
         '.gh-card-path{font-size:0.78em;opacity:0.6;margin-top:4px;word-break:break-all;}',
         '.gh-card-meta{font-size:0.78em;opacity:0.7;margin-top:4px;}',
-        /* Kartu kutipan kini sebuah <a>: blok penuh, warna mewarisi, dan ada
-           tanda hover supaya jelas bisa diklik (menuju catatan yang dikutip). */
+        /* The quote card is now an <a>: full block, inherits colour, and has a
+           hover cue so it clearly looks clickable (going to the quoted note). */
         '.t-quote-card{display:block;border-left:3px solid var(--yt-border, var(--left-border, #2a2a2a));'
             + 'padding:8px 12px;margin-top:10px;background:rgba(255,255,255,0.02);'
             + 'text-decoration:none;color:inherit;cursor:pointer;transition:background 0.15s,border-color 0.15s;}',

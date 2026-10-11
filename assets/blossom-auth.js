@@ -1,61 +1,61 @@
 /* ==========================================================================
-   blossom-auth.js — aturan unggah media ke server Blossom, ditulis SEKALI.
+   blossom-auth.js — media upload rules for a Blossom server, written ONCE.
 
-   Kenapa berkas ini ada (2026-10-09)
+   Why this file exists (2026-10-09)
    ----------------------------------
-   Phosphor punya TUJUH halaman yang masing-masing bisa mengunggah media
-   (index, thread, notes, notifications, bookmark, relay, profile). Blok yang
-   sama — hitung sha256 berkas, susun peristiwa otorisasi kind 24242, tanda
-   tangani, bungkus jadi header `Authorization: Nostr <base64>`, lalu PUT —
-   disalin ke ketujuhnya, dengan pesan galat yang sudah mulai berbeda-beda
-   (halaman `bookmark` bahkan tidak pernah menampilkan teks penolakan server).
+   Phosphor has SEVEN pages that can each upload media (index, thread, notes,
+   notifications, bookmark, relay, profile). The same block — hash the file
+   with sha256, build a kind 24242 authorization event, sign it, wrap it as the
+   header `Authorization: Nostr <base64>`, then PUT — was copied into all
+   seven, with error messages that had already started to drift (the
+   `bookmark` page did not even show the server's rejection text).
 
-   Pada 2026-10-07 salinan-salinan itu terbukti berbahaya: blossom-server 6.4.1
-   memperketat BUD-11 sehingga tag `x` (sha256 blob) menjadi WAJIB. Salinan
-   Phosphor mengirim tag bernama `payload`, jadi SEMUA unggahan ditolak
-   `403 Auth token does not authorize operation on blob <hash>` — termasuk post
-   24H_PULSE. Perbaikannya saat itu juga harus dikerjakan di ketujuh salinan.
+   On 2026-10-07 those copies proved dangerous: blossom-server 6.4.1 tightened
+   BUD-11 so the `x` tag (sha256 of the blob) became MANDATORY. The Phosphor
+   copies sent a tag named `payload`, so EVERY upload was rejected with
+   `403 Auth token does not authorize operation on blob <hash>` — including
+   the 24H_PULSE post. The fix then also had to be applied to all seven copies.
 
-   Sekarang aturannya hidup di sini saja. Kalau protokolnya berubah lagi,
-   satu tempat ini yang berubah.
+   Now the rules live only here. If the protocol changes again, this one place
+   changes.
 
-   Cara pakai di halaman:
-     <script src="/assets/blossom-auth.js"></script>     (di <head>)
+   How to use it in a page:
+     <script src="/assets/blossom-auth.js"></script>     (in <head>)
      window.BlossomAuth.uploadSelectedFiles(files, btnElement, textareaElement, {
-         servers: BLOSSOM_SERVERS,       // dari config.json, boleh kosong
+         servers: BLOSSOM_SERVERS,       // from config.json, may be empty
          fallbackServer: 'https://blossom.jeannesbryan.my.id',
          pubkey: currentUserPubkey,
          sign: (ev) => window.nostr.signEvent(ev)
      });
 
-   Kegagalan modul ini TIDAK boleh senyap. Halaman WAJIB memeriksa
-   `window.BlossomAuth` lebih dulu dan memberi tahu pengguna kalau berkas ini
-   tidak termuat — kalau tidak, tombol media hanya diam tanpa penjelasan.
+   A failure of this module MUST NOT be silent. Pages MUST check
+   `window.BlossomAuth` first and tell the user when this file did not load —
+   otherwise the media button just sits there with no explanation.
 
-   Aturan BUD-11 yang dipegang (jangan diubah tanpa alasan)
-   --------------------------------------------------------
-   - kind 24242, tag `x` = sha256 heksadesimal dari ISI BERKAS (wajib sejak
-     blossom 6.4.1; `payload` ditolak). `x` yang cocok juga diterima server
-     6.3.x yang longgar, jadi tidak ada versi server yang dirugikan.
-   - `u` = URL upload persis, `method` = PUT, `t` = upload, `expiration` =
-     created_at + 60 detik.
+   BUD-11 rules honoured here (do not change without a reason)
+   ----------------------------------------------------------
+   - kind 24242, tag `x` = hexadecimal sha256 of the FILE CONTENT (mandatory
+     since blossom 6.4.1; `payload` is rejected). A matching `x` is also
+     accepted by the lenient 6.3.x server, so no server version loses out.
+   - `u` = the exact upload URL, `method` = PUT, `t` = upload, `expiration` =
+     created_at + 60 seconds.
    ========================================================================== */
 (function (root, factory) {
     var api = factory(root);
     root.BlossomAuth = api;
-    // supaya bisa diuji tanpa browser: node tests/blossom-auth.test.mjs
+    // so it can be tested without a browser: node tests/blossom-auth.test.mjs
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 }(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
     'use strict';
 
-    /* Jenis peristiwa otorisasi BUD-11 (NIP-B7 / Blossom). */
+    /* BUD-11 authorization event kind (NIP-B7 / Blossom). */
     var AUTH_KIND = 24242;
-    /* Isi peristiwa otorisasi. Server tidak memeriksanya, tetapi dibiarkan
-       konstan supaya mudah dikenali di log. */
+    /* Authorization event content. The server does not check it, but it is kept
+       constant so it is easy to spot in logs. */
     var AUTH_CONTENT = 'Phosphor Blossom Auth';
-    /* Batas unggahan per catatan (sama di semua halaman). */
+    /* Upload limit per note (the same on every page). */
     var MAX_FILES = 4;
-    /* Umur token otorisasi: cukup untuk satu PUT, tidak lebih. */
+    /* Authorization token lifetime: enough for one PUT, no more. */
     var AUTH_TTL_SECONDS = 60;
     var DEFAULT_SERVER = 'https://blossom.jeannesbryan.my.id';
     var UPLOAD_LABEL = '[ MEDIA (0/4) ]';
@@ -68,11 +68,11 @@
         return out;
     }
 
-    /* sha256 heksadesimal dari isi berkas. Nama berkas di Blossom = hash ini. */
+    /* Hexadecimal sha256 of the file content. The Blossom file name is this hash. */
     function sha256Hex(arrayBuffer, cryptoObj) {
         var c = cryptoObj || root.crypto;
         if (!c || !c.subtle) {
-            return Promise.reject(new Error('crypto.subtle tidak tersedia (butuh konteks aman: https atau localhost)'));
+            return Promise.reject(new Error('crypto.subtle unavailable (needs a secure context: https or localhost)'));
         }
         return c.subtle.digest('SHA-256', arrayBuffer).then(function (buf) {
             return bytesToHex(new Uint8Array(buf));
@@ -80,7 +80,7 @@
     }
 
     /* "blossom.example.com" -> "https://blossom.example.com/upload".
-       Daftar server dari config boleh kosong -> pakai fallback. */
+       The server list from config may be empty -> use the fallback. */
     function uploadEndpointFor(serverSpec, fallbackServer) {
         var s = String(serverSpec == null ? '' : serverSpec).trim();
         if (!s) s = String(fallbackServer || DEFAULT_SERVER).trim();
@@ -89,8 +89,8 @@
         return s + '/upload';
     }
 
-    /* Peristiwa otorisasi yang ditandatangani klien. Inilah "kontrak" dengan
-       blossom — satu-satunya tempat tag-tag ini disusun. */
+    /* The client-signed authorization event. This is the "contract" with
+       blossom — the single place these tags are assembled. */
     function buildAuthEvent(opts) {
         var now = opts.now == null ? Math.floor(Date.now() / 1000) : opts.now;
         return {
@@ -115,16 +115,16 @@
         return bin;
     }
 
-    /* Header yang dipakai Phosphor: "Nostr " + base64(JSON peristiwa bertanda
-       tangan). Dulu memakai unescape(encodeURIComponent(...)) yang sudah usang;
-       TextEncoder memberi hasil sama untuk konten ASCII kita. */
+    /* Header used by Phosphor: "Nostr " + base64(JSON of the signed event).
+       It used to rely on the obsolete unescape(encodeURIComponent(...));
+       TextEncoder gives the same result for our ASCII content. */
     function encodeAuthHeader(signedEvent, btoaImpl) {
         var enc = btoaImpl || root.btoa;
         return 'Nostr ' + enc(utf8ToBinary(JSON.stringify(signedEvent)));
     }
 
-    /* Satu berkas: hash -> peristiwa -> tanda tangan -> PUT -> {ok, url, ...}.
-       Mengembalikan objek, bukan melempar — pemanggil yang memutuskan pesannya. */
+    /* One file: hash -> event -> signature -> PUT -> {ok, url, ...}.
+       Returns an object instead of throwing — the caller decides the message. */
     function uploadFile(file, opts) {
         var fetchImpl = opts.fetchImpl || root.fetch;
         var endpoint = opts.uploadEndpoint;
@@ -158,8 +158,8 @@
             });
     }
 
-    /* Seluruh alur UI: peringatan batas berkas, teks tombol, tempel URL ke
-       textarea, dan pesan galat. Halaman hanya menyediakan elemen + kredensial. */
+    /* The whole UI flow: file-limit warning, button text, pasting URLs into the
+       textarea, and error messages. Pages only supply elements + credentials. */
     function uploadSelectedFiles(files, btnElement, textareaElement, config) {
         config = config || {};
         var alertFn = config.alertFn || root.alert;
@@ -170,12 +170,12 @@
         if (!list.length) return Promise.resolve(result);
 
         if (list.length > maxFiles) {
-            alertFn('> WARNING: Maksimal ' + maxFiles + ' berkas media per catatan. Hanya ' + maxFiles + ' pertama yang diproses.');
+            alertFn('> WARNING: At most ' + maxFiles + ' media files per note. Only the first ' + maxFiles + ' will be processed.');
             list = list.slice(0, maxFiles);
         }
 
         if (!config.pubkey || !config.sign) {
-            alertFn('> ERROR: Belum masuk (login) — unggahan dibatalkan.');
+            alertFn('> ERROR: Not logged in — upload cancelled.');
             return Promise.resolve(result);
         }
 
@@ -201,7 +201,7 @@
                             textareaElement.value += (textareaElement.value ? '\n' : '') + res.url;
                         }
                     } else {
-                        alertFn('> ERROR: Server menolak ' + file.name + ' (HTTP ' + res.status + '). ' + res.error);
+                        alertFn('> ERROR: Server rejected ' + file.name + ' (HTTP ' + res.status + '). ' + res.error);
                     }
                 });
             });
@@ -209,7 +209,7 @@
 
         return chain
             .catch(function () {
-                alertFn('> ERROR: Tidak bisa menghubungi server Blossom. Bisa jadi masalah CORS atau server sedang mati.');
+                alertFn('> ERROR: Could not reach the Blossom server. It may be a CORS problem or the server is down.');
             })
             .then(function () {
                 if (btnElement) btnElement.textContent = UPLOAD_LABEL;

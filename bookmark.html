@@ -18,16 +18,16 @@
         .nostr-embed-link:hover { background: var(--t-green); color: var(--bg-base); }
         #lightboxModal img { max-width: 90%; max-height: 90%; border: 2px solid var(--t-green); }
     </style>
-    <!-- Tautan YouTube di dalam catatan jadi pemutar video. Aturannya hidup di
-         satu berkas ini; halaman hanya memakainya. Lihat catatan di berkasnya. -->
-    <script src="/assets/nostr-embed.js?v=20261011b"></script>
-    <script src="/assets/nostr-note.js?v=20261011b"></script>
-    <!-- Aturan unggah media ke Blossom (sha256 berkas + tag otorisasi
-         BUD-11 `x`). Satu berkas dipakai ketujuh halaman — jangan
-         salin isinya ke halaman. Lihat catatan di berkasnya. -->
-    <script src="/assets/blossom-auth.js?v=20261011b"></script>
-    <script src="/assets/form-utils.js?v=20261011b"></script>
-    <script src="/assets/nostr-like.js?v=20261011b"></script>
+    <!-- YouTube links inside notes become video players. The rules live in one
+         file; pages only use them. See the note in that file. -->
+    <script src="/assets/nostr-embed.js?v=20261011c"></script>
+    <script src="/assets/nostr-note.js?v=20261011c"></script>
+    <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
+         tag). One file is shared by all seven pages — do not copy its content
+         into a page. See the note in that file. -->
+    <script src="/assets/blossom-auth.js?v=20261011c"></script>
+    <script src="/assets/form-utils.js?v=20261011c"></script>
+    <script src="/assets/nostr-like.js?v=20261011c"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -238,19 +238,19 @@
             else { navLoginBtn.classList.remove('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden')); }
         }
 
-        /* Aturan unggah ke Blossom (sha256 berkas, tag otorisasi BUD-11 `x`,
-           header `Nostr <base64>`) hidup di /assets/blossom-auth.js — JANGAN
-           salin ke halaman ini. Dulu salinannya ada di tujuh halaman, dan saat
-           blossom dinaikkan ke 6.4.1 semuanya harus diperbaiki satu per satu
-           (kalau tidak, setiap unggahan ditolak 403). */
+        /* The Blossom upload rules (file sha256, BUD-11 `x` authorization tag,
+           `Nostr <base64>` header) live in /assets/blossom-auth.js — do NOT
+           copy them into this page. They used to be copied in seven pages, and
+           when blossom was upgraded to 6.4.1 all of them had to be fixed one by
+           one (otherwise every upload was rejected with 403). */
         function handleMediaUpload(files, btnElement, textareaElement) {
-            if (!window.BlossomAuth) return alert('> ERROR: assets/blossom-auth.js gagal dimuat — unggahan dibatalkan.');
+            if (!window.BlossomAuth) return alert('> ERROR: assets/blossom-auth.js failed to load — upload cancelled.');
             return window.BlossomAuth.uploadSelectedFiles(files, btnElement, textareaElement, {
                 servers: BLOSSOM_SERVERS,
                 fallbackServer: 'https://blossom.jeannesbryan.my.id',
                 pubkey: currentUserPubkey,
-                // Tanpa penanda tangan (ekstensi hilang/terlepas) modul memberi
-                // pesan "belum masuk", bukan pesan "server tidak bisa dihubungi".
+                // With no signer (extension missing/detached) the module reports
+                // "not logged in" instead of a misleading "server unreachable".
                 sign: window.nostr ? (ev) => window.nostr.signEvent(ev) : null
             });
         }
@@ -283,7 +283,7 @@
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, zapSats: 0, processed: new Set() }; }
         function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); let ez = document.getElementById(`metric-zaps-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; if(ez) ez.textContent = m.zapSats; if (window.NostrLike) window.NostrLike.applyState(id); }
         function requestMetrics(eventId) { pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout); metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16, 9735] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500); }
-        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js gagal dimuat.'); await window.NostrLike.toggle(eventId, ev.pubkey); }
+        async function likeEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!window.NostrLike) return alert('> ERROR: assets/nostr-like.js failed to load.'); await window.NostrLike.toggle(eventId, ev.pubkey); }
 
         function initLikeModule() {
             if (!window.NostrLike) return;
@@ -530,7 +530,7 @@
                 let mediaHtml = "";
                 if (videoUrl) {
                     let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
-                    mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Browser Anda tidak mendukung format video.</video>`;
+                    mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Your browser does not support this video format.</video>`;
                 }
                 let contentText = ev.content ? `<div class="t-feed-content mt-2">${escapeHtml(ev.content)}</div>` : ""; let badgeName = ev.kind === 21 ? "VIDEO" : "SHORT_VIDEO"; let contentHtml = `<div class="t-badge success mb-2">> ${badgeName} / MEDIA</div>${contentText}`; let eventTypeStr = ev.kind === 21 ? 'video_stream' : 'short_video';
 
@@ -556,9 +556,9 @@
             }
             else if (isPulse) {
                 card.className = 't-feed-card border-warning mb-4'; let contentText = ev.content; let mediaElements = [];
-                // Satu lintasan untuk semua media, supaya urutan di dalam catatan
-                // tetap seperti aslinya. Aturan "URL mana yang dianggap video
-                // YouTube" hidup di /assets/nostr-embed.js.
+                // One pass for all media, so the order inside the note stays as
+                // written. The rules for "which URLs count as YouTube video"
+                // live in /assets/nostr-embed.js.
                 contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
                     let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
                     if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
@@ -600,9 +600,9 @@
                 if (parsed.isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsed.parsedJsonContent)}</pre>`; } 
                 else {
                     let contentText = ev.content;
-                    // Satu lintasan untuk semua media, supaya urutan di dalam
-                    // catatan tetap seperti aslinya. Aturan "URL mana yang
-                    // dianggap video YouTube" hidup di /assets/nostr-embed.js.
+                    // One pass for all media, so the order inside the note stays
+                    // as written. The rules for "which URLs count as YouTube
+                    // video" live in /assets/nostr-embed.js.
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
                         let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
                         if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }

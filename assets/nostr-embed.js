@@ -1,58 +1,58 @@
 /* ==========================================================================
-   nostr-embed.js — tautan YouTube di dalam catatan Nostr jadi video.
+   nostr-embed.js — YouTube links inside Nostr notes become video players.
 
-   Kenapa berkas ini ada (asal 2026-09-29 di jeannesbryan.my.id, dipakai
-   phosphor sejak 2026-10-04)
+   Why this file exists (born 2026-09-29 in jeannesbryan.my.id, used by
+   phosphor since 2026-10-04)
    ----------------------------------
-   Phosphor punya TUJUH halaman yang masing-masing menyusun sendiri isi catatan
-   (index, profile, bookmark, relay, thread, notifications, notes) — sepuluh
-   tempat seluruhnya. Semuanya sudah mengenali gambar dan berkas video
-   (mp4/webm/ogg) dari ekstensi berkas, tapi tautan YouTube tidak punya
-   ekstensi berkas, jadi ia jatuh ke aturan URL umum dan hanya jadi teks yang
-   bisa diklik. Klien lain (Jumble, Amethyst) menampilkannya sebagai video —
-   itulah selisih yang dilaporkan bos.
+   Phosphor has SEVEN pages that each assemble note content themselves
+   (index, profile, bookmark, relay, thread, notifications, notes) — ten
+   places in total. All of them already recognised images and video files
+   (mp4/webm/ogg) from the file extension, but a YouTube link has no file
+   extension, so it fell through to the generic URL rule and became plain
+   clickable text. Other clients (Jumble, Amethyst) show it as a video —
+   that was the difference bos reported.
 
-   Aturan "URL mana yang dianggap video, seperti apa pemutarnya, kapan iframe
-   dimuat, dan bagaimana media disusun" ditulis SEKALI di sini. Kalau aturannya
-   disalin sepuluh kali, perbaikan berikutnya hampir pasti hanya mendarat di
-   satu salinan dan halaman-halamannya kembali menampilkan hal yang berbeda.
+   The rules "which URLs count as video, what the player looks like, when the
+   iframe is loaded, and how media is laid out" are written ONCE here. If the
+   rules were copied ten times, the next fix would almost certainly land in
+   one copy only and the pages would drift apart again.
 
-   Yang TIDAK disentuh: video yang diunggah manual (mp4/webm/ogg, kind 21/22,
-   imeta). Itu tetap dirender seperti sebelumnya — tanpa thumbnail.
+   NOT touched: manually uploaded video (mp4/webm/ogg, kind 21/22, imeta).
+   Those keep rendering exactly as before — without a thumbnail.
 
-   Cara pakai di halaman:
-     <script src="/assets/nostr-embed.js"></script>   (di <head>)
-     window.NostrEmbed.youTubeId(url)   -> id 11 karakter, atau null
-     window.NostrEmbed.playerHtml(id)   -> string HTML pemutar
+   How to use it in a page:
+     <script src="/assets/nostr-embed.js"></script>   (in <head>)
+     window.NostrEmbed.youTubeId(url)   -> 11-char id, or null
+     window.NostrEmbed.playerHtml(id)   -> player HTML string
      window.NostrEmbed.buildMediaHtml(blocks, gridClass, wrapClass[, extraAttrs])
-                                        -> menyusun daftar media jadi HTML
-     window.NostrEmbed.upgrade(el)      -> untuk konten markdown (artikel)
+                                        -> lays out a list of media as HTML
+     window.NostrEmbed.upgrade(el)      -> for markdown content (articles)
 
-   Kegagalan modul ini TIDAK boleh menghilangkan media diam-diam. Setiap
-   pemakaian di halaman diberi penjaga: kalau berkas ini tidak termuat, gambar
-   dan video unggahan tetap tampil seperti sebelumnya dan tautan YouTube kembali
-   jadi teks biasa — tidak ada media yang lenyap tanpa jejak.
+   A failure of this module MUST NOT silently drop media. Every call site is
+   guarded: if the file does not load, images and uploaded video still render
+   as before and YouTube links fall back to plain text — no media disappears
+   without a trace.
 
-   Privasi / beban halaman
-   -----------------------
-   Saat halaman dibuka hanya thumbnail (i.ytimg.com) yang diambil, dan itu pun
-   dengan loading="lazy". Tidak ada iframe, skrip, atau cookie YouTube sampai
-   pengunjung menekan tombol putar. Iframe-nya memakai youtube-nocookie.com.
+   Privacy / page weight
+   ---------------------
+   On page load only the thumbnail (i.ytimg.com) is fetched, and even that
+   with loading="lazy". No iframe, script, or YouTube cookie until the visitor
+   presses play. The iframe uses youtube-nocookie.com.
    ========================================================================== */
 (function (root, factory) {
     var api = factory();
     root.NostrEmbed = api;
-    // supaya bisa diuji tanpa browser: node tests/nostr-embed.test.mjs
+    // so it can be tested without a browser: node tests/nostr-embed.test.mjs
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
     var ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
-    /* Selektor untuk "media ini sedang disembunyikan di balik penutup".
-       Phosphor memakai kelas .t-spoiler untuk catatan sensitif; situs lain
-       boleh mengubah baris ini. Kalau selektornya tidak ada di halaman,
-       perilakunya sama seperti tanpa fitur ini. */
+    /* Selector for "this media is currently hidden behind a cover".
+       Phosphor uses the class .t-spoiler for sensitive notes; other sites may
+       change this line. If the selector matches nothing on the page, the
+       behaviour is the same as without this feature. */
     var CONCEALED_SELECTOR = '.t-spoiler';
 
     var PLAY_SVG = '<svg viewBox="0 0 68 48" aria-hidden="true" focusable="false">'
@@ -60,12 +60,12 @@
         + '<path class="yt-play-fg" d="M27.9 34L45.3 24 27.9 14z"/></svg>';
 
     var CSS = [
-        /* Bingkai 16:9. Warnanya diambil dari tema masing-masing situs:
-           --yt-border kalau ada, kalau tidak --left-border (jeannesbryan.my.id),
-           kalau tidak juga abu-abu netral. Dengan begitu berkas ini bisa
-           dipindah antar situs tanpa menyalin ulang warnanya.
-           Di dalam grid media margin vertikalnya ditiadakan oleh aturan di
-           bawah, karena di sana jarak sudah diatur grid. */
+        /* 16:9 frame. The colour comes from each site's theme: --yt-border if
+           present, otherwise --left-border (jeannesbryan.my.id), otherwise a
+           neutral grey. That way this file can move between sites without the
+           colours being copied along.
+           Inside the media grid its vertical margin is zeroed by the rule
+           below, because the grid already handles spacing there. */
         '.yt-embed{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#111;'
             + 'border:1px solid var(--yt-border, var(--left-border, #2a2a2a));cursor:pointer;'
             + 'overflow:hidden;margin:16px 0;}',
@@ -87,16 +87,16 @@
 
     var STYLE_ID = 'nostr-embed-style';
 
-    /* Mengambil id video dari sebuah URL YouTube, atau null kalau bukan.
-       Menerima: youtu.be/<id>, youtube.com/watch?v=<id>, /shorts/<id>,
-       /live/<id>, /embed/<id>, /v/<id>, dengan atau tanpa www/m/music. */
+    /* Extract the video id from a YouTube URL, or null if it is not one.
+       Accepts: youtu.be/<id>, youtube.com/watch?v=<id>, /shorts/<id>,
+       /live/<id>, /embed/<id>, /v/<id>, with or without www/m/music. */
     function youTubeId(rawUrl) {
         if (!rawUrl) return null;
         var url = String(rawUrl).replace(/&amp;/g, '&').trim();
-        /* Regex pelink-an bisa menelan tanda baca di ekor URL — "(...youtu.be/
-           xxx)" atau "...xxx)." — sedangkan id video tidak pernah memuat tanda
-           itu, jadi memangkasnya aman. Koma/titik di ekor kerap muncul karena
-           URL berada di akhir kalimat. */
+        /* Link detection can swallow trailing punctuation — "(...youtu.be/xxx)"
+           or "...xxx)." — while a video id never contains those characters, so
+           trimming them is safe. A trailing comma/period usually appears
+           because the URL sits at the end of a sentence. */
         url = url.replace(/^[([{'"\s]+/, '').replace(/[)\]}>.,;:!?'"]+$/, '');
 
         var parsed;
@@ -123,13 +123,13 @@
         return 'https://i.ytimg.com/vi/' + id + '/' + size + '.jpg';
     }
 
-    /* Thumbnail resolusi tinggi dulu; tidak semua video punya maxresdefault,
-       jadi kalau gagal (pendengar error di bawah) turun ke hqdefault.
-       object-fit:cover memotong bar hitam yang ikut di hqdefault. */
+    /* High-resolution thumbnail first; not every video has maxresdefault, so
+       on failure (the error listener below) it falls back to hqdefault.
+       object-fit:cover crops the black bars that come with hqdefault. */
     function playerHtml(id) {
         if (!ID_RE.test(String(id || ''))) return '';
         return '<div class="yt-embed" data-yt-id="' + id + '" role="button" tabindex="0"'
-            + ' aria-label="Putar video YouTube">'
+            + ' aria-label="Play YouTube video">'
             + '<img class="yt-thumb" alt="" loading="lazy" decoding="async"'
             + ' src="' + thumbUrl(id, 'maxresdefault') + '"'
             + ' data-yt-fallback="' + thumbUrl(id, 'hqdefault') + '">'
@@ -156,10 +156,10 @@
         box.appendChild(frame);
     }
 
-    /* Ganti tautan YouTube yang berdiri sendiri di satu baris (hasil marked
-       pada artikel long-form: <p><a href="...youtu.be/xxx">...</a></p>) jadi
-       pemutar. Tautan di tengah kalimat dibiarkan — menggantinya akan
-       menghapus kata-kata di sekitarnya. */
+    /* Replace a YouTube link that stands alone on its own line (marked output
+       in long-form articles: <p><a href="...youtu.be/xxx">...</a></p>) with a
+       player. Links in the middle of a sentence are left alone — replacing
+       them would delete the surrounding words. */
     function upgrade(rootEl) {
         if (!rootEl || !rootEl.querySelectorAll) return rootEl;
         var anchors = rootEl.querySelectorAll('a[href]');
@@ -187,20 +187,20 @@
         return rootEl;
     }
 
-    /* Menyusun daftar media jadi satu blok HTML.
-       blocks : array objek { html, full }
-                  full=false -> boleh dirapatkan jadi grid (gambar, mp4/webm/ogg
-                                unggahan manual)
-                  full=true  -> blok sendiri selebar kolom (pemutar YouTube,
-                                karena di dalam grid 2 kolom ia jadi terlalu kecil
-                                untuk ditonton)
-       Urutan asli di dalam catatan dipertahankan: yang rapat dan berurutan
-       digabung jadi satu grid, yang penuh memutus grid itu.
+    /* Lay out a list of media as one HTML block.
+       blocks : array of objects { html, full }
+                  full=false -> may be packed into a grid (images, manually
+                                uploaded mp4/webm/ogg)
+                  full=true  -> a block of its own, full column width (YouTube
+                                player, because a 2-column grid cell makes it
+                                too small to watch)
+       The original order inside the note is preserved: consecutive packed
+       items join one grid, a full-width item breaks that grid.
 
-       extraAttrs (opsional) ditempelkan apa adanya ke SETIAP elemen pembungkus.
-       Dipakai halaman index Phosphor yang menyembunyikan media sensitif di
-       balik kelas t-spoiler: atribut onclick-nya harus ada di elemen yang sama
-       dengan kelas itu, jadi tidak bisa dipasang sebagai pembungkus tambahan. */
+       extraAttrs (optional) is pasted verbatim onto EVERY wrapper element.
+       Used by the Phosphor index page, which hides sensitive media behind the
+       class t-spoiler: its onclick attribute must sit on the same element as
+       that class, so it cannot be added as an extra outer wrapper. */
     function buildMediaHtml(blocks, gridClass, wrapClass, extraAttrs) {
         if (!blocks || !blocks.length) return '';
         gridClass = gridClass || 'media-grid';
@@ -242,15 +242,15 @@
             (document.head || document.documentElement).appendChild(style);
         }
 
-        /* Dipasang di fase CAPTURE, bukan bubble. Alasannya konkret: pembungkus
-           media di halaman index memanggil event.stopPropagation() supaya klik
-           pertama hanya membuka penutup catatan sensitif. Kalau pendengar ini
-           duduk di fase bubble, propagasi itu memutusnya dan pemutar video tidak
-           akan pernah bisa diputar di halaman tersebut.
+        /* Installed in the CAPTURE phase, not bubble. The reason is concrete:
+           the media wrapper on the index page calls event.stopPropagation() so
+           the first click only lifts the cover off a sensitive note. If this
+           listener sat in the bubble phase, that propagation would cut it off
+           and the video player could never be started on that page.
 
-           Selama penutupnya masih aktif kita sengaja TIDAK memuat pemutar:
-           klik pertama membuka penutup (itu tugas pembungkusnya), pemutar
-           dimuat pada klik berikutnya — sama seperti perilaku gambar. */
+           While the cover is still active we deliberately DO NOT load the
+           player: the first click lifts the cover (that is the wrapper's job),
+           the player loads on the next click — the same behaviour as images. */
         function closestConcealed(el) {
             if (!el || !el.closest) return null;
             return el.closest(CONCEALED_SELECTOR);
@@ -269,7 +269,7 @@
             activate(box);
         }, true);
 
-        /* error tidak bubble, jadi pendengarnya harus capture. */
+        /* error does not bubble, so its listener must be capture. */
         document.addEventListener('error', function (ev) {
             var img = ev.target;
             if (!img || img.tagName !== 'IMG' || !img.classList
