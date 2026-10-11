@@ -153,6 +153,49 @@ like.absorb({ id: 'd1', pubkey: ME, kind: 5, created_at: 1000, tags: [['e', like
 ok('unlike one reaction: still liked by another', like.isLiked(T) === true);
 eq('the one left is the older reaction', like.reactionFor(T), 'a1');
 
+// ============ 4c. WHICH REACTIONS COUNT: like and love only ============
+/* Bos's decision (2026-10-11): one button, like/love only — no custom emoji
+   picker. So a heart given from another client must show as "already liked",
+   while a dislike ("-") must NOT. Counting every kind 7 as a like was a real
+   bug: a dislike used to light the button up. */
+console.log('--- 4c. like vs love vs other reactions ---');
+setup();
+ok('content "+" is a like', like.isLikeContent('+') === true);
+ok('an empty content is a like', like.isLikeContent('') === true);
+ok('a heart is a like', like.isLikeContent('\u2764') === true);
+ok('a filled heart is a like', like.isLikeContent('\u2665') === true);
+ok('a heart with a variation selector is a like', like.isLikeContent('\u2764\uFE0F') === true);
+ok('a heart with a text selector is a like', like.isLikeContent('\u2764\uFE0E') === true);
+ok('a dislike is NOT a like', like.isLikeContent('-') === false);
+ok('a thumbs up is NOT a like', like.isLikeContent('\uD83D\uDC4D') === false);
+ok('a fire emoji is NOT a like', like.isLikeContent('\uD83D\uDD25') === false);
+ok('a word is NOT a like', like.isLikeContent('lol') === false);
+ok('null is treated as empty (a like)', like.isLikeContent(null) === true);
+
+// A heart reaction from another client arrives -> it counts as liked.
+setup();
+ok('a heart reaction is absorbed', like.absorb({ id: 'h1', pubkey: ME, kind: 7, created_at: 10, content: '\u2764\uFE0F', tags: [['e', T]] }) === true);
+ok('a heart marks the note as liked', like.isLiked(T) === true);
+eq('the heart counts once', counts, [[T, 1]]);
+
+// A dislike must NOT mark it as liked.
+setup();
+ok('a dislike is not absorbed', like.absorb({ id: 'd9', pubkey: ME, kind: 7, created_at: 10, content: '-', tags: [['e', T]] }) === false);
+ok('a dislike does not mark the note as liked', like.isLiked(T) === false);
+eq('a dislike does not move the counter', counts, []);
+
+// Another emoji must not either.
+setup();
+like.absorb({ id: 'e9', pubkey: ME, kind: 7, created_at: 10, content: '\uD83D\uDD25', tags: [['e', T]] });
+ok('a fire reaction does not mark the note as liked', like.isLiked(T) === false);
+
+// Mixed: a heart AND a dislike -> still liked (the heart is live).
+setup();
+like.absorb({ id: 'h2', pubkey: ME, kind: 7, created_at: 10, content: '\u2764', tags: [['e', T]] });
+like.absorb({ id: 'd10', pubkey: ME, kind: 7, created_at: 20, content: '-', tags: [['e', T]] });
+ok('a live heart survives a later dislike', like.isLiked(T) === true);
+eq('the marked reaction is the heart', like.reactionFor(T), 'h2');
+
 // ===================== 5. not logged in =====================
 like.reset();
 sent = [];

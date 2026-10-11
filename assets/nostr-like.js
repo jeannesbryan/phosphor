@@ -89,6 +89,24 @@
         }).map(function (t) { return t[1]; });
     }
 
+    /* Which reactions count as "we liked this note" (NIP-25).
+       Phosphor has one like/love button — no custom emoji picker — so the mark
+       must come from any reaction that means "like":
+         "+"   the NIP-25 like
+         ""    some clients send an empty content for a plain like
+         heart "" / heart  the love reaction, so a heart given from another
+               client (Amethyst, Jumble…) shows here as already liked
+       Everything else is NOT a like — in particular "-" (NIP-25 dislike) and
+       plain emoji such as thumbs up. Counting those as likes was a real bug:
+       a dislike used to light up the like button.
+       Variation selectors (U+FE0F) are stripped first, because "heart" and
+       "heart + VS16" are the same reaction to a reader. */
+    function isLikeContent(content) {
+        var raw = String(content == null ? '' : content).replace(/[\uFE0E\uFE0F]/g, '').trim();
+        if (raw === '' || raw === '+') return true;
+        return raw === '\u2764' || raw === '\u2665';
+    }
+
     /* The "e" tag that is the TARGET of the like. NIP-25: if there are several,
        the last one is the target (the leading ones are usually root/reply). */
     function reactionTarget(ev) {
@@ -187,6 +205,9 @@
     function absorb(ev) {
         if (!ev || ev.pubkey !== state.pubkey) return false;
         if (ev.kind === 7) {
+            /* Only likes and loves count (see isLikeContent). A dislike or some
+               other emoji is not our "liked" state and must not move it. */
+            if (!isLikeContent(ev.content)) return false;
             var target = reactionTarget(ev);
             if (!target) return false;
             state.reactions[ev.id] = target;
@@ -362,7 +383,8 @@
         toggle: toggle,
         absorb: absorb,
         refreshUI: refreshUI,
-        applyState: applyState
+        applyState: applyState,
+        isLikeContent: isLikeContent
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -50,7 +50,7 @@ No build step, no test framework — plain Node, no network:
 node tests/nostr-embed.test.mjs      # 64 assertions
 node tests/nostr-note.test.mjs       # 146 assertions
 node tests/blossom-auth.test.mjs     # 100 assertions
-node tests/nostr-like.test.mjs       # 113 assertions
+node tests/nostr-like.test.mjs       # 133 assertions
 node tests/reply-thread.test.mjs     # 20 assertions
 node tests/nostr-nip05.test.mjs      # 79 assertions
 node tests/nostr-relay-info.test.mjs # 66 assertions
@@ -100,6 +100,12 @@ handle and Phosphor showed it as verified. Now the check mark appears only after
 The test covers the parser (hosts, IP literals, injection attempts), the fetch
 result ('valid' / 'invalid' / 'error' / 'none'), caching and de-duplication, and
 the "no check mark without proof" promise across several failure modes.
+
+Which reactions count as "liked" is one rule too: Phosphor has a single
+like/love button (no custom emoji picker), so `+`, an empty content, and a heart
+(`❤` / `♥`, with or without a variation selector) all mean "we liked this",
+while `-` (the NIP-25 dislike) and plain emoji such as 👍 do not. Counting every
+kind 7 as a like was a real bug — a dislike used to light the button up.
 
 `tests/nostr-like.test.mjs` covers like/unlike as NIP-09 sets: state is
 recomputed from every known reaction minus the deleted ones, so the result no
