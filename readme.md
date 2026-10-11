@@ -48,7 +48,7 @@ No build step, no test framework — plain Node, no network:
 
 ```
 node tests/nostr-embed.test.mjs      # 64 assertions
-node tests/nostr-note.test.mjs       # 146 assertions
+node tests/nostr-note.test.mjs       # 157 assertions
 node tests/blossom-auth.test.mjs     # 100 assertions
 node tests/nostr-like.test.mjs       # 133 assertions
 node tests/reply-thread.test.mjs     # 20 assertions
@@ -125,7 +125,12 @@ and part 10 asserts that no page carries the old code any more — the count of
 `assembleMedia()` call sites must stay at ten.
 
 The rest of the note text pipeline (escape, then linkify bare URLs, then NIP-19
-ids) is still inlined and is the next candidate for the same treatment.
+ids) was inlined too — and had drifted the same way (notifications.html linkified
+URLs without `rel="noopener noreferrer"`). It is now `NostrNote.renderContentText(text, ev)`
+with `escapeHtml` alongside it. Two branches are deliberately left out: the sport
+activity branches in index.html and profile.html do escape + linkify but do NOT
+resolve NIP-19 ids, so wiring them in would change behaviour. The test asserts
+exactly ten `renderContentText` call sites and exactly two remaining copies.
 
 The media rules are no longer duplicated: each page calls the shared assembler,
 which is the single place that classifies a URL. `grep -c 'assembleMedia(' *.html`

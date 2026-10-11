@@ -351,6 +351,39 @@ ok('the card has the handle- class', quoteCard.indexOf('class="handle-' + MAIN_P
 ok('an article quote card -> notes',
     note.quoteCardHtml({ id: 'x', kind: 30023, pubkey: MAIN_PK, content: 'a', tags: [['d', 'art']] }).indexOf('notes.html?d=art') !== -1);
 
+// ============ 11. note text rendering (one rule, ten call sites) ============
+console.log('--- 11. renderContentText ---');
+eq('plain text passes through', note.renderContentText('hello world', { tags: [] }), 'hello world');
+eq('the text is trimmed', note.renderContentText('  hi  ', { tags: [] }), 'hi');
+eq('null is safe', note.renderContentText(null, { tags: [] }), '');
+ok('a URL becomes a link', note.renderContentText('see https://a.example/x', { tags: [] }).indexOf('<a href="https://a.example/x"') !== -1);
+ok('the URL link carries noopener', note.renderContentText('https://a.example/x', { tags: [] }).indexOf('rel="noopener noreferrer"') !== -1);
+ok('markup in the text is escaped', note.renderContentText('<script>alert(1)</script>', { tags: [] }).indexOf('&lt;script&gt;') !== -1);
+ok('quotes are escaped', note.renderContentText('a "b" \'c\'', { tags: [] }).indexOf('&quot;') !== -1);
+ok('NIP-19 ids are resolved too',
+    note.renderContentText('nostr:' + NPUB, null).indexOf('profile.html?pubkey=' + MAIN_PK) !== -1);
+eq('escapeHtml matches the pages', note.escapeHtml('<a>&"\''), '&lt;a&gt;&amp;&quot;&#039;');
+
+// ============ 12. page wiring: ten call sites, and no copy left ============
+console.log('--- 12. page wiring ---');
+const { readFileSync } = await import('node:fs');
+const { dirname, join } = await import('node:path');
+const { fileURLToPath } = await import('node:url');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const PAGES = ['index.html', 'profile.html', 'thread.html', 'notes.html',
+               'notifications.html', 'bookmark.html', 'relay.html'];
+let calls = 0, copies = 0;
+for (const p of PAGES) {
+    const html = readFileSync(join(root, p), 'utf8');
+    calls += (html.match(/renderContentText\(/g) || []).length;
+    copies += (html.match(/contentText\.replace\(\/\(https/g) || []).length;
+}
+eq('ten text pipelines use the shared rule', calls, 10);
+/* Only the two SPORT branches may keep their own: they do escape + linkify bare
+   URLs but deliberately do NOT resolve NIP-19 ids, so wiring them to
+   renderContentText would change behaviour (index ~1386, profile ~993). */
+eq('only the two sport branches keep a copy', copies, 2);
+
 console.log(results.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

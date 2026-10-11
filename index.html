@@ -29,20 +29,20 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011f"></script>
+    <script src="/assets/nostr-embed.js?v=20261011g"></script>
     <!-- Note structure rules: which notes are replies (NIP-10), which quote
          (NIP-18), and the GitHub link preview card. -->
-    <script src="/assets/nostr-note.js?v=20261011f"></script>
+    <script src="/assets/nostr-note.js?v=20261011g"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261011f"></script>
+    <script src="/assets/nostr-nip05.js?v=20261011g"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011f"></script>
+    <script src="/assets/blossom-auth.js?v=20261011g"></script>
     <!-- Password show/hide button + Enter-to-submit. One module, nine pages. -->
-    <script src="/assets/form-utils.js?v=20261011f"></script>
+    <script src="/assets/form-utils.js?v=20261011g"></script>
     <!-- Like/undo rules (NIP-25 + NIP-09), one module for six pages. -->
-    <script src="/assets/nostr-like.js?v=20261011f"></script>
+    <script src="/assets/nostr-like.js?v=20261011g"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1463,18 +1463,11 @@
                         : { html: '', text: contentText };   // module missing: URLs stay as links
                     mediaHtml = mediaResult.html; contentText = mediaResult.text;
                     
-                    contentText = escapeHtml(contentText.trim());
-
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) {
-                        let href = url.replace(/&amp;/g, '&');
-                        return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`;
-                    });
-
-                    // NIP-19 id -> an IN-PAGE link (thread/profile/notes). If the id
-                    // points at a note currently being drawn as a quote card, its link
-                    // is dropped so it does not show twice. The rule lives in one place,
-                    // assets/nostr-note.js (linkifyNostrUris).
-                    contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, ev) : contentText;
+                    // Escape, linkify bare URLs and resolve NIP-19 ids — one shared rule
+                    // in /assets/nostr-note.js; this used to be copied into ten places.
+                    contentText = window.NostrNote
+                        ? window.NostrNote.renderContentText(contentText, ev)
+                        : escapeHtml(contentText.trim());
 
                     contentHtml = `<div class="t-feed-content ${blurClass}" onclick="this.classList.remove('t-spoiler'); this.style.cursor='text';">${contentText}</div>`;
                 }

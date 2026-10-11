@@ -735,6 +735,27 @@
     }
 
     // ----------------------------------------------------------------- utils
+    // --------------------------------------------------- note text rendering
+    /* The tail of the note pipeline, which used to be pasted into ten places:
+       escape the text, turn bare URLs into links, then resolve NIP-19 ids.
+       Keeping it here means a change lands once — the copies had already drifted
+       (notifications.html produced links without rel="noopener noreferrer"). */
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function renderContentText(text, ev) {
+        var out = escapeHtml(String(text == null ? '' : text).trim());
+        out = out.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
+            var href = url.replace(/&amp;/g, '&');
+            return '<a href="' + href + '" target="_blank" rel="noopener noreferrer" '
+                + 'style="color: var(--t-green); text-decoration: underline; word-break: break-all;">' + url + '</a>';
+        });
+        return linkifyNostrUris(out, ev);
+    }
+
     function escapeAttr(s) {
         return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
@@ -798,6 +819,8 @@
         nip19PageUrl: nip19PageUrl,
         notePageUrl: notePageUrl,
         linkifyNostrUris: linkifyNostrUris,
+        renderContentText: renderContentText,
+        escapeHtml: escapeHtml,
         githubRepo: githubRepo,
         repoCardHtml: repoCardHtml,
         formatCount: formatCount,
