@@ -665,7 +665,7 @@
                         ${mediaHtml}
                         <div class="t-quote-holder"></div>
                         <div class="t-feed-actions d-flex flex-wrap gap-2 mt-3">
-                            <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                            <button class="t-feed-btn text-success" title="Open thread" onclick="openReplyThread('${ev.id}')">[r] <span id="metric-replies-${ev.id}">0</span></button>
                             <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                             <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
                             <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
@@ -683,6 +683,13 @@
             pasangCatatanTambahan(card, ev);
             injectZapControls(card, ev);
             updateMetricsUI(ev.id);
+        }
+
+        // Replies are rendered one level deep only, so the [r] button on a reply
+        // card must open that reply's own thread instead of focusing the composer
+        // here. There the user can read the replies to that reply and answer them.
+        function openReplyThread(id) {
+            window.location.href = 'thread.html?id=' + id;
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }

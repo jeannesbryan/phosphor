@@ -562,7 +562,7 @@
                     <div class="t-feed-header"><a href="profile.html?pubkey=${ev.pubkey}" class="t-feed-author author-${ev.pubkey}">${escapeHtml(info.name)}</a><span class="t-feed-meta"><span class="handle-${ev.pubkey}">${info.handleLine || info.handle || `@${ev.pubkey.substring(0, 8)}`}</span> · ${timeStr}</span></div>
                     ${pulseBadgeHtml}${contentHtml}${mediaHtml}
                     <div class="t-feed-actions d-flex flex-wrap gap-2 mt-3">
-                        <button class="t-feed-btn text-success" title="Reply" onclick="document.getElementById('replyContentInput').focus()">[r] <span id="metric-replies-${ev.id}">0</span></button>
+                        <button class="t-feed-btn text-success" title="Open thread" onclick="openReplyThread('${ev.id}')">[r] <span id="metric-replies-${ev.id}">0</span></button>
                         <button id="bm-btn-${ev.id}" class="t-feed-btn text-success bookmark-btn" title="Bookmark" data-id="${ev.id}" onclick="toggleBookmark('${ev.id}')">${bmText}</button>
                         <button class="t-feed-btn text-success" title="Copy note link" onclick="copyNote('${ev.id}')">[c] note</button>
                         <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
@@ -581,6 +581,13 @@
                 load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
                 onEvent: (qev) => { eventsCache[qev.id] = qev; if (!profileCache[qev.pubkey]) requestProfileInfo(qev.pubkey); }
             });
+        }
+
+        // Replies are rendered one level deep only, so the [r] button on a reply
+        // card must open the reply's own thread page (thread.html) instead of
+        // focusing the composer here. There its own replies become readable.
+        function openReplyThread(id) {
+            window.location.href = 'thread.html?id=' + id;
         }
 
         function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }

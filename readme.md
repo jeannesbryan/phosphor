@@ -47,9 +47,11 @@ Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no d
 No build step, no test framework — plain Node, no network:
 
 ```
-node tests/nostr-embed.test.mjs     # 64 assertions
-node tests/nostr-note.test.mjs      # 76 assertions
-node tests/blossom-auth.test.mjs    # 100 assertions
+node tests/nostr-embed.test.mjs      # 64 assertions
+node tests/nostr-note.test.mjs       # 146 assertions
+node tests/blossom-auth.test.mjs     # 100 assertions
+node tests/nostr-like.test.mjs       # 113 assertions
+node tests/reply-thread.test.mjs     # 20 assertions
 ```
 
 `tests/blossom-auth.test.mjs` guards a real incident: blossom-server 6.4.1
@@ -78,6 +80,20 @@ Its fixtures are three real notes taken from the relay, kept verbatim.
 that must *not* match, like Vimeo and look-alike domains) and the media
 assembler: which blocks get packed into a grid, which stay full width, and why
 the original order inside a note is preserved.
+
+`tests/reply-thread.test.mjs` guards a navigation rule, not a rendering one:
+replies are shown one level deep only, so the `[r]` button on a reply card
+must open that reply's own thread page (`thread.html?id=…`) instead of pulling
+focus back into the composer of the current page — otherwise the replies to a
+reply are unreachable. The test slices the actions bar of the main post
+(`mt-4`) and of a reply card (`mt-3`) and asserts that only the main post still
+calls `focus()`. Mutation-checked: putting the old handler back on a reply card
+fails four assertions.
+
+`tests/nostr-like.test.mjs` covers like/unlike as NIP-09 sets: state is
+recomputed from every known reaction minus the deleted ones, so the result no
+longer depends on the arrival order of events (a stale reaction plus its
+deletion used to hide a like that was still live on another relay).
 
 The code that assembles note content is inlined in each HTML page rather than
 shared, so the same patch has to be applied in ten places across seven files.
