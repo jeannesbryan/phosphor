@@ -52,6 +52,7 @@ node tests/nostr-note.test.mjs       # 146 assertions
 node tests/blossom-auth.test.mjs     # 100 assertions
 node tests/nostr-like.test.mjs       # 113 assertions
 node tests/reply-thread.test.mjs     # 20 assertions
+node tests/nostr-nip05.test.mjs      # 79 assertions
 ```
 
 `tests/blossom-auth.test.mjs` guards a real incident: blossom-server 6.4.1
@@ -89,6 +90,15 @@ reply are unreachable. The test slices the actions bar of the main post
 (`mt-4`) and of a reply card (`mt-3`) and asserts that only the main post still
 calls `focus()`. Mutation-checked: putting the old handler back on a reply card
 fails four assertions.
+
+`tests/nostr-nip05.test.mjs` guards an honesty rule, not a feature: every page
+used to print "handle ✓ domain" the moment a profile merely CONTAINED a nip05
+field, without ever fetching anything — so anyone could claim someone else's
+handle and Phosphor showed it as verified. Now the check mark appears only after
+`https://<domain>/.well-known/nostr.json?name=<local>` has confirmed the pubkey.
+The test covers the parser (hosts, IP literals, injection attempts), the fetch
+result ('valid' / 'invalid' / 'error' / 'none'), caching and de-duplication, and
+the "no check mark without proof" promise across several failure modes.
 
 `tests/nostr-like.test.mjs` covers like/unlike as NIP-09 sets: state is
 recomputed from every known reaction minus the deleted ones, so the result no

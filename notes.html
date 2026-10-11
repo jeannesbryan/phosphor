@@ -28,14 +28,16 @@
         .article-body pre { background: rgba(0,255,65,0.05); border: 1px dashed var(--t-green); padding: 10px; overflow-x: auto; margin-bottom: 15px;}
     </style>
     <!-- YouTube links inside notes become video players. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011c"></script>
-    <script src="/assets/nostr-note.js?v=20261011c"></script>
+    <script src="/assets/nostr-embed.js?v=20261011d"></script>
+    <script src="/assets/nostr-note.js?v=20261011d"></script>
+    <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
+    <script src="/assets/nostr-nip05.js?v=20261011d"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011c"></script>
-    <script src="/assets/form-utils.js?v=20261011c"></script>
-    <script src="/assets/nostr-like.js?v=20261011c"></script>
+    <script src="/assets/blossom-auth.js?v=20261011d"></script>
+    <script src="/assets/form-utils.js?v=20261011d"></script>
+    <script src="/assets/nostr-like.js?v=20261011d"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -290,7 +292,7 @@
         }
         async function repostEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; } if (!confirm('> Repost this content to your timeline?')) return; let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey }; if (ev.kind === 30023) { let dTag = ev.tags.find(t => t[0] === 'd'); if (dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; } } try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId); alert(`> SUCCESS: Reposted to ${sentCount} relays!`); } catch (err) { alert('> ERROR: Failed to broadcast repost.'); } }
 
-        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
+        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
         function isExpiredEvent(ev) {
             if (!ev.tags) return false;
@@ -419,8 +421,8 @@
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${rawName} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" style="color:var(--t-green); text-decoration:none;">${domainPart}</a>` : rawName;
-                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handleLine: handleLineStr, picture: meta.picture || null, lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); revealZapButtons(ev.pubkey);
+                                    let handleLineStr = domainPart ? `${escapeHtml(rawName)} ${escapeHtml(domainPart)}` : escapeHtml(rawName);
+                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handleLine: handleLineStr, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); revealZapButtons(ev.pubkey);
                                     if (ev.pubkey === currentUserPubkey && meta.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`; } updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }

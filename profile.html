@@ -25,14 +25,16 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011c"></script>
-    <script src="/assets/nostr-note.js?v=20261011c"></script>
+    <script src="/assets/nostr-embed.js?v=20261011d"></script>
+    <script src="/assets/nostr-note.js?v=20261011d"></script>
+    <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
+    <script src="/assets/nostr-nip05.js?v=20261011d"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011c"></script>
-    <script src="/assets/form-utils.js?v=20261011c"></script>
-    <script src="/assets/nostr-like.js?v=20261011c"></script>
+    <script src="/assets/blossom-auth.js?v=20261011d"></script>
+    <script src="/assets/form-utils.js?v=20261011d"></script>
+    <script src="/assets/nostr-like.js?v=20261011d"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -306,7 +308,7 @@
             let info = followingProfilesCache[pubkey] || profileCache[pubkey];
             if (!info || info.pending) return;
             document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; });
-            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { if (info.handle) el.textContent = info.handle; });
+            document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { if (info.handle) el.textContent = info.handle; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); });
             document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; });
         }
         let repostedEvents = new Set();
@@ -781,7 +783,7 @@
                             if (ev.kind === 0 && ev.pubkey !== targetPubkey) {
                                 try {
                                     let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    followingProfilesCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName, picture: meta.picture || null, lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false };
+                                    followingProfilesCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ${domainPart}` : rawName, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false };
                                     saveProfileToCache(ev.pubkey, followingProfilesCache[ev.pubkey]); revealZapButtons(ev.pubkey);
                                     if (followingModal.style.display === 'flex') renderFollowingListUI(); if (followersModal.style.display === 'flex') renderFollowersListUI(); if (mutedModal.style.display === 'flex') renderMutedListUI();
                                     triggerDebouncedRender();
@@ -800,7 +802,9 @@
                                     let profileData = JSON.parse(ev.content); if (isMyProfile) myRawProfileData = ev.content;
                                     if (profileData.name || profileData.display_name) { profileNameTxt = profileData.display_name || profileData.name; profileName.textContent = profileNameTxt; }
                                     let nip05Local = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[0] : ''; let rawNameStr = profileData.name || profileData.display_name || targetPubkey.substring(0, 8); profileHandleTxt = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (profileData.nip05 && profileData.nip05.includes('@')) ? profileData.nip05.split('@')[1] : '';
-                                    profileHandle.innerHTML = domainPart ? `${profileHandleTxt} ✓ <a href="relay.html?domain=${encodeURIComponent(domainPart)}" class="text-success" style="text-decoration:none;">${domainPart}</a>` : profileHandleTxt;
+                                    profileHandle.textContent = domainPart ? `${profileHandleTxt} ${escapeHtml(domainPart)}` : profileHandleTxt;
+                                    // The check mark only appears after the domain really vouches for this pubkey.
+                                    if (window.NostrNip05) window.NostrNip05.applyTo(profileHandle, profileData.nip05, targetPubkey);
                                     
                                     if (profileData.about && profileData.about.trim() !== "") {
                                         // The bio uses the same link rules too (NIP-19 id ->
@@ -860,7 +864,7 @@
                     else { authorName = `Node_${targetEv.pubkey.substring(0, 6)}`; authorHandleLine = `@${targetEv.pubkey.substring(0, 8)}`; avatarHtml = `[${targetEv.pubkey.substring(0,4).toUpperCase()}]`; }
                 } else {
                     let lowerHandle = profileHandleTxt.toLowerCase().replace(/\s+/g, ''); let domainPart = (profileNip05Txt && profileNip05Txt.includes('@')) ? profileNip05Txt.split('@')[1] : '';
-                    authorHandleLine = domainPart ? `${lowerHandle} ✓ ${domainPart}` : lowerHandle;
+                    authorHandleLine = domainPart ? `${lowerHandle} ${domainPart}` : lowerHandle;
                 }
 
                 let formattedMetaLine = `${authorHandleLine} · ${timeStr}`;

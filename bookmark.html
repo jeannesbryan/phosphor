@@ -20,14 +20,16 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011c"></script>
-    <script src="/assets/nostr-note.js?v=20261011c"></script>
+    <script src="/assets/nostr-embed.js?v=20261011d"></script>
+    <script src="/assets/nostr-note.js?v=20261011d"></script>
+    <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
+    <script src="/assets/nostr-nip05.js?v=20261011d"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011c"></script>
-    <script src="/assets/form-utils.js?v=20261011c"></script>
-    <script src="/assets/nostr-like.js?v=20261011c"></script>
+    <script src="/assets/blossom-auth.js?v=20261011d"></script>
+    <script src="/assets/form-utils.js?v=20261011d"></script>
+    <script src="/assets/nostr-like.js?v=20261011d"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -424,7 +426,7 @@
                             if (ev.kind === 0) {
                                 try {
                                     let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ✓ ${domainPart}` : rawName, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey); revealZapButtons(ev.pubkey);
+                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ${domainPart}` : rawName, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey); revealZapButtons(ev.pubkey);
                                 } catch(e){}
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++; if (ev.kind === 7) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } }); }
@@ -459,7 +461,7 @@
             return { isSportActivity, actTitle, actType, actDist, actDistUnit, actDur, actEle, actEleUnit, paceSpeedLabel, paceSpeedValue, clientName, hasExpiration, expTimeStr, isJsonPayload, parsedJsonContent };
         }
 
-        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle}`; }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
+        function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.textContent = `${info.handle}`; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
         function renderSavedPost(ev) {
             if (document.getElementById(`post-${ev.id}`)) return;
