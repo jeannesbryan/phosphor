@@ -1,7 +1,11 @@
 /* Tests for assets/nostr-embed.js — run: node tests/nostr-embed.test.mjs
-   Pure (no browser, no network): only the YouTube URL detection rules and the
-   player markup. Click behaviour is tested in a real browser. */
+   Pure (no browser, no network) for the URL rules, the player markup and the
+   shared media assembler. Part 9 also inspects the REAL page files, because the
+   whole point of assembleMedia() is that the rules are NOT copied into them. */
 import embed from '../assets/nostr-embed.js';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 let pass = 0, fail = 0;
 const results = [];
@@ -144,6 +148,104 @@ let spoiler3 = embed.buildMediaHtml([ytA], 't-media-grid t-spoiler', 't-spoiler'
 ok('extraAttrs lands on the full-width video block', spoiler3.includes('<div class="t-spoiler" ' + ATTR + '>'));
 ok('without extraAttrs there is no stray attribute', !embed.buildMediaHtml([imgA], 'g', 'w').includes('onclick'));
 ok('an empty extraAttrs is safe', embed.buildMediaHtml([imgA], 'g', 'w', '').includes('<div class="w">'));
+
+// ---------- 9. assembleMedia: one rule, used by ten places ----------
+// Bos approved unifying the ten copies (2026-10-11). Before this, the same
+// classifier was pasted into seven pages and had already drifted: three
+// different "video not supported" texts, and one page used a different alt.
+const asm = embed.assembleMedia;
+
+console.log('\n--- 9. shared assembler ---');
+let r = asm('see https://a.example/x.png and https://youtu.be/hop_rtjHI8g end', {});
+ok('an image becomes a block', r.html.includes('t-media-item') && r.html.includes('https://a.example/x.png'));
+ok('the YouTube link becomes a player', r.html.includes('yt-embed'));
+ok('the media URLs are removed from the text', !r.text.includes('a.example/x.png') && !r.text.includes('youtu.be'));
+ok('the words around them stay', r.text.includes('see') && r.text.includes('end'));
+
+// Order: a video before an image must stay before it (single pass, not two).
+r = asm('https://youtu.be/hop_rtjHI8g then https://a.example/x.png', {});
+ok('a video before an image stays before it', r.html.indexOf('yt-embed') < r.html.indexOf('x.png'));
+
+// Options must reach the layout.
+r = asm('https://a.example/x.png', { wrap: 'mt-9', grid: 'my-grid' });
+ok('the wrap option is honoured', r.html.includes('<div class="mt-9">'), r.html);
+r = asm('https://a.example/x.png and https://b.example/y.png', { grid: 'my-grid' });
+ok('the grid option is honoured', r.html.includes('class="my-grid"'), r.html);
+r = asm('https://a.example/x.png', { imgAlt: 'Pulse Media' });
+ok('the imgAlt option is honoured', r.html.includes('alt="Pulse Media"'));
+r = asm('https://a.example/x.png', { imgGuard: 'GUARD;' });
+ok('the imgGuard option is honoured', r.html.includes('onclick="GUARD;openLightbox('));
+r = asm('https://a.example/x.png', { extraAttrs: 'data-x="1"' });
+ok('the extraAttrs option is honoured', r.html.includes('data-x="1"'));
+eq('the default video fallback is stable', embed.videoFallback, 'Video format not supported.');
+r = asm('https://a.example/v.mp4', {});
+ok('a video file becomes a <video> block', r.html.includes('<video controls') && r.html.includes('a.example/v.mp4'));
+eq('a video URL is removed from the text', r.text.trim(), '');
+
+// Safety: a URL that could break out of an HTML attribute is NOT embedded.
+const attacks = [
+    'https://x.example/"><img src=y>.png',
+    'https://x.example/a"b.png',
+    "https://x.example/a'b.png",
+    'https://x.example/a<b>.png'
+];
+for (const bad of attacks) {
+    const out = asm('q ' + bad + ' z', {});
+    ok('a URL that is unsafe for HTML is not embedded: ' + bad.slice(0, 26),
+        !out.html.includes('<img') && !out.html.includes("openLightbox('"), out.html);
+}
+eq('nothing is lost when a URL is rejected', asm('q https://x.example/a"b.png z', {}).text, 'q https://x.example/a"b.png z');
+eq('empty content is safe', asm('', {}).html, '');
+eq('null content is safe', asm(null, {}).html, '');
+eq('a plain sentence yields no media', asm('just words', { html: 1 }).html, '');
+
+console.log('\n--- 10. the ten copies are gone ---');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const PAGES = ['index.html', 'profile.html', 'thread.html', 'notes.html',
+               'notifications.html', 'bookmark.html', 'relay.html'];
+let calls = 0;
+for (const p of PAGES) {
+    const html = readFileSync(join(root, p), 'utf8');
+    ok(`${p}: calls the shared assembler`, html.includes('assembleMedia('));
+    ok(`${p}: no inline media classifier (mediaElements.push)`, !html.includes('mediaElements.push'),
+        'the classifier was copied back into this page');
+    ok(`${p}: no inline buildMediaHtml call`, !html.includes('buildMediaHtml(mediaElements'));
+    ok(`${p}: does not call youTubeId directly`, !html.includes('youTubeId(url)'));
+    calls += (html.match(/assembleMedia\(/g) || []).length;
+}
+eq('ten media sites use the one shared assembler', calls, 10);
+
+/* Every option a page passes must be a literal or a variable that really exists
+   in that page. This catches a real slip made while unifying: index.html used
+   spoilerAttrs, whose declaration had lived inside the block that was deleted —
+   the page parsed fine but threw at runtime for any note with media. */
+for (const p of PAGES) {
+    const html = readFileSync(join(root, p), 'utf8');
+    // Each call is written on one line (profile, thread and bookmark have two:
+    // a pulse branch and a normal branch).
+    const calls = html.split('\n').filter((l) => l.includes('assembleMedia(contentText,'));
+    ok(`${p}: has at least one assembler call on a single line`, calls.length >= 1);
+    const bad = [];
+    for (const line of calls) {
+        // Take the options object: from its "{" to the last "}" on the line. Doing
+        // it this way (instead of a regex up to the first "}") matters, because an
+        // option value can itself contain a brace — grid: `t-media-grid ${blurClass}`.
+        const body = line.slice(line.indexOf('{', line.indexOf('assembleMedia(contentText,')) + 1,
+                                line.lastIndexOf('}'));
+        for (const m of body.matchAll(/(\w+)\s*:\s*([A-Za-z_$][\w$]*)/g)) {
+            const name = m[2];
+            if (['true', 'false', 'null', 'undefined'].includes(name)) continue;
+            const declared = new RegExp('(?:let|const|var|function)\\s+' + name + '\\b').test(html);
+            if (!declared) bad.push(m[1] + ' -> ' + name);
+        }
+    }
+    ok(`${p}: every option identifier is declared in the page`,
+        bad.length === 0, 'undeclared: ' + bad.join(', '));
+}
+// The rules must live in the module, and only there.
+const mod = readFileSync(join(root, 'assets', 'nostr-embed.js'), 'utf8');
+ok('the module defines assembleMedia', /function assembleMedia\(/.test(mod));
+ok('the module builds the file-media blocks', /t-media-item/.test(mod) && /t-video-item/.test(mod));
 
 console.log(results.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed`);

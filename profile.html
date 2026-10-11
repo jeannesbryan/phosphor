@@ -25,16 +25,16 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011e"></script>
-    <script src="/assets/nostr-note.js?v=20261011e"></script>
+    <script src="/assets/nostr-embed.js?v=20261011f"></script>
+    <script src="/assets/nostr-note.js?v=20261011f"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261011e"></script>
+    <script src="/assets/nostr-nip05.js?v=20261011f"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011e"></script>
-    <script src="/assets/form-utils.js?v=20261011e"></script>
-    <script src="/assets/nostr-like.js?v=20261011e"></script>
+    <script src="/assets/blossom-auth.js?v=20261011f"></script>
+    <script src="/assets/form-utils.js?v=20261011f"></script>
+    <script src="/assets/nostr-like.js?v=20261011f"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1018,23 +1018,13 @@
                 }
                 else if (isPulse) {
                     card.className = 't-feed-card';
-                    let contentText = targetEv.content; let mediaElements = [];
-                    // One pass for all media, so the order inside the note stays
-                    // as written. The rules for "which URLs count as YouTube
-                    // video" live in /assets/nostr-embed.js.
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
-                        let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
-                        if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
-                        let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
-                        if (!m) return url;
-                        let src = m[1]; let lowerExt = m[2].toLowerCase();
-                        if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video format not supported.</video>` });
-                        else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Pulse Media"></div>` });
-                        return url.substring(src.length);
-                    });
-                    let mediaHtml = window.NostrEmbed
-                        ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-2')
-                        : mediaElements.map(function (b) { return `<div class="mt-2">${b.html}</div>`; }).join('');
+                    let contentText = targetEv.content;
+                    // Media (images, video files, YouTube players) is assembled by one
+                    // shared rule in /assets/nostr-embed.js; this used to be copied.
+                    const mediaResult = (window.NostrEmbed && window.NostrEmbed.assembleMedia)
+                        ? window.NostrEmbed.assembleMedia(contentText, { wrap: 'mt-2', grid: 't-media-grid', imgAlt: "Pulse Media" })
+                        : { html: '', text: contentText };   // module missing: URLs stay as links
+                    let mediaHtml = mediaResult.html; contentText = mediaResult.text;
                     
                     contentText = escapeHtml(contentText.trim());
                     contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
@@ -1064,34 +1054,23 @@
                 } 
                 else {
                     card.className = 't-feed-card';
-                    let contentHtml = ""; let mediaElements = [];
+                    let contentHtml = ""; let mediaHtml = "";
                     
                     if (isJsonPayload) { contentHtml = `<pre class="t-code mt-2">${escapeHtml(parsedJsonContent)}</pre>`; } 
                     else {
                         let contentText = targetEv.content;
-                        // One pass for all media, so the order inside the note
-                        // stays as written. The rules for "which URLs count as
-                        // YouTube video" live in /assets/nostr-embed.js.
-                        contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function (url) {
-                            let ytId = window.NostrEmbed ? window.NostrEmbed.youTubeId(url) : null;
-                            if (ytId) { mediaElements.push({ full: true, html: window.NostrEmbed.playerHtml(ytId) }); return ""; }
-                            let m = url.match(/^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i);
-                            if (!m) return url;
-                            let src = m[1]; let lowerExt = m[2].toLowerCase();
-                            if (['mp4', 'webm', 'ogg'].includes(lowerExt)) mediaElements.push({ full: false, html: `<video controls class="t-video-item"><source src="${src}" type="video/${lowerExt}">Video format not supported.</video>` });
-                            else mediaElements.push({ full: false, html: `<div class="t-media-item" onclick="openLightbox('${src}')"><img src="${src}" alt="Media"></div>` });
-                            return url.substring(src.length);
-                        });
+                        // Media is assembled by one shared rule in /assets/nostr-embed.js.
+                        // mediaHtml lives outside this block, so it is assigned, not declared.
+                        const mediaResult = (window.NostrEmbed && window.NostrEmbed.assembleMedia)
+                            ? window.NostrEmbed.assembleMedia(contentText, { wrap: 'mt-2', grid: 't-media-grid' })
+                            : { html: '', text: contentText };
+                        contentText = mediaResult.text; mediaHtml = mediaResult.html;
 
                         contentText = escapeHtml(contentText.trim());
                         contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
                         contentText = window.NostrNote ? window.NostrNote.linkifyNostrUris(contentText, targetEv) : contentText;
                         contentHtml = `<div class="t-feed-content">${contentText}</div>`;
                     }
-                    
-                    let mediaHtml = window.NostrEmbed
-                        ? window.NostrEmbed.buildMediaHtml(mediaElements, 't-media-grid', 'mt-2')
-                        : mediaElements.map(function (b) { return `<div class="mt-2">${b.html}</div>`; }).join('');
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>

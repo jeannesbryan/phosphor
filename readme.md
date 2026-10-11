@@ -112,10 +112,28 @@ recomputed from every known reaction minus the deleted ones, so the result no
 longer depends on the arrival order of events (a stale reaction plus its
 deletion used to hide a like that was still live on another relay).
 
-The code that assembles note content is inlined in each HTML page rather than
-shared, so the same patch has to be applied in ten places across seven files.
-`grep -n 'buildMediaHtml\|youTubeId' *.html` should find exactly ten call
-sites.
+Media assembly used to be inlined in each page — the same URL classifier was
+pasted into seven pages (ten places), and it had already drifted: three
+different "video not supported" texts, an alt of "Pulse Media" on two branches,
+and one page missing `rel="noopener noreferrer"`. It now lives once, in
+`NostrEmbed.assembleMedia(content, opts)`, which returns `{ html, text }`:
+`html` is the media laid out (YouTube players full width, files packed into a
+grid, original order preserved by a single pass) and `text` is the content with
+the media URLs removed. Options are per-page layout only (wrap class, grid
+class, extra attributes for the NSFW spoiler). Tests part 9 covers the assembler
+and part 10 asserts that no page carries the old code any more — the count of
+`assembleMedia()` call sites must stay at ten.
+
+The rest of the note text pipeline (escape, then linkify bare URLs, then NIP-19
+ids) is still inlined and is the next candidate for the same treatment.
+
+The media rules are no longer duplicated: each page calls the shared assembler,
+which is the single place that classifies a URL. `grep -c 'assembleMedia(' *.html`
+must still add up to ten call sites across the seven pages; if a new page needs
+media, call `assembleMedia` there and bump that number deliberately.
+
+The surrounding page HTML (card layout, action buttons) is still written per
+page — that part is not shared and is not covered by the count above.
 
 ## 📜 License
 Developed for decentralization. Free to modify, fork, and use as needed. Hack the planet! 🌐

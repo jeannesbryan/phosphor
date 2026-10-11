@@ -87,6 +87,57 @@
 
     var STYLE_ID = 'nostr-embed-style';
 
+    var MEDIA_URL_RE = /(https?:\/\/[^\s<]+)/gi;
+    var MEDIA_FILE_RE = /^(https?:\/\/[^\s]+?\.(png|jpg|jpeg|gif|webp|mp4|webm|ogg)(\?[^\s]*)?)/i;
+    var VIDEO_EXT = ['mp4', 'webm', 'ogg'];
+    var VIDEO_FALLBACK = 'Video format not supported.';
+
+    /* A URL is only turned into a media block when it is safe to paste into
+       HTML: no quotes, angle brackets or spaces (the outer regex already
+       forbids spaces and "<"; this also rejects quotes so a URL cannot break
+       out of the src / onclick attribute). Returns the usable URL or null. */
+    function safeMediaUrl(src) {
+        if (typeof src !== 'string' || !src) return null;
+        if (/["'<>\\\s]/.test(src)) return null;
+        return src;
+    }
+
+    /* ONE pass over the note content: every URL is classified once (YouTube
+       video, media file, or ordinary link) and media blocks are collected in
+       the order they appear — that order is why this is a single pass and not
+       two: a video before an image must stay before it.
+       Returns { html, text }: `html` is the laid-out media, `text` is the
+       content with the media URLs removed (partial URLs stay as written). */
+    function assembleMedia(content, opts) {
+        opts = opts || {};
+        var wrapCls = opts.wrap || 'mt-2';
+        var gridCls = opts.grid || 't-media-grid';
+        var extraAttrs = opts.extraAttrs || '';
+        var imgAlt = opts.imgAlt || 'Media';
+        var imgGuard = opts.imgGuard || '';
+        var videoFallback = opts.videoFallback || VIDEO_FALLBACK;
+
+        var blocks = [];
+        var text = String(content == null ? '' : content).replace(MEDIA_URL_RE, function (url) {
+            var ytId = youTubeId(url);
+            if (ytId) { blocks.push({ full: true, html: playerHtml(ytId) }); return ''; }
+
+            var m = url.match(MEDIA_FILE_RE);
+            if (!m) return url;
+            var src = safeMediaUrl(m[1]);
+            if (!src) return url;
+            var ext = m[2].toLowerCase();
+            if (VIDEO_EXT.indexOf(ext) !== -1) {
+                blocks.push({ full: false, html: '<video controls class="t-video-item"><source src="' + src + '" type="video/' + ext + '">' + videoFallback + '</video>' });
+            } else {
+                blocks.push({ full: false, html: '<div class="t-media-item" onclick="' + imgGuard + "openLightbox('" + src + "')\"><img src=\"" + src + '" alt="' + imgAlt + '"></div>' });
+            }
+            return url.substring(src.length);
+        });
+
+        return { html: buildMediaHtml(blocks, gridCls, wrapCls, extraAttrs), text: text };
+    }
+
     /* Extract the video id from a YouTube URL, or null if it is not one.
        Accepts: youtu.be/<id>, youtube.com/watch?v=<id>, /shorts/<id>,
        /live/<id>, /embed/<id>, /v/<id>, with or without www/m/music. */
@@ -289,6 +340,8 @@
         playerHtml: playerHtml,
         thumbUrl: thumbUrl,
         buildMediaHtml: buildMediaHtml,
+        assembleMedia: assembleMedia,
+        videoFallback: VIDEO_FALLBACK,
         upgrade: upgrade
     };
 }));
