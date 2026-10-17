@@ -22,6 +22,7 @@ This client UI is built entirely on top of the [Terminal Framework](https://gith
 *   **Content Warning (NIP-36):** Toggle NSFW tags easily on the composer and auto-blurs sensitive incoming feeds with a click-to-reveal interface.
 *   **NIP-19 Entity Support:** Automatically parses Nostr links (naddr, npub, note, nevent) into interactive embeds.
 *   **Media Metadata (NIP-92):** Uploaded files carry an `imeta` tag describing what the extension cannot — MIME type, sha256, size and image dimensions. Incoming notes are read the same way: the declared `alt` replaces the generic "Media" label (so screen readers say something useful), a dead host falls back to the mirrors named in the event, and a video shows its declared poster frame.
+*   **Reporting (NIP-56):** Any note on the timeline or in a thread can be reported as kind 1984 with one of the spec's reasons (nudity, malware, profanity, illegal, spam, impersonation, other). A report is always an explicit action: nothing is filed without the user pressing send, and no reason is preselected. Phosphor does **not** hide or blur content because people filed reports — a report costs one event, so treating it as a moderation signal would hand a griefing tool to whoever is most motivated. Reports you filed are remembered (and read back from the relays) so the same item is not reported twice, on any device.
 *   **Comments (NIP-22):** Thread pages also read kind 1111 comments, which scope themselves to a root item with uppercase tags (`E`/`K`/`P`/`A`) and to the item being answered with lowercase ones (`e`/`k`/`p`/`a`). They are labelled `COMMENT` so they are not confused with NIP-10 replies, and like any reply only direct responses are listed — a reply to a comment is read on that comment's own page. Comments never appear in the main timeline or a profile feed, because they answer something rather than stand alone.
 *   **Event Counts (NIP-45):** The reply, repost and like counters on every card come from the relay's `COUNT` verb instead of downloading the events behind them. Measured on ten ordinary notes, that took the metrics traffic from 176 KB to 43 KB — the rest is zap events, which still have to be read because a count cannot sum sats. Relays that do not implement `COUNT` are detected and fall back to the old query automatically, and counts from different relays are never summed (they are overlapping views of the same events); the highest is shown and marked with a tooltip when the relays disagree.
 *   **Ephemeral Events (NIP-40):** Supports 24-hour expiring Pulse stories with live expiration timers.
@@ -60,6 +61,7 @@ node tests/nostr-relay-info.test.mjs # 66 assertions
 node tests/nostr-imeta.test.mjs      # 122 assertions
 node tests/nostr-count.test.mjs      # 118 assertions
 node tests/nostr-comment.test.mjs    # 82 assertions
+node tests/nostr-report.test.mjs     # 117 assertions
 ```
 
 `tests/nostr-imeta.test.mjs` covers NIP-92 media metadata. Before it, a note

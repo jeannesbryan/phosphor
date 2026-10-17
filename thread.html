@@ -21,22 +21,23 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261017g"></script>
-    <script src="/assets/nostr-imeta.js?v=20261017g"></script>
-    <script src="/assets/nostr-media-event.js?v=20261017g"></script>
-    <script src="/assets/nostr-count.js?v=20261017g"></script>
-    <script src="/assets/nostr-comment.js?v=20261017g"></script>
+    <script src="/assets/nostr-embed.js?v=20261017i"></script>
+    <script src="/assets/nostr-imeta.js?v=20261017i"></script>
+    <script src="/assets/nostr-media-event.js?v=20261017i"></script>
+    <script src="/assets/nostr-count.js?v=20261017i"></script>
+    <script src="/assets/nostr-comment.js?v=20261017i"></script>
+    <script src="/assets/nostr-report.js?v=20261017i"></script>
     <!-- Note structure rules: which notes are replies (NIP-10), which quote
          (NIP-18), and the GitHub link preview card. -->
-    <script src="/assets/nostr-note.js?v=20261017g"></script>
+    <script src="/assets/nostr-note.js?v=20261017i"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261017g"></script>
+    <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261017g"></script>
-    <script src="/assets/form-utils.js?v=20261017g"></script>
-    <script src="/assets/nostr-like.js?v=20261017g"></script>
+    <script src="/assets/blossom-auth.js?v=20261017i"></script>
+    <script src="/assets/form-utils.js?v=20261017i"></script>
+    <script src="/assets/nostr-like.js?v=20261017i"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -167,6 +168,22 @@
             <div class="t-card-header">> RAW_EVENT_DATA</div>
             <pre id="rawEventContent" class="t-code" style="max-height: 60vh;"></pre>
             <div class="d-flex justify-content-end gap-2 mt-3"><button class="t-btn" onclick="copyRawJson()">[COPY]</button><button class="t-btn danger" onclick="closeRawModal()">[CLOSE]</button></div>
+        </div>
+    </div>
+
+    <!-- NIP-56 REPORT -->
+    <div id="reportModal" class="t-modal">
+        <div class="t-modal-content">
+            <div class="t-card-header">> REPORT_CONTENT</div>
+            <div id="reportTargetPreview" class="text-muted fs-small mb-3 p-2 border-dashed bg-surface overflow-hidden" style="max-height: 80px;"></div>
+            <label class="fs-small text-muted" for="reportTypeSelect">> REASON</label>
+            <select id="reportTypeSelect" class="t-input w-100 mb-2"></select>
+            <textarea id="reportNoteInput" class="t-editor-textarea" rows="3" placeholder="Optional details (published publicly)..."></textarea>
+            <p class="fs-small text-muted mt-2">This publishes a public kind 1984 event under your key. Phosphor does not hide the reported content.</p>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button class="t-btn danger t-btn-sm" onclick="closeReportModal()">[CANCEL]</button>
+                <button id="sendReportBtn" class="t-btn t-btn-sm" onclick="submitReport()">> SEND_REPORT</button>
+            </div>
         </div>
     </div>
 
@@ -319,6 +336,86 @@
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
+        // ================= NIP-56 REPORTING =================
+        // Nothing is reported without the user pressing SEND_REPORT, and a
+        // report never hides the reported content: reports are cheap to file,
+        // so using them as a moderation signal invites griefing.
+        let reportTargetEvent = null;
+
+        function initReportModule() {
+            if (!window.NostrReport) return;
+            window.NostrReport.load(localStorage);
+            let sel = document.getElementById('reportTypeSelect');
+            if (sel && sel.options.length === 0) {
+                /* No preselected reason: an accidental send must not file a
+                   "nudity" report for something that is simply spam. */
+                let blank = document.createElement('option');
+                blank.value = ''; blank.textContent = '— choose a reason —'; blank.disabled = true; blank.selected = true;
+                sel.appendChild(blank);
+                window.NostrReport.typeOptions().forEach(opt => {
+                    let o = document.createElement('option');
+                    o.value = opt.value; o.textContent = opt.label;
+                    sel.appendChild(o);
+                });
+            }
+            if (typeof currentUserPubkey !== 'undefined' && currentUserPubkey && typeof activeSockets !== 'undefined') {
+                const req = ["REQ", "my-reports", { "kinds": [1984], "authors": [currentUserPubkey] }];
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(req)); });
+            }
+        }
+        setTimeout(initReportModule, 0);
+
+        function openReportModal(eventId) {
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to report.'); return; }
+            if (!window.NostrReport) return alert('> ERROR: assets/nostr-report.js failed to load.');
+            let ev = eventsCache[eventId]; if (!ev) return;
+            let already = window.NostrReport.hasReported({ eventId: ev.id });
+            if (already) { alert(`> ERROR: You already reported this event as "${already.type}".`); return; }
+            reportTargetEvent = ev;
+            let preview = (ev.content || '(no text content)');
+            document.getElementById('reportTargetPreview').textContent = preview.length > 150 ? preview.substring(0, 150) + ' ...' : preview;
+            document.getElementById('reportNoteInput').value = '';
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        function closeReportModal() { document.getElementById('reportModal').style.display = 'none'; reportTargetEvent = null; }
+
+        async function submitReport() {
+            let ev = reportTargetEvent;
+            if (!ev) return;
+            if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
+            let type = document.getElementById('reportTypeSelect').value;
+            let note = document.getElementById('reportNoteInput').value.trim();
+            if (!type) { alert('> ERROR: Choose a reason before sending.'); return; }
+            if (!confirm(`> Publish a PUBLIC report about this event as "${type}"?`)) return;
+
+            let tags;
+            try { tags = window.NostrReport.buildTags({ type: type, eventId: ev.id, pubkey: ev.pubkey }); }
+            catch (err) { alert('> ERROR: ' + err.message); return; }
+
+            let rawEvent = { kind: 1984, created_at: Math.floor(Date.now() / 1000), tags: tags, content: note, pubkey: currentUserPubkey };
+            try {
+                let signedEvent = await window.nostr.signEvent(rawEvent);
+                let sentCount = 0;
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } });
+                window.NostrReport.markReported({ eventId: ev.id }, type, rawEvent.created_at);
+                window.NostrReport.save(localStorage);
+                updateReportButtons();
+                closeReportModal();
+                alert(`> SUCCESS: Report published to ${sentCount} relays.`);
+            } catch (err) { alert('> ERROR: Failed to publish the report.'); }
+        }
+
+        function updateReportButtons() {
+            if (!window.NostrReport) return;
+            document.querySelectorAll('[data-report-target]').forEach(btn => {
+                let id = btn.getAttribute('data-report-target');
+                let already = window.NostrReport.hasReported({ eventId: id });
+                btn.textContent = already ? '[reported]' : '[report]';
+                btn.title = already ? 'You reported this as ' + already.type : 'Report this event (NIP-56)';
+            });
+        }
+
         function isExpiredEvent(ev) {
             if (!ev.tags) return false;
             const expTag = ev.tags.find(t => t[0] === 'expiration');
@@ -436,6 +533,13 @@
                             if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
                             if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
                             if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`reply-${t[1]}`) || (parentEvent && parentEvent.id === t[1] ? mainPostContainer : null); if (oldCard && oldCard !== mainPostContainer) oldCard.remove(); if (eventsCache[t[1]]) delete eventsCache[t[1]]; } }); return; }
+                            /* NIP-56: only the user's OWN reports are recorded, so
+                               "already reported" also holds on another device.
+                               Nobody else's report changes what is displayed. */
+                            if (ev.kind === 1984 && currentUserPubkey && ev.pubkey === currentUserPubkey) {
+                                if (window.NostrReport) { window.NostrReport.absorbOwn([ev], currentUserPubkey); window.NostrReport.save(localStorage); updateReportButtons(); }
+                                return;
+                            }
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) { if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) { myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); }); document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; }); } }
                             /* NIP-22 comments (kind 1111) must be routed to
                                renderReply too; without this they arrive and are
@@ -569,7 +673,7 @@
                                 <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                                 <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                                 <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                                <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                                <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button><button class="t-feed-btn text-success" data-report-target="${ev.id}" title="Report this event (NIP-56)" onclick="openReportModal('${ev.id}')">[report]</button>
                                 <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                                 <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                             </div>
@@ -693,7 +797,7 @@
                             <button class="t-feed-btn text-success" title="Repost" onclick="repostEvent('${ev.id}')">[t] <span id="metric-reposts-${ev.id}">0</span></button>
                             <button class="t-feed-btn text-success" title="Like" onclick="likeEvent('${ev.id}')">[+] <span id="metric-likes-${ev.id}">0</span></button>
                             <button class="t-feed-btn text-success" title="Quote" onclick="openQuoteModal('${ev.id}')">[q]</button>
-                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button>
+                            <button class="t-feed-btn text-success" title="View Raw Data" onclick="openRawModal('${ev.id}')">[raw]</button><button class="t-feed-btn text-success" data-report-target="${ev.id}" title="Report this event (NIP-56)" onclick="openReportModal('${ev.id}')">[report]</button>
                             <button class="t-feed-btn text-success" title="Copy Link" onclick="copyThreadLink('${ev.id}')">[link]</button>
                             <button class="t-feed-btn text-success edit-btn edit-btn-${ev.pubkey} ${editBtnVisibility}" title="Edit Note" onclick="openEditModal('${ev.id}')">[edit]</button>
                         </div>
