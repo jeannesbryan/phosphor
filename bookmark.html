@@ -20,17 +20,18 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261017a"></script>
-    <script src="/assets/nostr-imeta.js?v=20261017a"></script>
-    <script src="/assets/nostr-note.js?v=20261017a"></script>
+    <script src="/assets/nostr-embed.js?v=20261017c"></script>
+    <script src="/assets/nostr-imeta.js?v=20261017c"></script>
+    <script src="/assets/nostr-media-event.js?v=20261017c"></script>
+    <script src="/assets/nostr-note.js?v=20261017c"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261017a"></script>
+    <script src="/assets/nostr-nip05.js?v=20261017c"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261017a"></script>
-    <script src="/assets/form-utils.js?v=20261017a"></script>
-    <script src="/assets/nostr-like.js?v=20261017a"></script>
+    <script src="/assets/blossom-auth.js?v=20261017c"></script>
+    <script src="/assets/form-utils.js?v=20261017c"></script>
+    <script src="/assets/nostr-like.js?v=20261017c"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -431,7 +432,7 @@
                                 } catch(e){}
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++; if (ev.kind === 7) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } }); }
-                            if (ev.kind === 1 || ev.kind === 21 || ev.kind === 22 || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301 || (ev.kind >= 20000 && ev.kind < 30000)) {
                                 if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } eventsCache[ev.id] = ev; renderSavedPost(ev);
                             }
                         }
@@ -526,16 +527,17 @@
                     </div>
                 `;
             }
-            else if (ev.kind === 22 || ev.kind === 21) {
+            else if (window.NostrMediaEvent.isMedia(ev)) {
+                /* NIP-68 pictures and NIP-71 videos keep their media in imeta
+                   tags, not in content — the shared module picks the right
+                   variant and draws it. */
                 card.className = 't-feed-card mb-4';
-                let videoUrl = ""; let mimeType = "video/mp4"; let posterUrl = "";
-                ev.tags.forEach(t => { if (t[0] === "imeta") { t.forEach(val => { if (typeof val === 'string') { if (val.startsWith("url ")) videoUrl = val.substring(4); if (val.startsWith("m ")) mimeType = val.substring(2); if (val.startsWith("thumb ") || val.startsWith("image ")) posterUrl = val.substring(6); } }); } });
-                let mediaHtml = "";
-                if (videoUrl) {
-                    let posterAttr = posterUrl ? `poster="${escapeHtml(posterUrl)}"` : "";
-                    mediaHtml = `<video controls playsinline preload="metadata" ${posterAttr} class="t-video-item w-100 mt-2" style="max-height: 500px; border: 1px dashed var(--t-green); background-color: #000;"><source src="${escapeHtml(videoUrl)}" type="${escapeHtml(mimeType)}">Your browser does not support this video format.</video>`;
-                }
-                let contentText = ev.content ? `<div class="t-feed-content mt-2">${escapeHtml(ev.content)}</div>` : ""; let badgeName = ev.kind === 21 ? "VIDEO" : "SHORT_VIDEO"; let contentHtml = `<div class="t-badge success mb-2">> ${badgeName} / MEDIA</div>${contentText}`; let eventTypeStr = ev.kind === 21 ? 'video_stream' : 'short_video';
+                let mediaHtml = window.NostrMediaEvent.mediaHtml(ev, { fallbackText: 'Your browser does not support this video format.' });
+                let titleStr = window.NostrMediaEvent.title(ev) ? `<div class="t-feed-content mt-2"><strong>${escapeHtml(window.NostrMediaEvent.title(ev))}</strong></div>` : "";
+                let contentText = titleStr + (window.NostrMediaEvent.caption(ev) ? `<div class="t-feed-content mt-2">${escapeHtml(window.NostrMediaEvent.caption(ev))}</div>` : "");
+                let badgeName = window.NostrMediaEvent.badge(ev) || "MEDIA";
+                let contentHtml = `<div class="t-badge success mb-2">> ${badgeName} / MEDIA</div>${contentText}`;
+                let eventTypeStr = window.NostrMediaEvent.eventType(ev) || 'media';
 
                 card.innerHTML = `
                     <a href="profile.html?pubkey=${ev.pubkey}" class="t-avatar avatar-${ev.pubkey}" style="text-decoration:none; color:inherit; flex-shrink: 0;">${avatarHtml}</a>
