@@ -25,18 +25,19 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261017c"></script>
-    <script src="/assets/nostr-imeta.js?v=20261017c"></script>
-    <script src="/assets/nostr-media-event.js?v=20261017c"></script>
-    <script src="/assets/nostr-note.js?v=20261017c"></script>
+    <script src="/assets/nostr-embed.js?v=20261017f"></script>
+    <script src="/assets/nostr-imeta.js?v=20261017f"></script>
+    <script src="/assets/nostr-media-event.js?v=20261017f"></script>
+    <script src="/assets/nostr-count.js?v=20261017f"></script>
+    <script src="/assets/nostr-note.js?v=20261017f"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261017c"></script>
+    <script src="/assets/nostr-nip05.js?v=20261017f"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261017c"></script>
-    <script src="/assets/form-utils.js?v=20261017c"></script>
-    <script src="/assets/nostr-like.js?v=20261017c"></script>
+    <script src="/assets/blossom-auth.js?v=20261017f"></script>
+    <script src="/assets/form-utils.js?v=20261017f"></script>
+    <script src="/assets/nostr-like.js?v=20261017f"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -530,10 +531,16 @@
 
         function initMetrics(id) { if (!metricsCache[id]) metricsCache[id] = { replies: 0, reposts: 0, likes: 0, zapSats: 0, processed: new Set() }; }
         function updateMetricsUI(id) { let m = metricsCache[id]; let er = document.getElementById(`metric-replies-${id}`); let et = document.getElementById(`metric-reposts-${id}`); let el = document.getElementById(`metric-likes-${id}`); let ez = document.getElementById(`metric-zaps-${id}`); if(er) er.textContent = m.replies; if(et) et.textContent = m.reposts; if(el) el.textContent = m.likes; if(ez) ez.textContent = m.zapSats; if (window.NostrLike) window.NostrLike.applyState(id); }
-        function requestMetrics(eventId) {
-            pendingMetricsIds.add(eventId); clearTimeout(metricsTimeout);
-            metricsTimeout = setTimeout(() => { let ids = Array.from(pendingMetricsIds); if(ids.length === 0) return; let req = JSON.stringify(["REQ", "metrics-" + Math.random().toString(36).substring(7), { "#e": ids, "kinds": [1, 6, 7, 16, 9735] }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); pendingMetricsIds.clear(); }, 1500);
-        }
+        function requestMetrics(eventId) { window.NostrCount.requestMetrics(eventId); }
+        // Counters use NIP-45 COUNT: assets/nostr-count.js owns the batching,
+        // the per-relay merge (maximum, never a sum) and the fallback to the
+        // old event query when a relay cannot count.
+        window.NostrCount.init({
+            sockets: () => activeSockets,
+            cache: metricsCache,
+            ensure: initMetrics,
+            update: updateMetricsUI
+        });
 
         async function likeEvent(eventId) {
             let ev = userEventsList.find(e => e.id === eventId); if (!ev) return;
@@ -745,6 +752,7 @@
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);
+                        if (window.NostrCount && window.NostrCount.handleMessage(data)) return;
                         if (data[0] === "EVENT" && data[2]) {
                             let ev = data[2];
                             if (isExpiredEvent(ev)) return;
@@ -794,7 +802,7 @@
                             
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
-                                eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16) metricsCache[tId].reposts++; if (ev.kind === 7) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } });
+                                eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'replies'))) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'reposts'))) metricsCache[tId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'likes'))) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } });
                             }
 
                             if (ev.pubkey !== targetPubkey) return;
