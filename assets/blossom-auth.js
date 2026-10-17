@@ -158,6 +158,36 @@
             });
     }
 
+    /* What NIP-92 wants to know about a file we just uploaded. Everything here
+       is already at hand except the dimensions, which need decoding the image:
+       that is best effort, because createImageBitmap does not exist in older
+       browsers or in Node, and a missing `dim` must never fail an upload.
+
+       `alt` is deliberately NOT filled in from file.name — "IMG_2014.jpg" is
+       noise, not a description, and a wrong alt is worse for a screen reader
+       than an absent one. Callers that know better can pass `altFor(file)`. */
+    function describeFile(file, res, opts) {
+        opts = opts || {};
+        var meta = { url: res.url };
+        if (file && file.type) meta.m = file.type;
+        if (res && res.hash) meta.x = res.hash;
+        if (file && typeof file.size === 'number' && file.size > 0) meta.size = file.size;
+        if (file && typeof opts.altFor === 'function') {
+            var alt = opts.altFor(file);
+            if (alt) meta.alt = String(alt);
+        }
+
+        var isImage = !!(file && /^image\//.test(file.type || ''));
+        var bmpFn = opts.createImageBitmapImpl || root.createImageBitmap;
+        if (!isImage || typeof bmpFn !== 'function') return Promise.resolve(meta);
+
+        return Promise.resolve(bmpFn(file)).then(function (bmp) {
+            if (bmp && bmp.width && bmp.height) meta.dim = { w: bmp.width, h: bmp.height };
+            if (bmp && typeof bmp.close === 'function') bmp.close();
+            return meta;
+        }).catch(function () { return meta; });
+    }
+
     /* The whole UI flow: file-limit warning, button text, pasting URLs into the
        textarea, and error messages. Pages only supply elements + credentials. */
     function uploadSelectedFiles(files, btnElement, textareaElement, config) {
@@ -165,7 +195,10 @@
         var alertFn = config.alertFn || root.alert;
         var maxFiles = config.maxFiles || MAX_FILES;
         var list = Array.prototype.slice.call(files || []);
-        var result = { uploaded: [], endpoint: null };
+        /* `meta` carries the NIP-92 facts about each uploaded file. It is kept
+           next to `uploaded` (the plain URLs) so existing callers that only
+           read `uploaded` keep working untouched. */
+        var result = { uploaded: [], meta: [], endpoint: null };
 
         if (!list.length) return Promise.resolve(result);
 
@@ -200,6 +233,15 @@
                         if (textareaElement) {
                             textareaElement.value += (textareaElement.value ? '\n' : '') + res.url;
                         }
+                        /* NIP-92: record what we now know about this file.
+                           The sha256 is already computed for the BUD-11 auth
+                           tag, so publishing it as `x` costs nothing extra. */
+                        return describeFile(file, res, {
+                            altFor: config.altFor,
+                            createImageBitmapImpl: config.createImageBitmapImpl
+                        }).then(function (meta) {
+                            result.meta.push(meta);
+                        });
                     } else {
                         alertFn('> ERROR: Server rejected ' + file.name + ' (HTTP ' + res.status + '). ' + res.error);
                     }
@@ -213,6 +255,13 @@
             })
             .then(function () {
                 if (btnElement) btnElement.textContent = UPLOAD_LABEL;
+                /* Hand the collected metadata to the NIP-92 module. It sits in
+                   a registry until the note is signed, because the event does
+                   not exist yet at upload time. Guarded: if the module failed
+                   to load, uploads still work and notes just carry no imeta. */
+                if (root.NostrImeta && result.meta.length) {
+                    root.NostrImeta.remember(result.meta);
+                }
                 return result;
             });
     }
@@ -229,6 +278,7 @@
         buildAuthEvent: buildAuthEvent,
         encodeAuthHeader: encodeAuthHeader,
         uploadFile: uploadFile,
+        describeFile: describeFile,
         uploadSelectedFiles: uploadSelectedFiles
     };
 }));

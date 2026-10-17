@@ -102,6 +102,19 @@
         return src;
     }
 
+    /* Same as safeMediaUrl, plus an explicit http(s) requirement.
+
+       The plain version is safe for URLs taken from the note body, because
+       MEDIA_URL_RE only ever matches https?:// there. It is NOT enough for
+       URLs that come from `imeta` — those are written by strangers, and
+       "javascript:..." contains none of the characters safeMediaUrl rejects.
+       Anything reaching an src/poster from metadata must go through this. */
+    function safeHttpUrl(src) {
+        var url = safeMediaUrl(src);
+        if (!url) return null;
+        return /^https?:\/\//i.test(url) ? url : null;
+    }
+
     /* ONE pass over the note content: every URL is classified once (YouTube
        video, media file, or ordinary link) and media blocks are collected in
        the order they appear — that order is why this is a single pass and not
@@ -116,6 +129,9 @@
         var imgAlt = opts.imgAlt || 'Media';
         var imgGuard = opts.imgGuard || '';
         var videoFallback = opts.videoFallback || VIDEO_FALLBACK;
+        /* NIP-92 metadata, keyed by URL (see nostr-imeta.js). Optional: with
+           no metadata every branch below behaves exactly as it did before. */
+        var imetaMap = opts.imeta || null;
 
         var blocks = [];
         var text = String(content == null ? '' : content).replace(MEDIA_URL_RE, function (url) {
@@ -127,15 +143,53 @@
             var src = safeMediaUrl(m[1]);
             if (!src) return url;
             var ext = m[2].toLowerCase();
+            var meta = imetaMap ? imetaMap[url] : null;
+
             if (VIDEO_EXT.indexOf(ext) !== -1) {
-                blocks.push({ full: false, html: '<video controls class="t-video-item"><source src="' + src + '" type="video/' + ext + '">' + videoFallback + '</video>' });
+                /* The declared MIME type is more trustworthy than the file
+                   extension (a .mp4 served as video/quicktime still plays). */
+                var declared = meta && meta.m && /^video\/[a-z0-9.+-]+$/i.test(meta.m) ? meta.m : 'video/' + ext;
+                var posterUrl = meta ? (safeHttpUrl(meta.thumb) || safeHttpUrl(meta.image)) : null;
+                var posterAttr = posterUrl ? ' poster="' + posterUrl + '"' : '';
+                blocks.push({ full: false, html: '<video controls class="t-video-item"' + posterAttr + '><source src="' + src + '" type="' + declared + '">' + videoFallback + '</video>' });
             } else {
-                blocks.push({ full: false, html: '<div class="t-media-item" onclick="' + imgGuard + "openLightbox('" + src + "')\"><img src=\"" + src + '" alt="' + imgAlt + '"></div>' });
+                blocks.push({ full: false, html: '<div class="t-media-item" onclick="' + imgGuard + "openLightbox('" + src + "')\"><img src=\"" + src + '"' + imageMetaAttrs(meta, src, imgAlt) + '></div>' });
             }
             return url.substring(src.length);
         });
 
         return { html: buildMediaHtml(blocks, gridCls, wrapCls, extraAttrs), text: text };
+    }
+
+    /* Things NIP-92 can say about an image that the file extension cannot:
+       what it shows (alt, announced to screen readers), its real dimensions,
+       and where to look when the host dies (fallback chain).
+
+       Every value here comes from someone else's event, so alt is escaped and
+       URLs pass safeMediaUrl first. The fallback list travels in a data
+       attribute read by NostrImeta.retry() — never interpolated into an
+       onerror string, which would put a stranger's URL in executable place. */
+    function imageMetaAttrs(meta, src, defaultAlt) {
+        if (!meta) return ' alt="' + defaultAlt + '"';
+
+        var alt = meta.alt
+            ? String(meta.alt).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')
+            : defaultAlt;
+        var out = ' alt="' + alt + '"';
+
+        if (meta.dim && meta.dim.w && meta.dim.h) {
+            out += ' width="' + meta.dim.w + '" height="' + meta.dim.h + '"';
+        }
+
+        var fbs = (meta.fallback || []).map(safeHttpUrl).filter(function (u) {
+            return u && u !== src;
+        });
+        if (fbs.length) {
+            var json = JSON.stringify(fbs).replace(/'/g, '&#39;');
+            out += " data-fb='" + json + "' onerror=\"window.NostrImeta&&window.NostrImeta.retry(this)\"";
+        }
+
+        return out;
     }
 
     /* Extract the video id from a YouTube URL, or null if it is not one.

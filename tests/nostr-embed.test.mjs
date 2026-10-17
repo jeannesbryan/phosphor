@@ -232,9 +232,14 @@ for (const p of PAGES) {
         // option value can itself contain a brace — grid: `t-media-grid ${blurClass}`.
         const body = line.slice(line.indexOf('{', line.indexOf('assembleMedia(contentText,')) + 1,
                                 line.lastIndexOf('}'));
-        for (const m of body.matchAll(/(\w+)\s*:\s*([A-Za-z_$][\w$]*)/g)) {
+        // Capture the whole dotted chain and skip property access: `imeta:
+        // window.NostrImeta` names a global, not a page-local variable, so
+        // there is nothing to declare. (A lookahead is not enough here: the
+        // regex backtracks `window` down to `windo` and slips through.)
+        for (const m of body.matchAll(/(\w+)\s*:\s*([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g)) {
             const name = m[2];
-            if (['true', 'false', 'null', 'undefined'].includes(name)) continue;
+            if (name.includes('.')) continue;
+            if (['true', 'false', 'null', 'undefined', 'window', 'document'].includes(name)) continue;
             const declared = new RegExp('(?:let|const|var|function)\\s+' + name + '\\b').test(html);
             if (!declared) bad.push(m[1] + ' -> ' + name);
         }

@@ -25,16 +25,17 @@
     </style>
     <!-- YouTube links inside notes become video players. The rules live in one
          file; pages only use them. See the note in that file. -->
-    <script src="/assets/nostr-embed.js?v=20261011g"></script>
-    <script src="/assets/nostr-note.js?v=20261011g"></script>
+    <script src="/assets/nostr-embed.js?v=20261017a"></script>
+    <script src="/assets/nostr-imeta.js?v=20261017a"></script>
+    <script src="/assets/nostr-note.js?v=20261017a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
-    <script src="/assets/nostr-nip05.js?v=20261011g"></script>
+    <script src="/assets/nostr-nip05.js?v=20261017a"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
          tag). One file is shared by all seven pages — do not copy its content
          into a page. See the note in that file. -->
-    <script src="/assets/blossom-auth.js?v=20261011g"></script>
-    <script src="/assets/form-utils.js?v=20261011g"></script>
-    <script src="/assets/nostr-like.js?v=20261011g"></script>
+    <script src="/assets/blossom-auth.js?v=20261017a"></script>
+    <script src="/assets/form-utils.js?v=20261017a"></script>
+    <script src="/assets/nostr-like.js?v=20261017a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1022,7 +1023,7 @@
                     // Media (images, video files, YouTube players) is assembled by one
                     // shared rule in /assets/nostr-embed.js; this used to be copied.
                     const mediaResult = (window.NostrEmbed && window.NostrEmbed.assembleMedia)
-                        ? window.NostrEmbed.assembleMedia(contentText, { wrap: 'mt-2', grid: 't-media-grid', imgAlt: "Pulse Media" })
+                        ? window.NostrEmbed.assembleMedia(contentText, { imeta: window.NostrImeta ? window.NostrImeta.parse(ev.tags) : null, wrap: 'mt-2', grid: 't-media-grid', imgAlt: "Pulse Media" })
                         : { html: '', text: contentText };   // module missing: URLs stay as links
                     let mediaHtml = mediaResult.html; contentText = mediaResult.text;
                     
@@ -1064,7 +1065,7 @@
                         // Media is assembled by one shared rule in /assets/nostr-embed.js.
                         // mediaHtml lives outside this block, so it is assigned, not declared.
                         const mediaResult = (window.NostrEmbed && window.NostrEmbed.assembleMedia)
-                            ? window.NostrEmbed.assembleMedia(contentText, { wrap: 'mt-2', grid: 't-media-grid' })
+                            ? window.NostrEmbed.assembleMedia(contentText, { imeta: window.NostrImeta ? window.NostrImeta.parse(ev.tags) : null, wrap: 'mt-2', grid: 't-media-grid' })
                             : { html: '', text: contentText };
                         contentText = mediaResult.text; mediaHtml = mediaResult.html;
 
@@ -1117,6 +1118,7 @@
             let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };
+            rawEvent = window.NostrImeta.finalize(rawEvent);   // NIP-92: attach media metadata before signing
             try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); alert(`> QUOTE SUCCESS: Broadcasted to ${sentCount} relays!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to send quote.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
