@@ -25,6 +25,7 @@
     <script src="/assets/nostr-media-event.js?v=20261017i"></script>
     <script src="/assets/nostr-count.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- NIP-11 relay information document. The relay's own metadata is untrusted, so the module escapes it. -->
@@ -405,10 +406,16 @@
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) { el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; } }); }
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function zapSatsFromEvent(ev) {
@@ -506,7 +513,7 @@
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 20000, 20001, 20002, 30311, 33400], "limit": 60 }])); }
+                    if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400], "limit": 60 }])); }
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }])); }
                 };
                 socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
@@ -532,13 +539,13 @@
                                     saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) {
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) {
                                 if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); }
                                 if (ev.kind === 6 || ev.kind === 16) { try { let innerEv = JSON.parse(ev.content); if (!profileCache[innerEv.pubkey]) { requestProfileInfo(innerEv.pubkey); } } catch(e){} }
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(targetId => { initMetrics(targetId); if (!metricsCache[targetId].processed.has(ev.id)) { metricsCache[targetId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'replies'))) metricsCache[targetId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'reposts'))) metricsCache[targetId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'likes'))) metricsCache[targetId].likes++; if (ev.kind === 9735) metricsCache[targetId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(targetId); } }); }
                             if (data[1] === "target-relay-feed") {
-                                if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 34000)) { renderEvent(ev); }
+                                if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) { renderEvent(ev); }
                             }
                         }
                     } catch (err) {}
@@ -551,7 +558,7 @@
         function parseActivityData(ev) {
             let isSportActivity = false; let actTitle = "Workout"; let actType = "Activity"; let actDist = "0"; let actDistUnit = "km"; let actDur = "00:00:00"; let actEle = "0"; let actEleUnit = "m"; let clientName = "unknown"; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY"; let parsedJsonContent = ""; let isJsonPayload = false;
             if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) { isSportActivity = true; }
-            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; } if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; } if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; } if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
+            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; expTimeStr = window.NostrPulseEvent ? NostrPulseEvent.expiryLabel(ev) : "Expired"; } if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; } if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; } if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
             if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) {
                 try { let parsedObj = JSON.parse(ev.content.trim()); parsedJsonContent = JSON.stringify(parsedObj, null, 2); isJsonPayload = true; if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") { isSportActivity = true; actType = (parsedObj.sport || parsedObj.activity || actType); } if (parsedObj.title) actTitle = parsedObj.title; if (parsedObj.distance) actDist = parsedObj.distance; if (parsedObj.duration) actDur = parsedObj.duration; if (parsedObj.heartrate) { actEle = parsedObj.heartrate; actEleUnit = "bpm"; } } catch (e) {}
             }
@@ -580,7 +587,8 @@
             let shortPub = targetEv.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[targetEv.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${targetEv.pubkey.substring(0, 8)}`, picture: null }; let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(targetEv.created_at);
             let parsed = parseActivityData(targetEv); let dTagValue = ""; targetEv.tags.forEach(t => { if (t[0] === "d") dTagValue = t[1]; });
             let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
-            let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000 && !parsed.isSportActivity) || (targetEv.kind === 1 && parsed.hasExpiration); let isArticle = (targetEv.kind === 30023); let contentHtml = ""; let mediaHtml = "";
+            let pulseInfo = window.NostrPulseEvent ? NostrPulseEvent.describe(targetEv) : { isPulse: false, hasExpiration: false, label: '' };
+            let isPulse = pulseInfo.isPulse; let isArticle = (targetEv.kind === 30023); let contentHtml = ""; let mediaHtml = "";
 
             if (parsed.isSportActivity) {
                 let iconStr = "[A]"; let tLower = parsed.actType.toLowerCase(); if (tLower.includes("cycl") || tLower.includes("bike")) { iconStr = "[BIKE]"; } else if (tLower.includes("run") || tLower.includes("walk")) { iconStr = "[WALK]"; }

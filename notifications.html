@@ -25,6 +25,7 @@
     <script src="/assets/nostr-media-event.js?v=20261017i"></script>
     <script src="/assets/nostr-comment.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
@@ -247,10 +248,16 @@
             try { sendQuoteBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(JSON.stringify(["EVENT", signedEvent])); }); alert(`> SUCCESS: Reply/Quote broadcasted!`); closeQuoteModal(); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; } catch (err) { alert('> ERROR: Failed to broadcast.'); sendQuoteBtn.textContent = '> BROADCAST_QUOTE'; }
         });
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function connectMultiRelays() {

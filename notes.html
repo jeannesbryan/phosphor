@@ -33,6 +33,7 @@
     <script src="/assets/nostr-media-event.js?v=20261017i"></script>
     <script src="/assets/nostr-count.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
@@ -306,10 +307,16 @@
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function zapSatsFromEvent(ev) {
@@ -439,13 +446,13 @@
                                     if (ev.pubkey === currentUserPubkey && meta.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`; } updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
-                            if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) { if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } }
+                            if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) { if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(targetId => { initMetrics(targetId); if (!metricsCache[targetId].processed.has(ev.id)) { metricsCache[targetId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'replies'))) metricsCache[targetId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'reposts'))) metricsCache[targetId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'likes'))) metricsCache[targetId].likes++; if (ev.kind === 9735) metricsCache[targetId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(targetId); } }); }
                             if (ev.kind === 30023) {
                                 let evDTag = ""; ev.tags.forEach(t => { if (t[0] === 'd') evDTag = t[1]; }); let isMatch = false;
                                 if (articleId && ev.id === articleId) isMatch = true; else if (targetD && evDTag === targetD) isMatch = true; else if (!targetD && !articleId && authorParam && ev.pubkey === authorParam) isMatch = true;
-                                if (isMatch && !parentEvent) { parentEvent = ev; renderMainArticle(ev); socket.send(JSON.stringify(["REQ", "article-replies", { "kinds": [1, 20, 21, 22, 34235, 34236, 20000, 20001, 20002], "#e": [ev.id] }])); }
-                            } else if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || (ev.kind >= 20000 && ev.kind < 30000)) { renderReply(ev); }
+                                if (isMatch && !parentEvent) { parentEvent = ev; renderMainArticle(ev); socket.send(JSON.stringify(["REQ", "article-replies", { "kinds": [1, 20, 21, 22, 34235, 34236], "#e": [ev.id] }])); }
+                            } else if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev)) { renderReply(ev); }
                         }
                     } catch (err) {}
                 };
@@ -523,14 +530,18 @@
 
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
-            let clientName = "unknown"; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY";
-            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; } });
+            let clientName = "unknown";
+            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });
+            const pulseInfo = window.NostrPulseEvent
+                ? NostrPulseEvent.describe(ev)
+                : { isPulse: false, hasExpiration: false, label: '' };
+            let hasExpiration = pulseInfo.hasExpiration; let expTimeStr = pulseInfo.label;
             
             let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
             let isJsonPayload = false; let parsedJsonContent = "";
             if (ev.kind === 1 && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) { try { parsedJsonContent = JSON.stringify(JSON.parse(ev.content.trim()), null, 2); isJsonPayload = true; } catch (e) {} }
             
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000) || (ev.kind === 1 && hasExpiration);
+            let isPulse = pulseInfo.isPulse;
             let contentHtml = ""; let mediaHtml = ""; let eventTypeStr = isPulse ? 'pulse_event' : (isJsonPayload ? 'telemetry_data' : 'text_note');
 
             if (window.NostrMediaEvent.isMedia(ev)) {

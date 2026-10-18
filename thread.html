@@ -30,6 +30,7 @@
     <!-- Note structure rules: which notes are replies (NIP-10), which quote
          (NIP-18), and the GitHub link preview card. -->
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
@@ -416,10 +417,16 @@
             });
         }
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function zapSatsFromEvent(ev) {
@@ -518,8 +525,8 @@
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
-                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20, 21, 22, 34235, 34236, 1301, 20000, 20001, 20002, 30311, 33400], "ids": [postId] }]));
-                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 1111, 20, 21, 22, 34235, 34236, 1301, 20000, 20001, 20002, 30311, 33400], "#e": [postId] }]));
+                    socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20, 21, 22, 34235, 34236, 1301, 30311, 33400], "ids": [postId] }]));
+                    socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 1111, 20, 21, 22, 34235, 34236, 1301, 30311, 33400], "#e": [postId] }]));
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }])); socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }])); }
                 };
                 socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
@@ -544,7 +551,7 @@
                             /* NIP-22 comments (kind 1111) must be routed to
                                renderReply too; without this they arrive and are
                                then dropped before the renderer sees them. */
-                            let isPostKind = (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400 || (ev.kind >= 20000 && ev.kind < 30000) || (window.NostrComment && window.NostrComment.isComment(ev)));
+                            let isPostKind = (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400 || (window.NostrComment && window.NostrComment.isComment(ev)));
                             if (isPostKind) { eventsCache[ev.id] = ev; }
                             if (ev.kind === 0) {
                                 try {
@@ -569,7 +576,7 @@
             if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) isSportActivity = true;
             ev.tags.forEach(t => { 
                 if (t[0] === "client") clientName = t[1]; 
-                if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; }
+                if (t[0] === "expiration") { hasExpiration = true; expTimeStr = window.NostrPulseEvent ? NostrPulseEvent.expiryLabel(ev) : "Expired"; }
                 if (t[0] === "title") actTitle = t[1];
                 if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; }
                 if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; }
@@ -616,7 +623,8 @@
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[ev.pubkey]; if (!info || info.pending) { info = { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null }; }
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
             let parsed = parseActivityData(ev); let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration);
+            let pulseInfo = window.NostrPulseEvent ? NostrPulseEvent.describe(ev) : { isPulse: false, hasExpiration: false, label: '' };
+            let isPulse = pulseInfo.isPulse;
             let contentHtml = ""; let mediaHtml = ""; let footerType = isPulse ? 'pulse_event' : (parsed.isSportActivity ? 'activity_telemetry' : (parsed.isJsonPayload ? 'telemetry_data' : 'text_note'));
 
             if (window.NostrMediaEvent.isMedia(ev)) {
@@ -727,7 +735,8 @@
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[ev.pubkey]; if (!info || info.pending) { info = { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null }; }
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
             let parsed = parseActivityData(ev); let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration);
+            let pulseInfo = window.NostrPulseEvent ? NostrPulseEvent.describe(ev) : { isPulse: false, hasExpiration: false, label: '' };
+            let isPulse = pulseInfo.isPulse;
             
             /* A NIP-22 comment is not a text note; name it for what it is. */
             let footerType = isPulse ? 'pulse_event'

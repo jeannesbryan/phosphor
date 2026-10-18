@@ -25,6 +25,7 @@
     <script src="/assets/nostr-media-event.js?v=20261017i"></script>
     <script src="/assets/nostr-count.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
@@ -310,10 +311,16 @@
         }
         async function repostEvent(eventId) { let ev = eventsCache[eventId]; if (!ev) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } if (repostedEvents.has(eventId)) { alert('> ERROR: You have already reposted this event.'); return; } if (!confirm('> Repost this content to your timeline?')) return; let rawEvent = { kind: 6, created_at: Math.floor(Date.now() / 1000), tags: [["e", ev.id, "", "mention"], ["p", ev.pubkey, ""]], content: JSON.stringify(ev), pubkey: currentUserPubkey }; let dTag = ev.tags.find(t => t[0] === 'd'); if (ev.kind === 30023 && dTag) { rawEvent.tags.push(["a", `${ev.kind}:${ev.pubkey}:${dTag[1]}`, ""]); rawEvent.kind = 16; } try { let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); repostedEvents.add(eventId); initMetrics(eventId); metricsCache[eventId].processed.add(signedEvent.id); metricsCache[eventId].reposts++; updateMetricsUI(eventId); alert(`> SUCCESS: Reposted to ${sentCount} relays!`); } catch (err) { alert('> ERROR: Failed to broadcast repost.'); } }
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function zapSatsFromEvent(ev) {
@@ -443,7 +450,7 @@
                                 } catch(e){}
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'replies'))) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'reposts'))) metricsCache[tId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'likes'))) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } }); }
-                            if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301) {
                                 if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } eventsCache[ev.id] = ev; renderSavedPost(ev);
                             }
                         }
@@ -456,7 +463,7 @@
         function parseActivityData(ev) {
             let isSportActivity = false; let actTitle = "Workout"; let actType = "Activity"; let actDist = "0"; let actDistUnit = "km"; let actDur = "00:00:00"; let actEle = "0"; let actEleUnit = "m"; let clientName = "unknown"; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY"; let parsedJsonContent = ""; let isJsonPayload = false;
             if (ev.kind === 1301 || ev.kind === 30311 || ev.kind === 33400) { isSportActivity = true; }
-            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; } if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; } if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; } if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
+            ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; if (t[0] === "expiration") { hasExpiration = true; expTimeStr = window.NostrPulseEvent ? NostrPulseEvent.expiryLabel(ev) : "Expired"; } if (t[0] === "title") actTitle = t[1]; if (t[0] === "activity_type" || t[0] === "activity") { isSportActivity = true; actType = t[1]; } if (t[0] === "t" && ["run", "running", "cycling", "peleton", "hiking", "sport"].includes(t[1].toLowerCase())) { isSportActivity = true; } if (t[0] === "distance") { actDist = t[1]; if(t[2]) actDistUnit = t[2]; } if (t[0] === "duration") actDur = t[1]; if (t[0] === "elevation_gain") { actEle = t[1]; if(t[2]) actEleUnit = t[2]; } });
             if ((ev.kind === 1 || isSportActivity) && ev.content.trim().startsWith('{') && ev.content.trim().endsWith('}')) { try { let parsedObj = JSON.parse(ev.content.trim()); parsedJsonContent = JSON.stringify(parsedObj, null, 2); isJsonPayload = true; if (parsedObj.sport || parsedObj.activity || parsedObj.type === "sport") { isSportActivity = true; actType = (parsedObj.sport || parsedObj.activity || actType); } if (parsedObj.title) actTitle = parsedObj.title; if (parsedObj.distance) actDist = parsedObj.distance; if (parsedObj.duration) actDur = parsedObj.duration; if (parsedObj.heartrate) { actEle = parsedObj.heartrate; actEleUnit = "bpm"; } } catch (e) {} }
             let paceSpeedLabel = "Avg Pace"; let paceSpeedValue = "0:00 /km";
             try {
@@ -480,11 +487,12 @@
             if (document.getElementById(`post-${ev.id}`)) return;
             let syncInd = document.getElementById('syncIndicator'); if (syncInd) syncInd.style.display = 'none'; if (statusText) statusText.style.display = 'none';
             let parsed = parseActivityData(ev); let dTagValue = ""; ev.tags.forEach(t => { if (t[0] === "d") dTagValue = t[1]; });
-            if (parsed.hasExpiration) { let hasExpired = false; ev.tags.forEach(t => { if(t[0] === "expiration") { if(parseInt(t[1]) < Math.floor(Date.now() / 1000)) hasExpired = true; } }); if (hasExpired) return; }
+            if (window.NostrPulseEvent && NostrPulseEvent.isExpired(ev)) return;
             initMetrics(ev.id); requestMetrics(ev.id);
             let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let cached = profileCache[ev.pubkey]; let info = (cached && !cached.pending) ? cached : { name: `Node_${shortPub}`, handle: `@${ev.pubkey.substring(0, 8)}`, picture: null };
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
-            let isPulse = (ev.kind >= 20000 && ev.kind < 30000 && !parsed.isSportActivity) || (ev.kind === 1 && parsed.hasExpiration); let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
+            let pulseInfo = window.NostrPulseEvent ? NostrPulseEvent.describe(ev) : { isPulse: false, hasExpiration: false, label: '' };
+            let isPulse = pulseInfo.isPulse; let isMine = (currentUserPubkey && ev.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(ev.id) ? '[b] saved' : '[b] save';
             let card = document.createElement('div'); card.id = `post-${ev.id}`;
             
             if (ev.kind === 30023) {

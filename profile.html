@@ -31,6 +31,7 @@
     <script src="/assets/nostr-count.js?v=20261017i"></script>
     <script src="/assets/nostr-comment.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
     <!-- Blossom media upload rules (file sha256 + BUD-11 `x` authorization
@@ -631,10 +632,16 @@
             profilePubkeyDisplay.textContent = targetPubkey; profileAvatarBox.innerHTML = `[${targetPubkey.substring(0,4).toUpperCase()}]`; connectMultiRelays(); initLikeModule();
         }
 
+        // Delegates to /assets/nostr-pulse-event.js. This rule used to be copied
+        // into seven pages, and the copies said "now > expiration" while NIP-40
+        // says the message is expired AT the timestamp -- a second off.
+        //
+        // No local fallback on purpose: if the module cannot load, this returns
+        // false, so an expired note may still be shown. That is the safe
+        // direction -- a stale card is visible and harmless, whereas a second
+        // hand-written copy of the rule is exactly what drifted before.
         function isExpiredEvent(ev) {
-            if (!ev.tags) return false;
-            const expTag = ev.tags.find(t => t[0] === 'expiration');
-            return !!(expTag && Math.floor(Date.now() / 1000) > parseInt(expTag[1], 10));
+            return window.NostrPulseEvent ? NostrPulseEvent.isExpired(ev) : false;
         }
 
         function zapSatsFromEvent(ev) {
@@ -736,7 +743,7 @@
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
-                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 1301, 30023, 20000], "authors": [targetPubkey], "limit": 100 }]));
+                    socket.send(JSON.stringify(["REQ", "posts-" + Math.random(), { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 1301, 30023], "authors": [targetPubkey], "limit": 100 }]));
                     socket.send(JSON.stringify(["REQ", "target-followers-" + Math.random(), { "kinds": [3], "#p": [targetPubkey] }]));
 
                     if (currentUserPubkey) {
@@ -834,7 +841,7 @@
                                 } catch(e){}
                             }
 
-                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 1301 || ev.kind === 30023 || (ev.kind >= 20000 && ev.kind < 30000)) {
+                            if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 1301 || ev.kind === 30023) {
                                 // Replies (NIP-10) are not shown in the profile feed — same as
                                 // the timeline. Notes that QUOTE stay visible; only those
                                 // pointing at a parent note through an "e" tag are dropped. The
@@ -885,19 +892,22 @@
                 }
 
                 let formattedMetaLine = `${authorHandleLine} · ${timeStr}`;
-                let clientName = "unknown"; let dTagValue = ""; let hasExpiration = false; let expTimeStr = "EPHEMERAL_STORY";
-                targetEv.tags.forEach(t => { 
-                    if (t[0] === "client") clientName = t[1]; 
+                let clientName = "unknown"; let dTagValue = "";
+                targetEv.tags.forEach(t => {
+                    if (t[0] === "client") clientName = t[1];
                     if (t[0] === "d") dTagValue = t[1];
-                    if (t[0] === "expiration") { hasExpiration = true; let diff = parseInt(t[1]) - Math.floor(Date.now() / 1000); expTimeStr = diff > 0 ? `Exp in ${Math.floor(diff / 3600)}h ${Math.floor((diff % 3600) / 60)}m` : "Expired"; }
                 });
+                const pulseInfo = window.NostrPulseEvent
+                    ? NostrPulseEvent.describe(targetEv)
+                    : { isPulse: false, hasExpiration: false, label: '' };
+                let hasExpiration = pulseInfo.hasExpiration; let expTimeStr = pulseInfo.label;
 
                 let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
 
                 let card = document.createElement('div'); card.id = `post-${ev.id}`;
                 let isJsonPayload = false; let parsedJsonContent = "";
                 if (targetEv.kind === 1 && targetEv.content.trim().startsWith('{') && targetEv.content.trim().endsWith('}')) { try { parsedJsonContent = JSON.stringify(JSON.parse(targetEv.content.trim()), null, 2); isJsonPayload = true; } catch (e) {} }
-                let isPulse = (targetEv.kind >= 20000 && targetEv.kind < 30000) || (targetEv.kind === 1 && hasExpiration);
+                let isPulse = pulseInfo.isPulse;
 
                 if (window.NostrMediaEvent.isMedia(targetEv)) {
                     card.className = 't-feed-card';
