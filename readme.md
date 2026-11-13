@@ -62,7 +62,17 @@ node tests/nostr-imeta.test.mjs      # 122 assertions
 node tests/nostr-count.test.mjs      # 118 assertions
 node tests/nostr-comment.test.mjs    # 82 assertions
 node tests/nostr-report.test.mjs     # 117 assertions
+node tests/nostr-article.test.mjs    # 34 assertions
 ```
+
+`tests/nostr-article.test.mjs` covers the article title rule. The renderer
+always prints the title from the `title` tag, then renders the body through
+marked. Articles that open their content with `# Judul` therefore printed the
+same title twice: once as the heading, once as an h1 in the body. Five
+published articles had this, and patching them by hand would have meant
+re-signing five events. `assets/nostr-article.js` drops the repeated line
+instead, in one place, so articles stay editable without touching events that
+are already out.
 
 `tests/nostr-imeta.test.mjs` covers NIP-92 media metadata. Before it, a note
 carrying a photo said nothing about the file: every image was announced to
