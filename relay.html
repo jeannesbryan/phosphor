@@ -601,7 +601,7 @@
             } else if (isArticle) {
                 let articleTitle = "Untitled Article"; let headingLine = (targetEv.content || "").split('\n').find(line => line.startsWith('# ')); if (headingLine) { articleTitle = headingLine.replace('# ', '').trim(); } targetEv.tags.forEach(t => { if (t[0] === "title") articleTitle = t[1]; });
                 let words = (targetEv.content || "").trim().split(/\s+/).length; let minutes = Math.ceil(words / 200);
-                contentHtml = `<div class="t-border-left pl-2 mt-2 mb-2" style="border-left-color: var(--t-green);"><div class="font-bold fs-3">${escapeHtml(articleTitle)}</div><div class="fs-small opacity-75 mb-2">${minutes} min read · NIP-23 Long Form</div><a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="t-btn t-btn-sm">> READ_ARTICLE</a></div>`;
+                contentHtml = `<div class="t-border-left t-border-accent pl-2 mt-2 mb-2"><div class="font-bold fs-3">${escapeHtml(articleTitle)}</div><div class="fs-small opacity-75 mb-2">${minutes} min read · NIP-23 Long Form</div><a href="notes.html?d=${encodeURIComponent(dTagValue)}&author=${targetEv.pubkey}" class="t-btn t-btn-sm">> READ_ARTICLE</a></div>`;
             } else if (window.NostrMediaEvent.isMedia(targetEv)) {
                 /* NIP-68 pictures and NIP-71 videos: media comes from imeta tags. */
                 mediaHtml = window.NostrMediaEvent.mediaHtml(targetEv, { fallbackText: 'Your browser does not support this video format.' });
