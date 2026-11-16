@@ -178,6 +178,24 @@ for (const name of WIRED) {
     ok(name + ': the page keeps ownership of its own binding',
         /let currentUserPubkey/.test(src));
 }
+/* Every page must AWAIT the restore inside its init before it starts using the
+   session. Without the await the page proceeds with a half-restored state and the
+   cleanup never runs, which is silent because nothing throws. relay.html is called
+   out because it only initialises when it is given a relay to explore, so a probe
+   that loads it bare sees no init at all and wrongly concludes it is broken. */
+for (const name of WIRED) {
+    const src = readFileSync(join(root, name), 'utf8');
+    ok(name + ': init awaits checkLocalSessions before using the session',
+        /await checkLocalSessions\(\);/.test(src));
+}
+{
+    const src = readFileSync(join(root, 'relay.html'), 'utf8');
+    ok('relay.html awaits the restore before connecting networks',
+        /await checkLocalSessions\(\);\s*connectNetworks\(\);/.test(src));
+    ok('relay.html still reads its target relay from the URL',
+        /targetWsUrl/.test(src));
+}
+
 /* The temporary key must still be read from sessionStorage, which is what private
    mode depends on. A generic read would silently stop honouring it. */
 {
