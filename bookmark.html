@@ -50,6 +50,8 @@
     <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- The five login flows, one implementation for nine pages. -->
     <script src="/assets/nostr-login.js?v=20261116a"></script>
+    <!-- NIP-51: kind 30003 is addressable, so `d` names the set. -->
+    <script src="/assets/nostr-sets.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -520,11 +522,18 @@
                             if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); }
                             if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); }
                             if (ev.kind === 5) { ev.tags.forEach(t => { if (t[0] === 'e') { let oldCard = document.getElementById(`post-${t[1]}`); if (oldCard) oldCard.remove(); } }); return; }
-                            if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) {
+                            /* NIP-51: kind 30003 is addressable, so the `d` tag names
+                               the set (bookmark, liked-songs, liked-albums). Without this
+                               check whichever set arrived newest took the page over: a
+                               newer liked-songs update, which has no e-tags, replaced the
+                               bookmark list with an empty one and the real bookmarks
+                               disappeared from the screen while staying on the relay. */
+                            if (ev.kind === 30003 && ev.pubkey === currentUserPubkey
+                                && window.NostrSets && NostrSets.belongsTo(ev, 'bookmark')) {
                                 if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) {
                                     let isNewer = (!myBookmarkEvent || ev.created_at > myBookmarkEvent.created_at);
                                     if (isNewer) {
-                                        myBookmarkEvent = ev; bookmarkIds.clear(); myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') { bookmarkIds.add(t[1]); myBookmarks.add(t[1]); } });
+                                        myBookmarkEvent = ev; bookmarkIds.clear(); myBookmarks.clear(); NostrSets.bookmarkedIds(ev).forEach(id => { bookmarkIds.add(id); myBookmarks.add(id); });
                                         let syncInd = document.getElementById('syncIndicator'); if (syncInd) syncInd.style.display = 'none';
                                         if (bookmarkIds.size > 0) { if (statusText) statusText.style.display = 'none'; let subReq = JSON.stringify(["REQ", "bookmark-contents-" + Math.random().toString(36).substring(2,8), { "ids": Array.from(bookmarkIds) }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(subReq); }); } else { if (statusText) statusText.textContent = "[ Bookmark list is empty. ]"; }
                                     } 

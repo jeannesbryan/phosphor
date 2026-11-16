@@ -59,6 +59,7 @@
         './assets/nostr-feed-card.js',
         './assets/nostr-auth-state.js',
         './assets/nostr-login.js',
+        './assets/nostr-sets.js',
         './assets/nostr-like.js'
 ,
         './assets/blossom-auth.js',
