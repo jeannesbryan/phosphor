@@ -52,7 +52,19 @@
         './assets/nostr-draft.js',
         './assets/nostr-paginate.js',
         './assets/nostr-notif-order.js',
+        './assets/nostr-util.js',
         './assets/nostr-like.js'
+,
+        './assets/blossom-auth.js',
+        './assets/form-utils.js',
+        './assets/nostr-article.js',
+        './assets/nostr-comment.js',
+        './assets/nostr-count.js',
+        './assets/nostr-imeta.js',
+        './assets/nostr-nip05.js',
+        './assets/nostr-pulse-event.js',
+        './assets/nostr-relay-info.js',
+        './assets/nostr-report.js'
     ];
 
     var ASSET_EXT = /\.(?:js|css|png|jpe?g|svg|ico|woff2?|webp)$/i;

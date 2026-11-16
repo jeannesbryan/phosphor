@@ -46,6 +46,34 @@ Since Phosphor runs 100% purely client-side (Vanilla HTML/CSS/JS), there is no d
 3. You can run a local web server within the folder (e.g., `python -m http.server 5500`) or simply host it on static hosting providers like **Cloudflare Pages** or GitHub Pages.
 4. Open your browser and navigate to the address.
 
+## 🔍 Profile lookup and the relay index trade-off
+
+Names come from `kind 0` events. The four timeline relays do not hold most of them,
+so the client asks two purpose-built profile indexes as well, and only when a name
+is still missing after the first attempt: `purplepag.es` and `relay.nostr.net`.
+
+That second one is a deliberate trade-off, measured rather than assumed. Over the
+seven pubkeys that appear in a real notification feed:
+
+| Index relays asked | Profiles found |
+|---|---|
+| `purplepag.es` only | 2 of 7 |
+| `purplepag.es` + `relay.primal.net` | 3 of 7 |
+| `purplepag.es` + `relay.nostr.net` | 7 of 7 |
+
+So dropping `relay.nostr.net` would show four real people as `Node_XXXX`. The cost
+is that it learns which pubkeys your client is looking at (the ones already in your
+own notifications, not your whole follow list). A query only goes out when a name
+would otherwise be missing, so a normal session with nothing new sends none.
+
+If you would rather have the tighter default, set it in `config.json`:
+
+```json
+{ "profile_relays": ["wss://purplepag.es"] }
+```
+
+An empty array turns the feature off entirely. Nothing else needs changing.
+
 ## 🧪 Tests
 
 No build step, no test framework — plain Node, no network:

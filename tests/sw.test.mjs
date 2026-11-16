@@ -75,6 +75,16 @@ ok('the cache name carries a version', /-v\d+$/.test(sw.CACHE_NAME));
     eq('every precached asset exists on disk', missing, []);
 }
 
+/* A module that the pages load but the worker does not precache is a hole in
+   offline mode: the page opens and then throws on a missing script. Checked
+   against the disk, so adding a module without precaching it fails here. */
+{
+    const { readdirSync } = require('node:fs');
+    const onDisk = readdirSync(join(root, 'assets')).filter(f => f.endsWith('.js'));
+    const missing = onDisk.filter(f => !sw.PRECACHE.some(e => e.endsWith('/assets/' + f)));
+    eq('every shared module is precached', missing, []);
+}
+
 // ------------------------------------------------------------ worker wiring
 {
     const src = readFileSync(join(root, 'sw.js'), 'utf8');
@@ -93,9 +103,18 @@ ok('the cache name carries a version', /-v\d+$/.test(sw.CACHE_NAME));
     const PAGES = ['index.html', 'compose.html', 'notifications.html', 'notes.html', 'profile.html', 'thread.html', 'bookmark.html', 'relay.html'];
     for (const p of PAGES) {
         const src = readFileSync(join(root, p), 'utf8');
-        ok(p + ': registers the service worker', /serviceWorker\s*\.\s*register\('\/sw\.js'\)/.test(src));
+        ok(p + ': registers the service worker',
+            /serviceWorker\s*\.\s*register\('\/sw\.js', \{ updateViaCache: 'none' \}\)/.test(src));
         ok(p + ': only registers on a secure context',
             /isSecureContext/.test(src));
+        /* A cached page that never updates is worse than no cache: this project
+           deploys several times a day. Both halves of the update path are pinned. */
+        ok(p + ': asks the browser to check for a new worker',
+            /reg\.update\(\)/.test(src));
+        ok(p + ': reloads once when a new worker takes over',
+            /addEventListener\('controllerchange'[\s\S]{0,200}window\.location\.reload\(\)/.test(src));
+        ok(p + ': the reload is guarded against a loop',
+            /if \(reloadingForNewWorker\) return;/.test(src));
     }
 }
 

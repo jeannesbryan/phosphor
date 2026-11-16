@@ -552,8 +552,23 @@
        pretending otherwise. Registered after load so it never competes with the
        first paint. */
     if ('serviceWorker' in navigator && window.isSecureContext) {
+        /* This project deploys several times a day. A cache that serves yesterday's
+           page is worse than no cache at all, so the worker is registered on every
+           load (which is what makes the browser check for a new one), and when a
+           new worker takes over the page reloads ONCE to pick it up. The guard
+           stops a reload loop if two workers fight. */
+        let reloadingForNewWorker = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (reloadingForNewWorker) return;
+            reloadingForNewWorker = true;
+            window.location.reload();
+        });
         window.addEventListener('load', function () {
-            navigator.serviceWorker.register('/sw.js').catch(function () {
+            navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function (reg) {
+                /* Ask explicitly too: a tab left open for hours would otherwise sit
+                   on a stale copy until the next navigation. */
+                try { reg.update(); } catch (e) {}
+            }).catch(function () {
                 /* Offline support is a bonus, never a reason to break the page. */
             });
         });
