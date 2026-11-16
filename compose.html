@@ -15,6 +15,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Session state and the shared navigation, one rule for nine pages. -->
+    <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -170,7 +172,21 @@
             localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload();
         }
  logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
-        function updateAuthState() { let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp'); if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); editorContainer.classList.remove('hidden'); document.getElementById('unlockModal').style.display = 'none'; } else { navLoginBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); } }
+        function updateAuthState() {
+            /* Three states and the shared navigation live in
+               assets/nostr-auth-state.js. This page only declares what is
+               extra here. notifications.html used to have no logged-out
+               branch at all; compose and activity forgot to hide the unlock
+               button in it. Both are impossible now. */
+            window.NostrAuthState.refresh({
+                document: document,
+                read: (k) => (k === 'phosphor_privkey_temp' ? sessionStorage.getItem(k) : localStorage.getItem(k)),
+                pubkey: currentUserPubkey,
+            onLocked: () => { editorContainer.classList.add('hidden'); },
+            onLoggedIn: () => { editorContainer.classList.remove('hidden'); },
+            onLoggedOut: () => { editorContainer.classList.add('hidden'); }
+            });
+        }
         
         function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         function connectMultiRelays() { relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0; RELAYS.forEach(url => { relayStatusMap[url] = false; let socket = new WebSocket(url); socket.onopen = function() { relayPool.markOnline(url); if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }])); } }; socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); }; socket.onmessage = function(event) { try { let data = JSON.parse(event.data); if (data[0] === "EVENT" && data[2]) { let ev = data[2]; if (ev.kind === 10002 && ev.pubkey === currentUserPubkey) { let userRelays = []; ev.tags.forEach(t => { if (t[0] === 'r') userRelays.push(t[1]); }); if (userRelays.length > 0) localStorage.setItem('phosphor_user_relays', JSON.stringify(userRelays)); } if (ev.kind === 10063 && ev.pubkey === currentUserPubkey) { let userBlossom = []; ev.tags.forEach(t => { if (t[0] === 'server' || t[0] === 'url' || t[0] === 'r') userBlossom.push(t[1]); }); if (userBlossom.length > 0) localStorage.setItem('phosphor_user_blossom', JSON.stringify(userBlossom)); } if (ev.kind === 30023) { let dTag = ev.tags.find(t => t[0] === 'd'); if (dTag && dTag[1] === editIdentifier && ev.pubkey === editAuthor) { populateForm(ev); } } } } catch (e) {} }; activeSockets.push(socket); }); }

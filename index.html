@@ -65,6 +65,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Session state and the shared navigation, one rule for nine pages. -->
+    <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
     <!-- Pure card helpers: tag reading, JSON payload, linkify, pace maths. -->
@@ -781,51 +783,36 @@
         }
 
         function updateAuthState() {
-            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-            let tabFollowing = document.getElementById('tabFollowing');
-
-            if (isLocked) {
-                navLoginBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navUnlockBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
+            /* Three states and the shared navigation live in
+               assets/nostr-auth-state.js. This page only declares what is
+               extra here. notifications.html used to have no logged-out
+               branch at all; compose and activity forgot to hide the unlock
+               button in it. Both are impossible now. */
+            window.NostrAuthState.refresh({
+                document: document,
+                read: (k) => (k === 'phosphor_privkey_temp' ? sessionStorage.getItem(k) : localStorage.getItem(k)),
+                pubkey: currentUserPubkey,
+            onLocked: () => {
                 composerCard.classList.add('hidden');
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                document.getElementById('unlockModal').style.display = 'flex';
-                
                 tabFollowing.classList.add('hidden');
                 if (activeTab === 'following') switchTimeline('global');
-                
-            } else if (currentUserPubkey) {
-                navLoginBtn.classList.add('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.remove('hidden');
-                navBookmarkBtn.classList.remove('hidden');
-                navNotifBtn.classList.remove('hidden');
+            },
+            onLoggedIn: () => {
                 composerCard.classList.remove('hidden');
                 document.querySelectorAll('.edit-btn-' + currentUserPubkey).forEach(el => el.classList.remove('hidden'));
-                document.getElementById('unlockModal').style.display = 'none';
-                
                 tabFollowing.classList.remove('hidden');
-                // After logging in (or unlocking the session) the timeline must land
-                // on FOLLOWING, not GLOBAL. It used to be right only "by accident"
-                // through the initial class in the HTML; now it is stated explicitly.
+                /* After logging in the timeline lands on FOLLOWING, not GLOBAL. */
                 if (activeTab !== 'following') switchTimeline('following');
-                
-            } else {
-                navLoginBtn.classList.remove('hidden');
-                navUnlockBtn.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                navBookmarkBtn.classList.add('hidden');
-                navNotifBtn.classList.add('hidden');
+            },
+            onLoggedOut: () => {
                 composerCard.classList.add('hidden');
                 userAvatarBox.innerHTML = "[P]";
                 document.querySelectorAll('.edit-btn').forEach(el => el.classList.add('hidden'));
-                
                 tabFollowing.classList.add('hidden');
                 if (activeTab === 'following') switchTimeline('global');
             }
+            });
         }
 
         // ================= MEDIA UPLOAD LOGIC =================

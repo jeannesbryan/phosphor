@@ -16,6 +16,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Session state and the shared navigation, one rule for nine pages. -->
+    <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -83,7 +85,21 @@
             localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload();
         }
  logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
-        function updateAuthState() { let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp'); if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); editorContainer.classList.remove('hidden'); document.getElementById('unlockModal').style.display = 'none'; } else { navLoginBtn.classList.remove('hidden'); editorContainer.classList.add('hidden'); } }
+        function updateAuthState() {
+            /* Three states and the shared navigation live in
+               assets/nostr-auth-state.js. This page only declares what is
+               extra here. notifications.html used to have no logged-out
+               branch at all; compose and activity forgot to hide the unlock
+               button in it. Both are impossible now. */
+            window.NostrAuthState.refresh({
+                document: document,
+                read: (k) => (k === 'phosphor_privkey_temp' ? sessionStorage.getItem(k) : localStorage.getItem(k)),
+                pubkey: currentUserPubkey,
+            onLocked: () => { editorContainer.classList.add('hidden'); },
+            onLoggedIn: () => { editorContainer.classList.remove('hidden'); },
+            onLoggedOut: () => { editorContainer.classList.add('hidden'); }
+            });
+        }
         function connectMultiRelays() { relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0; RELAYS.forEach(url => { relayStatusMap[url] = false; let socket = new WebSocket(url); socket.onopen = function() { relayPool.markOnline(url); }; socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); }; activeSockets.push(socket); }); }
 
         function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }

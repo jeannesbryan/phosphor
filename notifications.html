@@ -49,6 +49,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Session state and the shared navigation, one rule for nine pages. -->
+    <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -285,9 +287,21 @@
         logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {
-            let isLocked = localStorage.getItem('phosphor_ncryptsec') && !sessionStorage.getItem('phosphor_privkey_temp');
-            if (isLocked) { navLoginBtn.classList.add('hidden'); logoutBtn.classList.add('hidden'); navUnlockBtn.classList.remove('hidden'); navBookmarkBtn.classList.add('hidden'); navNotifBtn.classList.add('hidden'); document.getElementById('unlockModal').style.display = 'flex'; } 
-            else if (currentUserPubkey) { navLoginBtn.classList.add('hidden'); navUnlockBtn.classList.add('hidden'); logoutBtn.classList.remove('hidden'); navBookmarkBtn.classList.remove('hidden'); navNotifBtn.classList.remove('hidden'); }
+            /* Three states and the shared navigation live in
+               assets/nostr-auth-state.js. This page only declares what is
+               extra here. notifications.html used to have no logged-out
+               branch at all; compose and activity forgot to hide the unlock
+               button in it. Both are impossible now. */
+            window.NostrAuthState.refresh({
+                document: document,
+                read: (k) => (k === 'phosphor_privkey_temp' ? sessionStorage.getItem(k) : localStorage.getItem(k)),
+                pubkey: currentUserPubkey,
+            /* Nothing extra here, and that is the point: this page used to have no
+               logged-out branch at all, which left the navigation stale. */
+            onLocked: () => {},
+            onLoggedIn: () => {},
+            onLoggedOut: () => {}
+            });
         }
         
         /* The Blossom upload rules (file sha256, BUD-11 `x` authorization tag,
