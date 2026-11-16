@@ -53,6 +53,7 @@
         './assets/nostr-paginate.js',
         './assets/nostr-notif-order.js',
         './assets/nostr-util.js',
+        './assets/nostr-session.js',
         './assets/nostr-like.js'
 ,
         './assets/blossom-auth.js',

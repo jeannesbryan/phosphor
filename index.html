@@ -63,6 +63,8 @@
     <script src="/assets/nostr-paginate.js?v=20261116a"></script>
     <!-- Shared helpers: one definition of escaping and of "x ago". -->
     <script src="/assets/nostr-util.js?v=20261116a"></script>
+    <!-- Local session restore, one rule for all nine pages. -->
+    <script src="/assets/nostr-session.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -583,24 +585,25 @@
 
         // ================= AUTHENTICATION LOGIC =================
         function setupLocalNostrMock(pubkeyHex, secretKeyBytes, nostrTools) {
-            window.nostr = {
-                getPublicKey: async () => pubkeyHex,
-                signEvent: async (eventTemplate) => {
-                    return nostrTools.finalizeEvent(eventTemplate, secretKeyBytes);
-                }
-            };
+            /* Rule lives in assets/nostr-session.js. */
+            return window.NostrSession.installLocalSigner(pubkeyHex, secretKeyBytes, nostrTools);
         }
 
         async function checkLocalSessions() {
-            let rawHex = sessionStorage.getItem('phosphor_privkey_temp') || localStorage.getItem('phosphor_privkey');
-            let savedNcryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
-            if (rawHex && currentUserPubkey) {
-                try {
-                    const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                    let skBytes = new Uint8Array(rawHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-                    setupLocalNostrMock(currentUserPubkey, skBytes, nostrTools);
-                } catch(e) { console.error("Failed to restore local session", e); }
+            if (!window.NostrSession) return;
+            /* The module decides, this page applies: currentUserPubkey is a binding
+               only the page can reassign. The 'clear-pubkey' outcome is the one
+               index.html and notifications.html used to lack, which left the page
+               looking signed in with no signer at all. */
+            let result = await window.NostrSession.restoreLocalSession({
+                read: (k) => (k === 'phosphor_privkey_temp' ? sessionStorage.getItem(k) : localStorage.getItem(k)),
+                pubkey: currentUserPubkey,
+                hasExtensionSigner: !!window.nostr,
+                log: (e) => console.error('Failed to restore local session', e)
+            });
+            if (result && result.action === 'clear-pubkey') {
+                currentUserPubkey = null;
+                localStorage.removeItem('phosphor_pubkey');
             }
         }
 
