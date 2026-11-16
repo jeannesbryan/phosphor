@@ -39,6 +39,9 @@
     <script src="/assets/nostr-profile.js?v=20261116b"></script>
     <!-- NIP-27/NIP-21: turn nostr: references into links. nsec is refused. -->
     <script src="/assets/nostr-nip27.js?v=20261116a"></script>
+    <!-- NIP-42: answer a relay AUTH challenge, so protected events and
+         auth-only relays work. Signing goes through window.nostr. -->
+    <script src="/assets/nostr-auth.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -496,6 +499,14 @@
                         }
                     } catch (err) {}
                 };
+                /* NIP-42. The page handler above ignores frames it does not
+                   recognise, so an AUTH request was dropped silently. The shared
+                   wrapper answers it and records the outcome, so "the relay asked"
+                   and "we answered" are both visible instead of guessed. */
+                if (window.NostrAuth) window.NostrAuth.wrapSocket(socket, url, {
+                    sign: (window.nostr && window.nostr.signEvent) ? (tpl) => window.nostr.signEvent(tpl) : null,
+                    onResult: (r, u) => { (window.__authResults = window.__authResults || []).push({ relay: u, sent: r.sent, reason: r.reason }); }
+                });
                 activeSockets.push(socket);
             });
         }
