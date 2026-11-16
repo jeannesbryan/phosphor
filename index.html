@@ -608,29 +608,8 @@
         }
 
         function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden');
-            document.getElementById('viewBunker').classList.add('hidden');
-            document.getElementById('viewNsec').classList.add('hidden');
-            document.getElementById('viewNcryptsec').classList.add('hidden');
-            
-            document.getElementById('tabExt').classList.add('ghost');
-            document.getElementById('tabBunker').classList.add('ghost');
-            document.getElementById('tabNsec').classList.add('ghost');
-            document.getElementById('tabNcryptsec').classList.add('ghost');
-            
-            if (tab === 'ext') {
-                document.getElementById('viewExt').classList.remove('hidden');
-                document.getElementById('tabExt').classList.remove('ghost');
-            } else if (tab === 'bunker') {
-                document.getElementById('viewBunker').classList.remove('hidden');
-                document.getElementById('tabBunker').classList.remove('ghost');
-            } else if (tab === 'nsec') {
-                document.getElementById('viewNsec').classList.remove('hidden');
-                document.getElementById('tabNsec').classList.remove('ghost');
-            } else if (tab === 'ncryptsec') {
-                document.getElementById('viewNcryptsec').classList.remove('hidden');
-                document.getElementById('tabNcryptsec').classList.remove('ghost');
-            }
+            /* Rule lives in assets/nostr-session.js: hide four views, un-ghost one tab. */
+            return window.NostrSession ? window.NostrSession.switchLoginTab(tab) : false;
         }
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
@@ -783,13 +762,15 @@
         });
 
         function logoutFully() {
-            localStorage.removeItem('phosphor_pubkey');
-            localStorage.removeItem('phosphor_privkey');
-            localStorage.removeItem('phosphor_ncryptsec');
-            localStorage.removeItem('phosphor_bunker_uri');
-            localStorage.removeItem('phosphor_following');
-            sessionStorage.removeItem('phosphor_privkey_temp');
-            location.reload();
+            /* One definition of "what a logout clears" is in assets/nostr-session.js.
+               index.html adds phosphor_following, because only this page caches the
+               follow list; leaving that behind on a shared machine would leak it. */
+            let extra = ['phosphor_following'];
+            if (window.NostrSession) {
+                window.NostrSession.clearSession(localStorage, sessionStorage, extra, function () { location.reload(); });
+                return;
+            }
+            localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); localStorage.removeItem('phosphor_following'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload();
         }
 
         function updateAuthState() {

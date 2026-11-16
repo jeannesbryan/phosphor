@@ -259,12 +259,8 @@
         }
 
         function switchLoginTab(tab) {
-            document.getElementById('viewExt').classList.add('hidden'); document.getElementById('viewBunker').classList.add('hidden'); document.getElementById('viewNsec').classList.add('hidden'); document.getElementById('viewNcryptsec').classList.add('hidden');
-            document.getElementById('tabExt').classList.add('ghost'); document.getElementById('tabBunker').classList.add('ghost'); document.getElementById('tabNsec').classList.add('ghost'); document.getElementById('tabNcryptsec').classList.add('ghost');
-            if (tab === 'ext') { document.getElementById('viewExt').classList.remove('hidden'); document.getElementById('tabExt').classList.remove('ghost'); } 
-            else if (tab === 'bunker') { document.getElementById('viewBunker').classList.remove('hidden'); document.getElementById('tabBunker').classList.remove('ghost'); } 
-            else if (tab === 'nsec') { document.getElementById('viewNsec').classList.remove('hidden'); document.getElementById('tabNsec').classList.remove('ghost'); } 
-            else if (tab === 'ncryptsec') { document.getElementById('viewNcryptsec').classList.remove('hidden'); document.getElementById('tabNcryptsec').classList.remove('ghost'); }
+            /* Rule lives in assets/nostr-session.js: hide four views, un-ghost one tab. */
+            return window.NostrSession ? window.NostrSession.switchLoginTab(tab) : false;
         }
 
         navLoginBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('loginModal').style.display = 'flex'; });
@@ -276,7 +272,14 @@
         document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => { let input = document.getElementById('ncryptsecInput').value.trim(); let pass = document.getElementById('ncryptsecPassword').value; if(!input || !pass) return alert('> ERROR: Key and password required.'); let btn = document.getElementById('ncryptsecLoginBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(input, pass); let pubkeyHex = nostrTools.getPublicKey(skBytes); localStorage.setItem('phosphor_pubkey', pubkeyHex); localStorage.setItem('phosphor_ncryptsec', input); localStorage.removeItem('phosphor_bunker_uri'); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT & LOGIN'; } });
         document.getElementById('unlockBtn').addEventListener('click', async () => { let pass = document.getElementById('unlockPassword').value; let ncryptsec = localStorage.getItem('phosphor_ncryptsec'); if(!pass) return alert('> ERROR: Password required.'); let btn = document.getElementById('unlockBtn'); try { btn.textContent = '> DECRYPTING...'; const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm'); const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm'); let skBytes = nip49.decrypt(ncryptsec, pass); let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join(''); sessionStorage.setItem('phosphor_privkey_temp', hexKey); location.reload(); } catch(e) { alert('> ERROR: Decryption failed.'); btn.textContent = '> DECRYPT'; } });
 
-        function logoutFully() { localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload(); }
+        function logoutFully() {
+            /* One definition of "what a logout clears" is in assets/nostr-session.js. */
+            if (window.NostrSession) {
+                window.NostrSession.clearSession(localStorage, sessionStorage, [], function () { location.reload(); });
+                return;
+            }
+            localStorage.removeItem('phosphor_pubkey'); localStorage.removeItem('phosphor_privkey'); localStorage.removeItem('phosphor_ncryptsec'); localStorage.removeItem('phosphor_bunker_uri'); sessionStorage.removeItem('phosphor_privkey_temp'); location.reload();
+        }
         logoutBtn.addEventListener('click', (e) => { e.preventDefault(); logoutFully(); });
 
         function updateAuthState() {

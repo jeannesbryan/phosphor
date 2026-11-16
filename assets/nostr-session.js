@@ -117,8 +117,98 @@
         return Promise.resolve({ action: 'none' });
     }
 
+    /* The four login tabs. Was byte-identical in all nine pages, which is the only
+       part of the login form that could be lifted safely (see the note in this
+       file's header about the handlers). */
+    var LOGIN_TABS = ['ext', 'bunker', 'nsec', 'ncryptsec'];
+
+    function loginViewId(tab) { return 'view' + tab.charAt(0).toUpperCase() + tab.slice(1); }
+    function loginTabId(tab) { return 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1); }
+
+    /* Show one tab and hide the rest. Returns false when the page does not have the
+       elements, so a page without a login form cannot throw on a stray call. */
+    function switchLoginTab(tab, root) {
+        var doc = (root && root.ownerDocument) || root || global.document;
+        if (!doc || typeof doc.getElementById !== 'function') return false;
+        if (LOGIN_TABS.indexOf(tab) === -1) return false;
+
+        var i, el;
+        for (i = 0; i < LOGIN_TABS.length; i++) {
+            el = doc.getElementById(loginViewId(LOGIN_TABS[i]));
+            if (el && el.classList) el.classList.add('hidden');
+            el = doc.getElementById(loginTabId(LOGIN_TABS[i]));
+            if (el && el.classList) el.classList.add('ghost');
+        }
+        /* The page must actually HAVE this form. Reporting success on a page with no
+           login form would hide the fact that nothing was switched. */
+        var view = doc.getElementById(loginViewId(tab));
+        if (!view) return false;
+        if (view.classList) view.classList.remove('hidden');
+        el = doc.getElementById(loginTabId(tab));
+        if (el && el.classList) el.classList.remove('ghost');
+        return true;
+    }
+
+    /* What a logout must clear.
+
+       index.html keeps one extra key (`phosphor_following`, a cached follow list
+       only that page reads), which is why its logoutFully differed. Rather than
+       fork the function, the standard list lives here and a page passes its extras:
+       one definition of "what a logout clears", and no page can forget the list.
+       Leaving the follow cache behind on a shared machine is the kind of leak this
+       prevents. */
+    var LOGOUT_KEYS = [
+        'phosphor_pubkey',
+        'phosphor_privkey',
+        'phosphor_ncryptsec',
+        'phosphor_bunker_uri',
+        /* Not a credential, and that is exactly why it was being missed. It maps
+           "local@domain|pubkey" to valid/invalid, so after a logout it still lists
+           which NIP-05 identities were verified from this browser. Written by the
+           shared nostr-nip05 module, used by seven pages, so it belongs in the
+           standard list rather than in a page's extras. */
+        'phosphor_nip05_cache_v1'
+    ];
+    var LOGOUT_SESSION_KEYS = ['phosphor_privkey_temp'];
+
+    function logoutKeys(extra) {
+        var out = LOGOUT_KEYS.slice();
+        (extra || []).forEach(function (k) {
+            if (out.indexOf(k) === -1) out.push(k);
+        });
+        return out;
+    }
+
+    /* Clears everything a logout should, then reports what actually changed so a
+       page can tell "nothing to clear" from "clearing failed". */
+    function clearSession(storage, session, extra, reload) {
+        var cleared = [];
+        var failed = [];
+        logoutKeys(extra).forEach(function (k) {
+            try {
+                if (storage) storage.removeItem(k);
+                cleared.push(k);
+            } catch (e) { failed.push(k); }
+        });
+        (LOGOUT_SESSION_KEYS || []).forEach(function (k) {
+            try {
+                if (session) session.removeItem(k);
+                cleared.push(k);
+            } catch (e) { failed.push(k); }
+        });
+        if (typeof reload === 'function') {
+            try { reload(); } catch (e) { /* reload is best effort */ }
+        }
+        return { cleared: cleared, failed: failed };
+    }
+
     var api = {
         TOOLS_URL: TOOLS_URL,
+        LOGIN_TABS: LOGIN_TABS,
+        switchLoginTab: switchLoginTab,
+        LOGOUT_KEYS: LOGOUT_KEYS,
+        logoutKeys: logoutKeys,
+        clearSession: clearSession,
         hexToBytes: hexToBytes,
         installLocalSigner: installLocalSigner,
         restoreLocalSession: restoreLocalSession

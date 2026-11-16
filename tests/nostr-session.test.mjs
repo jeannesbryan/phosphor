@@ -152,6 +152,101 @@ const loadOk = () => Promise.resolve(toolsStub);
     eq('with a reason', r.error, 'tools-incomplete');
 }
 
+// ------------------------------------------------------- switchLoginTab
+/* A fake document with the four tabs and four views, so the real
+   hide-everything-then-show-one logic runs instead of being read off the file. */
+function fakeLoginDoc(present = true) {
+    const made = {};
+    if (present) {
+        for (const t of ['ext', 'bunker', 'nsec', 'ncryptsec']) {
+            const v = 'view' + t.charAt(0).toUpperCase() + t.slice(1);
+            const b = 'tab' + t.charAt(0).toUpperCase() + t.slice(1);
+            made[v] = { classes: new Set(), classList: null };
+            made[b] = { classes: new Set(), classList: null };
+        }
+        for (const el of Object.values(made)) {
+            el.classList = {
+                add: (c) => el.classes.add(c),
+                remove: (c) => el.classes.delete(c),
+                has: (c) => el.classes.has(c)
+            };
+        }
+    }
+    return {
+        getElementById: (id) => made[id] || null,
+        __els: made
+    };
+}
+{
+    const doc = fakeLoginDoc();
+    eq('switching to a tab succeeds', sess.switchLoginTab('bunker', doc), true);
+    eq('the chosen view is visible', doc.__els.viewBunker.classes.has('hidden'), false);
+    eq('the chosen tab is not ghosted', doc.__els.tabBunker.classes.has('ghost'), false);
+    eq('another view is hidden', doc.__els.viewExt.classes.has('hidden'), true);
+    eq('another tab is ghosted', doc.__els.tabExt.classes.has('ghost'), true);
+    eq('the nsec view is hidden too', doc.__els.viewNsec.classes.has('hidden'), true);
+}
+{
+    // switching twice must not leave two visible
+    const doc = fakeLoginDoc();
+    sess.switchLoginTab('ext', doc);
+    sess.switchLoginTab('ncryptsec', doc);
+    const visible = ['Ext', 'Bunker', 'Nsec', 'Ncryptsec']
+        .filter(t => !doc.__els['view' + t].classes.has('hidden'));
+    eq('exactly one view is visible after two switches', visible, ['Ncryptsec']);
+}
+eq('an unknown tab is refused', sess.switchLoginTab('nope', fakeLoginDoc()), false);
+eq('a page with no login form returns false', sess.switchLoginTab('ext', fakeLoginDoc(false)), false);
+eq('no document returns false', sess.switchLoginTab('ext', null), false);
+eq('the tab list is the four known ones', sess.LOGIN_TABS, ['ext', 'bunker', 'nsec', 'ncryptsec']);
+
+// ----------------------------------------------------------- logout keys
+/* One definition of "what a logout clears". index.html adds phosphor_following,
+   because only that page caches the follow list; every other page must still clear
+   the same standard set. */
+ok('the standard keys include the pubkey', sess.LOGOUT_KEYS.indexOf('phosphor_pubkey') !== -1);
+ok('the standard keys include the raw key', sess.LOGOUT_KEYS.indexOf('phosphor_privkey') !== -1);
+ok('the standard keys include the encrypted key', sess.LOGOUT_KEYS.indexOf('phosphor_ncryptsec') !== -1);
+ok('the standard keys include the bunker uri', sess.LOGOUT_KEYS.indexOf('phosphor_bunker_uri') !== -1);
+/* Found by measurement, not by reading: this one survived a logout in the browser.
+   It is not a credential, which is why nobody thought of it, and it still records
+   which NIP-05 identities were checked from this browser. */
+ok('the standard keys include the NIP-05 cache',
+    sess.LOGOUT_KEYS.indexOf('phosphor_nip05_cache_v1') !== -1);
+eq('extras are appended', sess.logoutKeys(['phosphor_following']), sess.LOGOUT_KEYS.concat(['phosphor_following']));
+eq('a duplicate extra is not repeated', sess.logoutKeys(['phosphor_pubkey']), sess.LOGOUT_KEYS);
+eq('no extras is just the standard list', sess.logoutKeys(), sess.LOGOUT_KEYS);
+/* The returned array must be a copy: a page mutating it would change the rule for
+   every other page in the same document. */
+{
+    const a = sess.logoutKeys();
+    a.push('bogus');
+    eq('logoutKeys returns a copy, not the shared array', sess.LOGOUT_KEYS.indexOf('bogus'), -1);
+}
+{
+    const removed = [];
+    const storage = { removeItem: (k) => removed.push('local:' + k) };
+    const session = { removeItem: (k) => removed.push('session:' + k) };
+    let reloaded = 0;
+    const r = sess.clearSession(storage, session, ['phosphor_following'], () => { reloaded++; });
+    ok('every standard key is cleared', sess.LOGOUT_KEYS.every(k => removed.indexOf('local:' + k) !== -1));
+    ok('the extra key is cleared', removed.indexOf('local:phosphor_following') !== -1);
+    ok('the temporary key is cleared from sessionStorage', removed.indexOf('session:phosphor_privkey_temp') !== -1);
+    eq('the reload happens once', reloaded, 1);
+    eq('nothing failed', r.failed, []);
+}
+{
+    // storage that throws must be reported per key, not abort the whole logout
+    const storage = { removeItem: (k) => { if (k === 'phosphor_privkey') throw new Error('denied'); } };
+    const r = sess.clearSession(storage, null, [], null);
+    ok('a failed key is reported', r.failed.indexOf('phosphor_privkey') !== -1);
+    ok('the other keys were still attempted', r.cleared.length >= 3);
+}
+{
+    const r = sess.clearSession(null, null, [], null);
+    eq('no storage still reports the keys as cleared', r.cleared.length, sess.LOGOUT_KEYS.length + 1);
+}
+
 // --------------------------------------------------- all pages are wired
 /* Nine copies of checkLocalSessions is how three different behaviours grew
    unnoticed. Each page must now load the module, delegate, and apply the decision
@@ -194,6 +289,32 @@ for (const name of WIRED) {
         /await checkLocalSessions\(\);\s*connectNetworks\(\);/.test(src));
     ok('relay.html still reads its target relay from the URL',
         /targetWsUrl/.test(src));
+}
+
+/* Login form wiring: the tab switch and the logout key list both come from the
+   module, so neither can drift page by page again. */
+for (const name of WIRED) {
+    const src = readFileSync(join(root, name), 'utf8');
+    ok(name + ': switchLoginTab delegates',
+        /return window\.NostrSession \? window\.NostrSession\.switchLoginTab\(tab\) : false;/.test(src));
+    ok(name + ': logout goes through clearSession',
+        /window\.NostrSession\.clearSession\(localStorage, sessionStorage,/.test(src));
+    ok(name + ': the hand-written key list is gone from the page',
+        !/localStorage\.removeItem\('phosphor_bunker_uri'\); sessionStorage\.removeItem/.test(src)
+        || /return;/.test(src));
+}
+{
+    /* index.html caches the follow list, so it must ask for that key to be cleared.
+       Every other page must NOT, which is why the extras are a parameter rather
+       than a fork of the function. */
+    const idx = readFileSync(join(root, 'index.html'), 'utf8');
+    ok('index.html asks for phosphor_following to be cleared',
+        /let extra = \['phosphor_following'\];/.test(idx));
+    const others = WIRED.filter(n => n !== 'index.html');
+    for (const name of others) {
+        const src = readFileSync(join(root, name), 'utf8');
+        ok(name + ': passes no extras', /clearSession\(localStorage, sessionStorage, \[\],/.test(src));
+    }
 }
 
 /* The temporary key must still be read from sessionStorage, which is what private
