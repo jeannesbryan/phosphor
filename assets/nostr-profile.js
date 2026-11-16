@@ -171,8 +171,13 @@
                    page from onopen, which is where these pending requests land. */
             }
             if (st.attempt > retryPlan.length) {
+                /* Deliberately NOT finish(): finish() sets done, and a done entry is
+                   skipped by flush(), which would make the revive below dead code.
+                   Giving up only means "no more timed retries"; a socket that opens
+                   later can still revive it once. */
                 st.gaveUp = true;
-                finish(pubkey);
+                for (var i = 0; i < st.timers.length; i++) cancel(st.timers[i]);
+                st.timers = [];
                 onGiveUp(pubkey);
             }
         }
@@ -181,7 +186,7 @@
             if (!pubkey) return false;
             if (state[pubkey] && (state[pubkey].done || state[pubkey].gaveUp)) return false;
             if (state[pubkey]) return false;   // already in flight, never start twice
-            var st = { attempt: 0, timers: [], done: false, deepAsked: false, gaveUp: false };
+            var st = { attempt: 0, timers: [], done: false, deepAsked: false, gaveUp: false, revived: false };
             state[pubkey] = st;
             attempt(pubkey);
             for (var i = 0; i < retryPlan.length; i++) {
@@ -193,11 +198,22 @@
         }
 
         /* Called by the page when any socket opens: requests made before that
-           socket existed are sent to it now. This is the fix for fault 1. */
+           socket existed are sent to it now. This is the fix for fault 1.
+
+           A lookup that already gave up is revived ONCE here, because the reason
+           it failed is often that the profile index sockets had not opened yet.
+           Measured on index.html 2026-11-16: c6ff8f15 used up all three attempts
+           at t=0/1200/3000ms while the two index sockets opened later, so it was
+           marked gaveUp and flush() skipped it forever. The profile was on
+           purplepag.es and relay.nostr.net all along. Reviving is bounded (once
+           per pubkey) so a dead lookup cannot loop on every socket that opens. */
         function flush() {
             var n = 0;
             for (var pk in state) {
-                if (!state[pk].done && !state[pk].gaveUp) { n += sendNow(pk); }
+                var st = state[pk];
+                if (st.done) continue;
+                if (!st.gaveUp) { n += sendNow(pk); continue; }
+                if (!st.revived) { st.revived = true; n += sendNow(pk); }
             }
             return n;
         }

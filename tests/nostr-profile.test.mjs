@@ -147,6 +147,47 @@ function sock(state) { return { readyState: state, sent: [], send(d) { this.sent
     ok('the flushed request asks for kind 0', flushed.indexOf('"kinds":[0]') !== -1);
     ok('the flushed request names the pubkey', flushed.indexOf('b6f2d38bffff') !== -1);
 }
+/* A lookup that gave up must be revived once when a NEW socket opens, because the
+   usual cause of giving up is that the profile indexes had not opened yet.
+   Measured on index.html: c6ff8f15 burned all three attempts before the index
+   sockets were usable and was never asked on purplepag.es, where the profile is. */
+{
+    const h = harness();
+    const first = sock(1);
+    h.sockets.push(first);
+    h.r.lookup('c6ff8f15aa');
+    h.timers.forEach(t => t.fn());                 // burn every retry
+    eq('the lookup gave up after its retries', h.calls.gaveUp, ['c6ff8f15aa']);
+    const before = first.sent.length;
+
+    const index = sock(1);                          // the profile index opens later
+    h.sockets.push(index);
+    h.r.flush();
+    eq('the newly opened socket receives the revived request', index.sent.length, 1);
+    const revived = index.sent[0] || '';
+    ok('and it is a kind 0 request for that pubkey',
+        revived.indexOf('"kinds":[0]') !== -1 && revived.indexOf('c6ff8f15aa') !== -1);
+
+    // Reviving is bounded: another socket opening must not send it again.
+    const index2 = sock(1);
+    h.sockets.push(index2);
+    h.r.flush();
+    eq('a second later socket does not revive it again', index2.sent.length, 0);
+    ok('the reviving socket was not spammed either', index.sent.length === 1);
+    eq('the original socket also got the revive exactly once', first.sent.length, before + 1);
+}
+// a resolved lookup must NOT be revived
+{
+    const h = harness();
+    h.sockets.push(sock(1));
+    h.r.lookup('doneone');
+    h.r.absorb({ kind: 0, pubkey: 'doneone', content: '{"name":"n"}' });
+    const late = sock(1);
+    h.sockets.push(late);
+    h.r.flush();
+    eq('a resolved profile is not re-requested', late.sent.length, 0);
+}
+
 // a lookup must not start twice for the same pubkey
 {
     const h = harness();
