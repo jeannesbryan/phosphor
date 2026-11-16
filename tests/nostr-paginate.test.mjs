@@ -193,6 +193,35 @@ ok('the feed filter is remembered for `until`',
         /if \(document\.getElementById\(`notif-\$\{ev\.id\}`\)\) return;/.test(notif));
 }
 
+// ------------------------------------ profile.html pages a single author
+/* A profile feed asks for the newest 100 posts BY THIS AUTHOR, so older writing was
+   unreachable. This page keeps events in userEventsList instead of an eventsCache,
+   which is why the scan reads through that list rather than a cache. */
+{
+    const prof = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'profile.html'), 'utf8');
+    ok('profile.html loads the pagination module',
+        /<script src="\/assets\/nostr-paginate\.js\?v=[^"]+"><\/script>/.test(prof));
+    ok('profile.html has a control to ask for older posts', /id="loadOlderBtn"/.test(prof));
+    ok('the click is wired',
+        /getElementById\('loadOlderBtn'\)[\s\S]{0,90}addEventListener\('click', loadOlderPosts\)/.test(prof));
+    ok('the author filter is remembered for `until`',
+        /lastFeedFilter = \{ "kinds": \[1, 6, 16, 20, 21, 22, 34235, 34236, 1301, 30023\], "authors": \[targetPubkey\] \}/.test(prof));
+    ok('the feed request still sends its own limit',
+        /Object\.assign\(\{\}, lastFeedFilter, \{ "limit": 100 \}\)/.test(prof));
+    ok('the next filter comes from the module',
+        /NostrPaginate\.nextFilter\(lastFeedFilter, held, 100\)/.test(prof));
+    ok('the request is written to the sockets',
+        /open\.forEach\(s => \{ try \{ s\.send\(req\); \}/.test(prof));
+    /* Reading events from the wrong store would gather nothing and always report
+       "nothing older". */
+    ok('held posts are read from this page\'s own event list',
+        /userEventsList\.find\(e => e\.id === id\)/.test(prof));
+    ok('a duplicate post is not added twice',
+        /!userEventsList\.some\(item => item\.id === ev\.id\)/.test(prof));
+    ok('a paging subscription cannot be dropped by an exact-id check',
+        !/data\[1\] === "posts-/.test(prof) && !/data\[1\] === subId/.test(prof));
+}
+
 console.log(out.join('\n'));
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
