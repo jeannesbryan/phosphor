@@ -379,10 +379,15 @@ for (const p of PAGES) {
     copies += (html.match(/contentText\.replace\(\/\(https/g) || []).length;
 }
 eq('ten text pipelines use the shared rule', calls, 10);
-/* Only the two SPORT branches may keep their own: they do escape + linkify bare
-   URLs but deliberately do NOT resolve NIP-19 ids, so wiring them to
-   renderContentText would change behaviour (index ~1386, profile ~993). */
-eq('only the two sport branches keep a copy', copies, 2);
+/* The two SPORT branches (index, profile) do escape + linkify bare URLs but
+   deliberately do NOT resolve NIP-19 ids, so they must never be wired to
+   renderContentText. They now delegate to NostrCard.renderText instead, which is
+   escape + linkify only and therefore equivalent: the copies are gone from the
+   pages without gaining NIP-19 resolution. renderContentText count above is the
+   guard that the ten real pipelines did not change. */
+eq('the hand-written linkify copies are gone from the pages', copies, 0);
+ok('NostrCard.renderText does not resolve NIP-19 ids',
+    !/nip19|npub1|note1/.test(readFileSync(join(root, 'assets', 'nostr-card.js'), 'utf8')));
 
 console.log(results.join('\n'));
 console.log(`\n${pass} passed, ${fail} failed`);

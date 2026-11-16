@@ -54,6 +54,8 @@
     <script src="/assets/nostr-session.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
+    <!-- Pure card helpers: tag reading, JSON payload, linkify, pace maths. -->
+    <script src="/assets/nostr-card.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1066,8 +1068,8 @@
                     let iconStr = "[A]"; let tLower = actType.toLowerCase();
                     if (tLower.includes("cycl") || tLower.includes("bike")) iconStr = "[BIKE]"; else if (tLower.includes("run") || tLower.includes("walk")) iconStr = "[WALK]";
 
-                    let contentText = escapeHtml(targetEv.content.trim());
-                    contentText = contentText.replace(/(https?:\/\/[^\s<]+)/gi, function(url) { let href = url.replace(/&amp;/g, '&'); return `<a href="${href}" target="_blank" rel="noopener noreferrer" style="color: var(--t-green); text-decoration: underline; word-break: break-all;">${url}</a>`; });
+                     /* Escaping first, then linkifying, both in assets/nostr-card.js. */
+                    let contentText = window.NostrCard ? NostrCard.renderText(targetEv.content) : escapeHtml(targetEv.content.trim());
 
                     card.innerHTML = `
                         <a href="profile.html?pubkey=${targetEv.pubkey}" class="t-avatar avatar-${targetEv.pubkey}" style="text-decoration:none; color:inherit;">${avatarHtml}</a>
