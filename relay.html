@@ -52,6 +52,8 @@
     <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- The five login flows, one implementation for nine pages. -->
     <script src="/assets/nostr-login.js?v=20261116a"></script>
+    <!-- Reach events older than the newest 60 on this relay. -->
+    <script src="/assets/nostr-paginate.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -91,6 +93,10 @@
 
         <div class="d-flex flex-column gap-3" id="feedContainer">
             <p class="text-muted text-center">[ Waiting for relay transmission... ]</p>
+        </div>
+        <div class="text-center mt-3">
+            <button id="loadOlderBtn" class="t-btn text-success" title="Request events older than the oldest one shown">[ LOAD_OLDER_EVENTS ]</button>
+            <div id="loadOlderNote" class="fs-small opacity-50 mt-1"></div>
         </div>
     </div>
 
@@ -273,6 +279,56 @@
         let RELAYS = []; let BLOSSOM_SERVERS = []; let targetWsUrl = "";
         const urlParams = new URLSearchParams(window.location.search); let targetDomain = urlParams.get('domain') || urlParams.get('d') || urlParams.get('r') || '';
         let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let eventsCache = {}; let relayStatusMap = {}; let relayPool = null;
+
+        /* ------------------------------------------- paging an explored relay
+           The feed asked for the newest 60 events and never sent `until`, so nothing
+           older on this relay could be reached. The rules live in
+           assets/nostr-paginate.js; this only holds the state and the button.
+
+           Events are keyed `reply-<id>` on this page, which is why the container
+           scan below strips that prefix. */
+        let lastFeedFilter = null;
+        let paginating = false;
+
+        function heldRelayEvents() {
+            let held = [];
+            feedContainer.querySelectorAll('[id^="reply-"]').forEach(el => {
+                let ev = eventsCache[el.id.replace('reply-', '')];
+                if (ev) held.push(ev);
+            });
+            return held;
+        }
+
+        function setLoadOlderNote(text) {
+            let el = document.getElementById('loadOlderNote');
+            if (el) el.textContent = text || '';
+        }
+
+        function loadOlderEvents() {
+            if (paginating || !window.NostrPaginate) return;
+            let held = heldRelayEvents();
+            let filter = window.NostrPaginate.nextFilter(lastFeedFilter, held, 60);
+            if (!filter) { setLoadOlderNote('[ nothing to page from yet ]'); return; }
+            let open = activeSockets.filter(s => s && s.readyState === WebSocket.OPEN);
+            if (!open.length) { setLoadOlderNote('[ no relay connected ]'); return; }
+            paginating = true;
+            setLoadOlderNote('[ asking the relay for older events... ]');
+            let req = JSON.stringify(["REQ", "target-relay-feed-older-" + Math.random().toString(36).slice(2), filter]);
+            open.forEach(s => { try { s.send(req); } catch (e) {} });
+            /* A silent relay must not leave the button stuck forever. */
+            setTimeout(function () {
+                paginating = false;
+                let after = heldRelayEvents().length;
+                setLoadOlderNote(after > held.length
+                    ? '[ ' + (after - held.length) + ' older events loaded ]'
+                    : '[ this relay had nothing older ]');
+            }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let btn = document.getElementById('loadOlderBtn');
+            if (btn) btn.addEventListener('click', loadOlderEvents);
+        });
         let quoteTargetEvent = null; let editTargetEvent = null; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
         let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
@@ -575,7 +631,7 @@
                        open; send it now instead of leaving that person unnamed. */
                     if (profileResolver) profileResolver.flush();
                     relayPool.markOnline(url);
-                    if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400], "limit": 60 }])); }
+                    if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400], "limit": 60 }])); lastFeedFilter = { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400] }; }
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }])); }
                 };
                 socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); };
@@ -603,7 +659,10 @@
                                 if (ev.kind === 6 || ev.kind === 16) { try { let innerEv = JSON.parse(ev.content); if (!profileCache[innerEv.pubkey]) { requestProfileInfo(innerEv.pubkey); } } catch(e){} }
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(targetId => { initMetrics(targetId); if (!metricsCache[targetId].processed.has(ev.id)) { metricsCache[targetId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'replies'))) metricsCache[targetId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'reposts'))) metricsCache[targetId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'likes'))) metricsCache[targetId].likes++; if (ev.kind === 9735) metricsCache[targetId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(targetId); } }); }
-                            if (data[1] === "target-relay-feed") {
+                            /* Prefix match, not equality: the paging subscription is
+                                   target-relay-feed-older-<rand>, and an exact
+                                   match silently dropped every event it returned. */
+                                if (String(data[1] || "").indexOf("target-relay-feed") === 0) {
                                 if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) { renderEvent(ev); }
                             }
                         }

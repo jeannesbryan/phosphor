@@ -131,6 +131,36 @@ ok('the feed filter is remembered for `until`',
     ok('the page sends that filter to every open socket', /open\.forEach\(s =>/ .test(src));
 }
 
+// ------------------------------------- relay.html has the same capability
+/* The relay explorer asked for the newest 60 events and never sent `until`, so an
+   explored relay could not be read beyond its first page. Same module, same rules. */
+{
+    const relay = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'relay.html'), 'utf8');
+    ok('relay.html loads the pagination module',
+        /<script src="\/assets\/nostr-paginate\.js\?v=[^"]+"><\/script>/.test(relay));
+    ok('relay.html has a control to ask for older events', /id="loadOlderBtn"/.test(relay));
+    ok('the click is wired', /getElementById\('loadOlderBtn'\)[\s\S]{0,90}addEventListener\('click', loadOlderEvents\)/.test(relay));
+    ok('the target feed filter is remembered for `until`',
+        /lastFeedFilter = \{ "kinds": \[1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400\] \}/.test(relay));
+    ok('the next filter comes from the module', /NostrPaginate\.nextFilter\(lastFeedFilter, held, 60\)/.test(relay));
+    ok('the request is written to the sockets', /open\.forEach\(s => \{ try \{ s\.send\(req\); \}/.test(relay));
+    /* The card id prefix on this page is reply-, and reading the wrong prefix would
+       silently gather nothing and always report "nothing older". */
+    /* The response side. Asserting only that the REQ leaves was not enough: the page
+       handler matched the subscription id with `===` and silently dropped every event
+       the paging request returned, which looked exactly like "no older events".
+       Measured against the real relay: 6159 older events existed and zero arrived. */
+    ok('the handler accepts the paging subscription (prefix, not equality)',
+        /String\(data\[1\] \|\| ""\)\.indexOf\("target-relay-feed"\) === 0/.test(relay));
+    ok('the paging subscription reuses that prefix',
+        /"target-relay-feed-older-" \+ Math\.random\(\)/.test(relay));
+    ok('the old exact-match check is gone', !/data\[1\] === "target-relay-feed"/.test(relay));
+    ok('held events are read with the page\'s own id prefix',
+        /querySelectorAll\('\[id\^="reply-"\]'\)/.test(relay));
+    ok('the feed container keeps its waiting placeholder as a child',
+        /id="feedContainer">\s*\n\s*<p class="text-muted/.test(relay));
+}
+
 console.log(out.join('\n'));
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
