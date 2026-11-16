@@ -67,6 +67,8 @@
     <script src="/assets/nostr-session.js?v=20261116a"></script>
     <!-- Session state and the shared navigation, one rule for nine pages. -->
     <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
+    <!-- The five login flows, one implementation for nine pages. -->
+    <script src="/assets/nostr-login.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
     <!-- Pure card helpers: tag reading, JSON payload, linkify, pace maths. -->
@@ -625,149 +627,21 @@
         navUnlockBtn.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('unlockModal').style.display = 'flex'; });
         logoutBtn.addEventListener('click', function(e) { e.preventDefault(); logoutFully(); });
 
-        document.getElementById('extLoginBtn').addEventListener('click', async () => {
-            if (window.nostr && typeof window.nostr.getPublicKey === 'function') {
-                try {
-                    currentUserPubkey = await window.nostr.getPublicKey();
-                    localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                    localStorage.removeItem('phosphor_privkey');
-                    localStorage.removeItem('phosphor_ncryptsec');
-                    localStorage.removeItem('phosphor_bunker_uri');
-                    sessionStorage.removeItem('phosphor_privkey_temp');
-                    updateAuthState();
-                    myFollowing.add(currentUserPubkey);
-                    fetchMyAvatarAndBookmarks();
-                    document.getElementById('loginModal').style.display = 'none';
-                    alert('> CONNECTION SUCCESSFUL. RELOADING CONFIG...');
-                    setTimeout(() => location.reload(), 500);
-                } catch (err) { alert('> ERROR: Login failed.'); }
-            } else { alert('> WARNING: NIP-07 extension not found.'); }
-        });
 
-        document.getElementById('bunkerLoginBtn').addEventListener('click', async () => {
-            let uri = document.getElementById('bunkerInput').value.trim();
-            if(!uri.startsWith('bunker://')) return alert('> ERROR: Invalid Bunker URI format. Must start with bunker://');
-            
-            try {
-                let urlObj = new URL(uri);
-                let targetPubkey = urlObj.hostname || urlObj.pathname.replace('//', '');
-                currentUserPubkey = targetPubkey;
-                localStorage.setItem('phosphor_pubkey', currentUserPubkey);
-                localStorage.setItem('phosphor_bunker_uri', uri);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_ncryptsec');
-                sessionStorage.removeItem('phosphor_privkey_temp');
-                
-                alert('> BUNKER CONNECTED.\n> NOTE: Background relayer connected in delegated signer mode.');
-                updateAuthState();
-                myFollowing.add(currentUserPubkey);
-                fetchMyAvatarAndBookmarks();
-                document.getElementById('loginModal').style.display = 'none';
-                setTimeout(() => location.reload(), 500);
-            } catch (e) { alert('> ERROR: Failed to parse Bunker URI.'); }
-        });
 
-        document.getElementById('nsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('nsecInput').value.trim();
-            let pass = document.getElementById('nsecPassword').value;
-            
-            if(!input || !pass) return alert('> ERROR: Both NSEC and Password are required.');
-            let btn = document.getElementById('nsecLoginBtn');
-            try {
-                btn.textContent = '> PROCESSING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes;
-                if (input.startsWith('nsec1')) {
-                    let decoded = nostrTools.nip19.decode(input);
-                    if (decoded.type !== 'nsec') throw new Error('Invalid NSEC format');
-                    skBytes = decoded.data;
-                } else { skBytes = new Uint8Array(input.match(/.{1,2}/g).map(byte => parseInt(byte, 16))); }
-                
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                let ncryptsec = nip49.encrypt(skBytes, pass);
-                localStorage.setItem('phosphor_ncryptsec', ncryptsec);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                updateAuthState();
-                myFollowing.add(currentUserPubkey);
-                fetchMyAvatarAndBookmarks();
-                document.getElementById('loginModal').style.display = 'none';
-                alert('> LOCAL SIGNER ENCRYPTED. RELOADING CONFIG...');
-                setTimeout(() => location.reload(), 500);
-            } catch(e) { alert('> ERROR: Invalid key format or processing failed.'); } 
-            finally { btn.textContent = '> ENCRYPT & LOGIN'; }
-        });
 
-        document.getElementById('ncryptsecLoginBtn').addEventListener('click', async () => {
-            let input = document.getElementById('ncryptsecInput').value.trim();
-            let pass = document.getElementById('ncryptsecPassword').value;
-            
-            if(!input || !pass) return alert('> ERROR: Key and password required.');
-            let btn = document.getElementById('ncryptsecLoginBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(input, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                localStorage.setItem('phosphor_ncryptsec', input);
-                localStorage.removeItem('phosphor_privkey');
-                localStorage.removeItem('phosphor_bunker_uri');
-                
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                
-                updateAuthState();
-                myFollowing.add(currentUserPubkey);
-                fetchMyAvatarAndBookmarks();
-                document.getElementById('loginModal').style.display = 'none';
-                alert('> DECRYPTION SUCCESSFUL. RELOADING...');
-                setTimeout(() => location.reload(), 500);
-            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); } 
-            finally { btn.textContent = '> DECRYPT & LOGIN'; }
-        });
 
-        document.getElementById('unlockBtn').addEventListener('click', async () => {
-            let pass = document.getElementById('unlockPassword').value;
-            let ncryptsec = localStorage.getItem('phosphor_ncryptsec');
-            
-            if(!pass) return alert('> ERROR: Password required.');
-            let btn = document.getElementById('unlockBtn');
-            try {
-                btn.textContent = '> DECRYPTING...';
-                const nostrTools = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/+esm');
-                const nip49 = await import('https://cdn.jsdelivr.net/npm/nostr-tools@2.24.1/nip49/+esm');
-                
-                let skBytes = nip49.decrypt(ncryptsec, pass);
-                let pubkeyHex = nostrTools.getPublicKey(skBytes);
-                
-                setupLocalNostrMock(pubkeyHex, skBytes, nostrTools);
-                let hexKey = Array.from(skBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-                sessionStorage.setItem('phosphor_privkey_temp', hexKey);
-                currentUserPubkey = pubkeyHex;
-                localStorage.setItem('phosphor_pubkey', pubkeyHex);
-                
-                document.getElementById('unlockModal').style.display = 'none';
-                updateAuthState();
-                myFollowing.add(currentUserPubkey);
-                fetchMyAvatarAndBookmarks();
-                alert('> SESSION UNLOCKED.');
-            } catch(e) { alert('> ERROR: Decryption failed. Incorrect password?'); } 
-            finally { btn.textContent = '> DECRYPT'; }
+        /* The five login flows live in assets/nostr-login.js. This page only says
+           how to read and write its own currentUserPubkey binding, which a module
+           cannot reassign for it. */
+        window.NostrLogin.wireLoginUI({
+            document: document,
+            storage: localStorage,
+            session: sessionStorage,
+            setPubkey: (pk) => { currentUserPubkey = pk; },
+            installSigner: setupLocalNostrMock,
+            getExtension: () => window.nostr,
+            onSuccess: () => { updateAuthState(); }
         });
 
         function logoutFully() {
