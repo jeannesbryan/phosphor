@@ -53,6 +53,8 @@
     <script src="/assets/nostr-auth-state.js?v=20261116a"></script>
     <!-- The five login flows, one implementation for nine pages. -->
     <script src="/assets/nostr-login.js?v=20261116a"></script>
+    <!-- Reach notifications older than the newest 50. -->
+    <script src="/assets/nostr-paginate.js?v=20261116a"></script>
     <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
     <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
@@ -81,6 +83,10 @@
         <section id="notifications-feed">
             <div id="unauthMessage" class="text-center text-muted mt-3">[ Authentication required to view notifications ]</div>
             <div id="notifs-container" class="d-flex flex-column gap-3"></div>
+            <div class="text-center mt-3">
+                <button id="loadOlderBtn" class="t-btn text-success" title="Request notifications older than the oldest one shown">[ LOAD_OLDER_NOTIFICATIONS ]</button>
+                <div id="loadOlderNote" class="fs-small opacity-50 mt-1"></div>
+            </div>
             <p id="loadingText" class="hidden text-center text-muted mt-3">[ Intercepting signals aimed at your node... ]</p>
         </section>
     </div>
@@ -216,7 +222,57 @@
             }
         }
 
-        let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {}; let quoteTargetEvent = null; let relayStatusMap = {}; let relayPool = null; let activeSockets = [];
+        let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {}; let quoteTargetEvent = null; let relayStatusMap = {}; let relayPool = null;
+
+        /* ------------------------------------- paging the notification feed
+           The feed asked for the newest 50 and never sent `until`, so anything older
+           was unreachable. The rules live in assets/nostr-paginate.js.
+
+           Cards are keyed notif-<id> on this page, which is why the scan below strips
+           that prefix. renderNotification() already refuses an id it has rendered, so
+           a page of results cannot duplicate what is on screen. */
+        let lastFeedFilter = null;
+        let paginating = false;
+
+        function heldNotifs() {
+            let held = [];
+            notifsContainer.querySelectorAll('[id^="notif-"]').forEach(el => {
+                let ev = eventsCache[el.id.replace('notif-', '')];
+                if (ev) held.push(ev);
+            });
+            return held;
+        }
+
+        function setLoadOlderNote(text) {
+            let el = document.getElementById('loadOlderNote');
+            if (el) el.textContent = text || '';
+        }
+
+        function loadOlderNotifs() {
+            if (paginating || !window.NostrPaginate) return;
+            let held = heldNotifs();
+            let filter = window.NostrPaginate.nextFilter(lastFeedFilter, held, 50);
+            if (!filter) { setLoadOlderNote('[ nothing to page from yet ]'); return; }
+            let open = activeSockets.filter(s => s && s.readyState === WebSocket.OPEN);
+            if (!open.length) { setLoadOlderNote('[ no relay connected ]'); return; }
+            paginating = true;
+            setLoadOlderNote('[ asking relays for older notifications... ]');
+            let req = JSON.stringify(["REQ", "notifs-older-" + Math.random().toString(36).slice(2), filter]);
+            open.forEach(s => { try { s.send(req); } catch (e) {} });
+            /* A silent relay must not leave the button stuck forever. */
+            setTimeout(function () {
+                paginating = false;
+                let after = heldNotifs().length;
+                setLoadOlderNote(after > held.length
+                    ? '[ ' + (after - held.length) + ' older notifications loaded ]'
+                    : '[ no relay had anything older ]');
+            }, 4000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            let btn = document.getElementById('loadOlderBtn');
+            if (btn) btn.addEventListener('click', loadOlderNotifs);
+        }); let activeSockets = [];
 
         /* Optional profile indexes. Set to [] in config.json to disable. */
         let profileSockets = [];
@@ -374,7 +430,8 @@
                     if (profileResolver) profileResolver.flush();
                     relayPool.markOnline(url);
                     let subId = "notifs-" + Math.random().toString(36).substring(2);
-                    socket.send(JSON.stringify([ "REQ", subId, { "#p": [currentUserPubkey], "kinds": [1, 1111, 6, 7, 16, 20, 21, 22, 34235, 34236], "limit": 50 } ]));
+                    lastFeedFilter = { "#p": [currentUserPubkey], "kinds": [1, 1111, 6, 7, 16, 20, 21, 22, 34235, 34236] };
+                    socket.send(JSON.stringify([ "REQ", subId, Object.assign({}, lastFeedFilter, { "limit": 50 }) ]));
                     socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                 };
                 socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); };

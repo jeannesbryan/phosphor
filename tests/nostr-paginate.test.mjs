@@ -161,6 +161,38 @@ ok('the feed filter is remembered for `until`',
         /id="feedContainer">\s*\n\s*<p class="text-muted/.test(relay));
 }
 
+// --------------------------------- notifications.html has the same capability
+/* Unlike bookmark.html, this page really does use limit: it asks for the newest 50
+   with a #p filter, so anything older was unreachable. The response side is asserted
+   too: a handler that gates on an exact subscription id would drop the paging results
+   and look exactly like "no older notifications". */
+{
+    const notif = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'notifications.html'), 'utf8');
+    ok('notifications.html loads the pagination module',
+        /<script src="\/assets\/nostr-paginate\.js\?v=[^"]+"><\/script>/.test(notif));
+    ok('notifications.html has a control to ask for older ones', /id="loadOlderBtn"/.test(notif));
+    ok('the click is wired',
+        /getElementById\('loadOlderBtn'\)[\s\S]{0,90}addEventListener\('click', loadOlderNotifs\)/.test(notif));
+    ok('the #p filter is remembered for `until`',
+        /lastFeedFilter = \{ "#p": \[currentUserPubkey\]/.test(notif));
+    ok('the feed request still sends its own limit',
+        /Object\.assign\(\{\}, lastFeedFilter, \{ "limit": 50 \}\)/.test(notif));
+    ok('the next filter comes from the module',
+        /NostrPaginate\.nextFilter\(lastFeedFilter, held, 50\)/.test(notif));
+    ok('the request is written to the sockets',
+        /open\.forEach\(s => \{ try \{ s\.send\(req\); \}/.test(notif));
+    /* THE response side. This page keys its cards notif-<id>; reading the wrong prefix
+       would gather nothing and always report "nothing older". */
+    ok('held notifications are read with the page\'s own id prefix',
+        /querySelectorAll\('\[id\^="notif-"\]'\)/.test(notif));
+    ok('a paging subscription cannot be dropped by an exact-id check',
+        !/data\[1\] === subId/.test(notif) && !/data\[1\] === "notifs-/.test(notif));
+    /* Duplicates: renderNotification already refuses an id it has rendered, and that
+       is what stops a page of results from doubling the list. */
+    ok('a rendered notification is not rendered twice',
+        /if \(document\.getElementById\(`notif-\$\{ev\.id\}`\)\) return;/.test(notif));
+}
+
 console.log(out.join('\n'));
 console.log('\n' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);
