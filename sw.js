@@ -54,6 +54,7 @@
         './assets/nostr-notif-order.js',
         './assets/nostr-util.js',
         './assets/nostr-session.js',
+        './assets/nostr-relay.js',
         './assets/nostr-like.js'
 ,
         './assets/blossom-auth.js',

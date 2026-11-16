@@ -59,6 +59,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
+    <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -237,7 +239,7 @@
 
         let RELAYS = []; let BLOSSOM_SERVERS = [];
         const urlParams = new URLSearchParams(window.location.search); const articleId = urlParams.get('id') || ''; const dTagParam = urlParams.get('d') || ''; const authorParam = urlParams.get('author') || '';
-        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let parentEvent = null; let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let eventsCache = {};
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let parentEvent = null; let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let relayPool = null; let eventsCache = {};
         let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null; let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn');
@@ -482,14 +484,14 @@
 
         function initNotes() {
             if (!articleId && !dTagParam && !authorParam) { mainPostContainer.innerHTML = '<p class="text-danger text-center">[ ERROR: Article parameters not found in URL ]</p>'; return; }
-            let onlineCount = 0; let targetD = decodeURIComponent(dTagParam).trim();
+            relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0; let targetD = decodeURIComponent(dTagParam).trim();
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
                     /* A profile request may have been made before this relay was
                        open; send it now instead of leaving that person unnamed. */
                     if (profileResolver) profileResolver.flush();
-                    onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    relayPool.markOnline(url);
                     let filterObj = { "kinds": [30023], "limit": 50 }; if (authorParam) filterObj.authors = [authorParam]; if (articleId) filterObj.ids = [articleId];
                     socket.send(JSON.stringify(["REQ", "fetch-nip23", filterObj]));
                     if (currentUserPubkey) {
@@ -498,7 +500,7 @@
                         socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
                     }
                 };
-                socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
+                socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); };
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);

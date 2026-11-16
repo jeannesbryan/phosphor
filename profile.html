@@ -52,6 +52,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
+    <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -343,7 +345,7 @@
         let isMyProfile = false;
         let profileAvatarUrl = null; let profileNameTxt = "User Name"; let profileHandleTxt = "@handle"; let profileNip05Txt = ""; let myRawProfileData = null; let zapProfileMeta = null;
         let quoteTargetEvent = null; let editTargetEvent = null;
-        let userEventsList = []; let relayStatusMap = {};
+        let userEventsList = []; let relayStatusMap = {}; let relayPool = null;
         let currentDisplayLimit = 10; let debounceTimer = null;
         let targetFollowingPubkeys = []; let targetFollowersPubkeys = []; let targetMutedPubkeys = [];
         let myFollowingPubkeys = []; let myMutedPubkeys = []; let myMuteEvent = null;
@@ -787,14 +789,14 @@
         }
 
         function connectMultiRelays() {
-            let onlineCount = 0;
+            relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0;
             RELAYS.forEach(url => {
                 let socket = new WebSocket(url);
                 socket.onopen = function() {
                     /* A profile request may have been made before this relay was
                        open; send it now instead of leaving that person unnamed. */
                     if (profileResolver) profileResolver.flush();
-                    onlineCount++; relayStatusMap[url] = true; updateRelayCounter(onlineCount);
+                    relayPool.markOnline(url);
                     socket.send(JSON.stringify(["REQ", "prof-" + Math.random(), { "kinds": [0], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-contacts-" + Math.random(), { "kinds": [3], "authors": [targetPubkey], "limit": 1 }]));
                     socket.send(JSON.stringify(["REQ", "target-mute-" + Math.random(), { "kinds": [10000], "authors": [targetPubkey], "limit": 1 }]));
@@ -809,8 +811,8 @@
                     }
                 };
 
-                socket.onerror = function() { relayStatusMap[url] = false; };
-                socket.onclose = function() { relayStatusMap[url] = false; };
+                socket.onerror = function() { relayPool.markOffline(url); };
+                socket.onclose = function() { relayPool.markOffline(url); };
 
                 socket.onmessage = function(event) {
                     try {

@@ -341,9 +341,12 @@ for (const name of WIRED) {
         /NostrProfile\.connectProfileRelays\(/.test(src));
     ok(name + ': feeds kind 0 to the resolver',
         /if \(profileResolver\) \{ profileResolver\.absorb\(ev\); \}/.test(src));
+    /* The flush now sits at the top of the onOpen callback, which is either the
+       page's own socket handler or NostrRelay.connectRelay's onOpen. Either way it
+       must run before the page's REQs, or a profile requested earlier is lost. */
     ok(name + ': flushes when a relay opens',
-        /profileResolver\) profileResolver\.flush\(\);\s*\n\s*onlineCount\+\+/.test(src)
-        || /socket\.onopen = function\(\) \{\s*\n[\s\S]{0,200}profileResolver\.flush\(\)/.test(src));
+        /onOpen: function\(socket\) \{[\s\S]{0,400}profileResolver\.flush\(\)/.test(src)
+        || /socket\.onopen = function\(\) \{[\s\S]{0,400}profileResolver\.flush\(\)/.test(src));
     ok(name + ': reads profile_relays from config',
         /config\.profile_relays/.test(src));
     ok(name + ': normalises a cached record before reading it',

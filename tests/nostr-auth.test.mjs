@@ -250,15 +250,27 @@ for (const name of WIRED) {
     const src = readFileSync(join(root, name), 'utf8');
     ok(name + ': loads the auth module',
         /<script src="\/assets\/nostr-auth\.js\?v=[^"]+"><\/script>/.test(src));
-    ok(name + ': wraps the relay socket',
-        /NostrAuth\.wrapSocket\(socket, url, \{/.test(src));
+    /* Either the page wraps its socket itself, or it hands the socket to
+       NostrRelay.connectRelay, which wraps it inside the module. Both keep NIP-42
+       alive; a page doing neither would silently drop AUTH again. */
+    ok(name + ': the relay socket gets AUTH-wrapped',
+        /NostrAuth\.wrapSocket\(socket, url, \{/.test(src)
+        || /NostrRelay\.connectRelay\(\{/.test(src));
     ok(name + ': signs through window.nostr',
         /sign: \(window\.nostr && window\.nostr\.signEvent\)/.test(src));
     /* The wrap must come AFTER the page's own onmessage, or there is nothing to
        wrap and the AUTH frame is still dropped. */
-    const wrapAt = src.indexOf('NostrAuth.wrapSocket(socket, url');
-    const msgAt = src.lastIndexOf('socket.onmessage = function', wrapAt);
-    ok(name + ': wraps after the page handler is installed', msgAt !== -1 && msgAt < wrapAt);
+    if (/NostrAuth\.wrapSocket\(socket, url/.test(src)) {
+        const wrapAt = src.indexOf('NostrAuth.wrapSocket(socket, url');
+        const msgAt = src.lastIndexOf('socket.onmessage = function', wrapAt);
+        ok(name + ': wraps after the page handler is installed', msgAt !== -1 && msgAt < wrapAt);
+    } else {
+        /* connectRelay installs the page handler first and wraps afterwards. */
+        ok(name + ': connectRelay installs the handler before wrapping',
+            /socket\.onmessage = opts\.onMessage/.test(
+                (await import('node:fs')).readFileSync(
+                    new URL('../assets/nostr-relay.js', import.meta.url), 'utf8')));
+    }
 }
 
 console.log(out.join('\n'));

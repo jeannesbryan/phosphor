@@ -48,6 +48,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
+    <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -266,7 +268,7 @@
 
         let RELAYS = []; let BLOSSOM_SERVERS = []; let targetWsUrl = "";
         const urlParams = new URLSearchParams(window.location.search); let targetDomain = urlParams.get('domain') || urlParams.get('d') || urlParams.get('r') || '';
-        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let eventsCache = {}; let relayStatusMap = {};
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let eventsCache = {}; let relayStatusMap = {}; let relayPool = null;
         let quoteTargetEvent = null; let editTargetEvent = null; let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null;
         let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
@@ -571,18 +573,18 @@
         }
 
         function connectNetworks() {
-            let onlineCount = 0;
+            relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0;
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
                     /* A profile request may have been made before this relay was
                        open; send it now instead of leaving that person unnamed. */
                     if (profileResolver) profileResolver.flush();
-                    onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    relayPool.markOnline(url);
                     if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400], "limit": 60 }])); }
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }])); }
                 };
-                socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
+                socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); };
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);

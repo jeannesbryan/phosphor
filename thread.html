@@ -51,6 +51,8 @@
     <script src="/assets/nostr-util.js?v=20261116a"></script>
     <!-- Local session restore, one rule for all nine pages. -->
     <script src="/assets/nostr-session.js?v=20261116a"></script>
+    <!-- Relay connection bookkeeping: status map, label, NIP-42 wiring. -->
+    <script src="/assets/nostr-relay.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -245,7 +247,7 @@
 
         let RELAYS = []; let BLOSSOM_SERVERS = [];
         const urlParams = new URLSearchParams(window.location.search); const postId = urlParams.get('id');
-        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let parentEvent = null; let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let eventsCache = {};
+        let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let activeSockets = []; let parentEvent = null; let quoteTargetEvent = null; let editTargetEvent = null; let relayStatusMap = {}; let relayPool = null; let eventsCache = {};
         let metricsCache = {}; let pendingMetricsIds = new Set(); let metricsTimeout = null; let repostedEvents = new Set(); let myBookmarks = new Set(); let myBookmarkEvent = null;
 
         const relayStatusBtn = document.getElementById('relayStatusBtn'); const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn');
@@ -591,19 +593,19 @@
 
         function initThread() {
             if (!postId) { mainPostContainer.innerHTML = '<p class="text-danger text-center">[ ERROR: Post ID not found in URL ]</p>'; return; }
-            let onlineCount = 0;
+            relayPool = window.NostrRelay.createPool({ button: relayStatusBtn, total: RELAYS.length, status: relayStatusMap }); let onlineCount = 0;
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
                     /* A profile request may have been made before this relay was
                        open; send it now instead of leaving that person unnamed. */
                     if (profileResolver) profileResolver.flush();
-                    onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
+                    relayPool.markOnline(url);
                     socket.send(JSON.stringify(["REQ", "main-post", { "kinds": [1, 20, 21, 22, 34235, 34236, 1301, 30311, 33400], "ids": [postId] }]));
                     socket.send(JSON.stringify(["REQ", "replies", { "kinds": [1, 1111, 20, 21, 22, 34235, 34236, 1301, 30311, 33400], "#e": [postId] }]));
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bookmarks-" + Math.random(), { "kinds": [30003], "authors": [currentUserPubkey] }])); socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }])); }
                 };
-                socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
+                socket.onerror = function() { relayPool.markOffline(url); }; socket.onclose = function() { relayPool.markOffline(url); };
                 socket.onmessage = function(event) {
                     try {
                         let data = JSON.parse(event.data);
