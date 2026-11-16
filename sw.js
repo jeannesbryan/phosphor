@@ -60,6 +60,7 @@
         './assets/nostr-auth-state.js',
         './assets/nostr-login.js',
         './assets/nostr-sets.js',
+        './og-image.png',
         './assets/nostr-like.js'
 ,
         './assets/blossom-auth.js',
