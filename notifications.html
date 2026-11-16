@@ -32,6 +32,8 @@
     <!-- Profile lookup that retries and can reach profile indexes. Without it a
          real person showed up as "Node_3B4A". See the note in that file. -->
     <script src="/assets/nostr-profile.js?v=20261116b"></script>
+    <!-- NIP-27/NIP-21: turn nostr: references into links. nsec is refused. -->
+    <script src="/assets/nostr-nip27.js?v=20261116a"></script>
     <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
@@ -519,6 +521,7 @@
             /* Newest first. Without this the page put each card wherever a relay
                happened to answer, which buried a fresh like under an old one. */
             placeNotificationCard(card, ev);
+            if (window.NostrNip27) window.NostrNip27.upgrade(card);
             if (cardTargetId) requestNotifTarget(cardTargetId);
             if (window.NostrNote) window.NostrNote.decorateCard(card, ev, {
                 get: (id) => eventsCache[id],

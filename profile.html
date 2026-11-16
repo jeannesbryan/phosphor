@@ -43,6 +43,8 @@
     <!-- Profile lookup that retries and can reach profile indexes. Without it a
          real person shows up as "Node_3B4A". Rules live in that file. -->
     <script src="/assets/nostr-profile.js?v=20261116b"></script>
+    <!-- NIP-27/NIP-21: turn nostr: references into links. nsec is refused. -->
+    <script src="/assets/nostr-nip27.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -1154,6 +1156,7 @@
                     `;
                 }
                 userPostsContainer.appendChild(card); injectZapControls(card, targetEv); updateMetricsUI(targetEv.id);
+                if (window.NostrNip27) window.NostrNip27.upgrade(card);
                 if (window.NostrNote) window.NostrNote.decorateCard(card, targetEv, {
                     get: (id) => (userEventsList || []).find(e => e.id === id) || null,
                     load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
