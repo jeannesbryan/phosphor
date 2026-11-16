@@ -536,7 +536,7 @@
         
 
         function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
-        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function openLightbox(imgSrc) { return window.NostrUtil.openLightbox(imgSrc); }
         function openRawModal(eventId) { let ev = userEventsList.find(e => e.id === eventId); if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
         function openQuoteModal(eventId) {

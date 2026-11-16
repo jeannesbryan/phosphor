@@ -318,7 +318,7 @@
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
         function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
         function calculateReadTime(text) { let words = text.trim().split(/\s+/).length; let minutes = Math.ceil(words / 200); return `${minutes} min read`; }
-        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function openLightbox(imgSrc) { return window.NostrUtil.openLightbox(imgSrc); }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
         function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in! Login to quote.'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.substring(0, 150) + "..."; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }

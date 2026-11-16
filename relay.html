@@ -394,7 +394,7 @@
         function copyThreadLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy."); }); }
         function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
-        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function openLightbox(imgSrc) { return window.NostrUtil.openLightbox(imgSrc); }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
         function openQuoteModal(eventId) { if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; } let ev = eventsCache[eventId]; if (!ev) return; quoteTargetEvent = ev; quoteTargetPreview.textContent = ev.content.length > 150 ? ev.content.substring(0, 150) + "..." : ev.content; quoteContentInput.value = ""; quoteModal.style.display = 'flex'; }

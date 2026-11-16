@@ -290,7 +290,7 @@
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy."); }); }
         function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
-        function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function openLightbox(imgSrc) { return window.NostrUtil.openLightbox(imgSrc); }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { document.getElementById('rawEventContent').textContent = JSON.stringify(ev, null, 2); document.getElementById('rawModal').style.display = 'flex'; } }
         function closeRawModal() { document.getElementById('rawModal').style.display = 'none'; }
         function openRelayModal() { let htmlContent = ""; RELAYS.forEach(url => { let isOnline = relayStatusMap[url] === true; let statusBadge = isOnline ? '<span class="text-success">[ONLINE]</span>' : '<span class="text-danger">[OFFLINE]</span>'; htmlContent += `<div class="d-flex justify-content-between t-border-bottom py-2 fs-small"><span>${escapeHtml(url)}</span> ${statusBadge}</div>`; }); relayListContainer.innerHTML = htmlContent; document.getElementById('relayModal').style.display = 'flex'; }

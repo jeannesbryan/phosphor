@@ -39,6 +39,29 @@
         return 'Just now';
     }
 
+    /* Show an image full size. Was one identical line in seven pages.
+       Returns false instead of throwing when the page has no lightbox, so a page
+       without one cannot break a media click. */
+    function openLightbox(imgSrc, root) {
+        var doc = (root && root.ownerDocument) || global.document;
+        if (!doc) return false;
+        var img = doc.getElementById('lightboxImg');
+        var modal = doc.getElementById('lightboxModal');
+        if (!img || !modal) return false;
+        img.src = String(imgSrc === undefined || imgSrc === null ? '' : imgSrc);
+        modal.style.display = 'flex';
+        return true;
+    }
+
+    function closeLightbox(root) {
+        var doc = (root && root.ownerDocument) || global.document;
+        if (!doc) return false;
+        var modal = doc.getElementById('lightboxModal');
+        if (!modal) return false;
+        modal.style.display = 'none';
+        return true;
+    }
+
     /* NIP-19 style short form, used for placeholders before a profile is known. */
     function shortHex(hex, len) {
         var n = typeof len === 'number' && len > 0 ? len : 8;
@@ -48,7 +71,9 @@
     var api = {
         escapeHtml: escapeHtml,
         timeAgo: timeAgo,
-        shortHex: shortHex
+        shortHex: shortHex,
+        openLightbox: openLightbox,
+        closeLightbox: closeLightbox
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

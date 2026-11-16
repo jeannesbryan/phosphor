@@ -54,6 +54,34 @@ eq('shortens to a custom length', util.shortHex('3bf0c63f', 4), '3bf0');
 eq('shorter input is returned as-is', util.shortHex('ab', 8), 'ab');
 eq('null is empty', util.shortHex(null), '');
 
+// ------------------------------------------------------------- openLightbox
+/* A fake document, so the real lookup-and-show logic is executed rather than read. */
+function fakeDoc(hasImg = true, hasModal = true) {
+    const img = hasImg ? { src: '' } : null;
+    const modal = hasModal ? { style: {} } : null;
+    return {
+        getElementById: (id) => id === 'lightboxImg' ? img : id === 'lightboxModal' ? modal : null,
+        __img: img, __modal: modal
+    };
+}
+{
+    const doc = fakeDoc();
+    eq('opening the lightbox succeeds', util.openLightbox('https://x/y.png', { ownerDocument: doc }), true);
+    eq('the image src is set', doc.__img.src, 'https://x/y.png');
+    eq('the modal is shown', doc.__modal.style.display, 'flex');
+    eq('closing succeeds', util.closeLightbox({ ownerDocument: doc }), true);
+    eq('the modal is hidden', doc.__modal.style.display, 'none');
+}
+eq('a page with no lightbox returns false instead of throwing',
+    util.openLightbox('x', { ownerDocument: fakeDoc(false, true) }), false);
+eq('a page with no modal returns false', util.openLightbox('x', { ownerDocument: fakeDoc(true, false) }), false);
+eq('closing a missing modal returns false', util.closeLightbox({ ownerDocument: fakeDoc(true, false) }), false);
+{
+    const doc = fakeDoc();
+    util.openLightbox(null, { ownerDocument: doc });
+    eq('a null src becomes an empty string, not the text "null"', doc.__img.src, '');
+}
+
 // ------------------------------------------------------- pages delegate
 /* The point of the extraction is that no page keeps its own copy of the rules.
    If a page regains a full implementation, these fail. */
@@ -68,7 +96,17 @@ for (const name of PAGES) {
         /function escapeHtml\(str\) \{ return window\.NostrUtil\.escapeHtml\(str\); \}/.test(src));
     ok(name + ': the escaping chain is gone from the page',
         !/\.replace\(\/&\/g, '&amp;'\)/.test(src));
+
 }
+/* Only the seven pages that actually have a lightbox are asserted here:
+   activity.html and compose.html never had one. */
+for (const name of ['index.html', 'profile.html', 'thread.html', 'notes.html',
+    'bookmark.html', 'relay.html', 'notifications.html']) {
+    const lsrc = readFileSync(join(root, name), 'utf8');
+    ok(name + ': openLightbox delegates',
+        /function openLightbox\(imgSrc\) \{ return window\.NostrUtil\.openLightbox\(imgSrc\); \}/.test(lsrc));
+}
+
 for (const name of ['index.html', 'profile.html', 'thread.html', 'notes.html',
     'bookmark.html', 'relay.html', 'notifications.html']) {
     const src = readFileSync(join(root, name), 'utf8');
