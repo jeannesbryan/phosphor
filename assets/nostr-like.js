@@ -384,7 +384,12 @@
         absorb: absorb,
         refreshUI: refreshUI,
         applyState: applyState,
-        isLikeContent: isLikeContent
+        isLikeContent: isLikeContent,
+        /* Exported so pages can label a reaction without re-deriving the target.
+           notifications.html used to take the FIRST `e` tag, which is wrong when
+           a client sends root/reply markers first, the card would then name a
+           different note than the one that was actually liked. */
+        reactionTarget: reactionTarget
     };
 
     if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -25,6 +25,10 @@
     <script src="/assets/nostr-media-event.js?v=20261017i"></script>
     <script src="/assets/nostr-comment.js?v=20261017i"></script>
     <script src="/assets/nostr-note.js?v=20261017i"></script>
+    <!-- Notification order: newest first, no matter which relay answers first.
+         Without this the page used prepend(), so a like that arrived late sat at
+         the bottom under a month-old card. See the note in that file. -->
+    <script src="/assets/nostr-notif-order.js?v=20261116a"></script>
     <script src="/assets/nostr-pulse-event.js?v=20261018a"></script>
     <!-- NIP-05 identity verification: a check mark only after the domain really proves the pubkey. -->
     <script src="/assets/nostr-nip05.js?v=20261017i"></script>
@@ -288,6 +292,10 @@
                                     saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
                                 } catch(e){}
                             }
+                            /* The note behind a reaction/repost card: fill the snippet.
+                               Deliberately no `return`: if that same note is also a
+                               real mention for us it should still get its own card. */
+                            if (notifTargetAsked[ev.id]) { notifTargetSnippets[ev.id] = ev; fillNotifSnippet(ev.id, ev); }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev)) { eventsCache[ev.id] = ev; renderNotification(ev); }
                         }
                     } catch (err) {}
@@ -297,6 +305,71 @@
         }
 
         function updatePostUI(pubkey) { let info = profileCache[pubkey]; if (!info || info.pending) return; document.querySelectorAll(`.author-${pubkey}`).forEach(el => { el.textContent = info.name; }); document.querySelectorAll(`.handle-${pubkey}`).forEach(el => { el.innerHTML = info.handleLine || info.handle || `@${pubkey.substring(0, 8)}`; if (window.NostrNip05) window.NostrNip05.applyTo(el, info.nip05, pubkey); }); document.querySelectorAll(`.avatar-${pubkey}`).forEach(el => { if (info.picture) el.innerHTML = `<img src="${escapeHtml(info.picture)}" alt="Avatar">`; }); }
+
+        /* ------------------------------------------------ notification ordering
+           Newest first, and a card keeps its place when a slower relay answers
+           later. This page used to call prepend(), so on 2026-11-16 the like
+           from 11 hours ago sat at the BOTTOM under a card one month old: the
+           notification was there all along, it was simply buried, which is why
+           it looked like Phosphor had none while Amethyst showed it. */
+        let notifOrderKeys = [];
+        function placeNotificationCard(card, ev) {
+            if (!window.NostrNotifOrder) { notifsContainer.appendChild(card); return; }
+            let at = window.NostrNotifOrder.insertIndex(notifOrderKeys, ev.created_at);
+            notifOrderKeys.splice(at, 0, Number(ev.created_at));
+            notifsContainer.insertBefore(card, notifsContainer.children[at] || null);
+        }
+
+        /* ---------------------------------------------- the note a card points at
+           A reaction or repost must name the note it hit, otherwise the reader
+           cannot tell WHAT was liked. That note is normally not on this page, so
+           every unknown id is asked for in ONE REQ (debounced) instead of one
+           socket per card. Missing note = short id stays, never an empty box. */
+        let notifTargetQueue = {};      // id -> true, not asked for yet
+        let notifTargetAsked = {};      // id -> true, REQ already sent
+        let notifTargetSnippets = {};   // id -> event, so a late card fills at once
+        let notifTargetTimer = null;
+
+        function notifSnippetText(ev) {
+            if (!ev) return '';
+            let text = String(ev.content || '').replace(/\s+/g, ' ').trim();
+            if (!text) return (window.NostrMediaEvent && window.NostrMediaEvent.isMedia(ev)) ? '[media post]' : '';
+            return text.length > 120 ? text.substring(0, 120) + '...' : text;
+        }
+
+        function fillNotifSnippet(targetId, ev) {
+            let text = notifSnippetText(ev);
+            if (!text) return;
+            document.querySelectorAll(`.notif-snippet-${targetId}`).forEach(el => { el.textContent = `"${text}"`; });
+        }
+
+        function noteTargetHtml(targetId) {
+            let id = String(targetId || '');
+            if (!window.NostrNotifOrder || !/^[0-9a-f]{64}$/i.test(id)) return '<span class="fs-small opacity-50">an unknown note</span>';
+            return `<a href="thread.html?id=${id}" class="text-success notif-target-${id}" style="text-decoration: underline;" title="Open the note this points at">note ${id.substring(0, 8)}...</a>`
+                + `<div class="fs-small opacity-50 notif-snippet-${id}"></div>`;
+        }
+
+        function requestNotifTarget(targetId) {
+            let id = String(targetId || '');
+            if (!/^[0-9a-f]{64}$/i.test(id)) return;
+            if (notifTargetSnippets[id]) { fillNotifSnippet(id, notifTargetSnippets[id]); return; }
+            if (eventsCache[id]) { fillNotifSnippet(id, eventsCache[id]); return; }
+            if (notifTargetAsked[id] || notifTargetQueue[id]) return;
+            notifTargetQueue[id] = true;
+            if (notifTargetTimer) return;
+            notifTargetTimer = setTimeout(flushNotifTargets, 250);
+        }
+
+        function flushNotifTargets() {
+            notifTargetTimer = null;
+            let ids = Object.keys(notifTargetQueue);
+            if (!ids.length) return;
+            notifTargetQueue = {};
+            ids.forEach(id => { notifTargetAsked[id] = true; });
+            let req = JSON.stringify(["REQ", "notif-target-" + Math.random().toString(36).substring(2), { "ids": ids }]);
+            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { try { sock.send(req); } catch (e) {} } });
+        }
 
         function renderNotification(ev) {
             if (document.getElementById(`notif-${ev.id}`)) return;
@@ -308,7 +381,7 @@
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`;
             let timeStr = timeAgo(ev.created_at);
 
-            let badgeText = ""; let contentHtml = ""; let actionButtonsHtml = "";
+            let badgeText = ""; let contentHtml = ""; let actionButtonsHtml = ""; let cardTargetId = "";
 
             if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev)) {
                 let mediaBadge = window.NostrMediaEvent.badge(ev);
@@ -346,16 +419,26 @@
             } 
             else if (ev.kind === 7) {
                 badgeText = "> TELEMETRY_ACK [ ❤️ REACTION ]";
-                let targetEventId = ""; ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
+                /* NIP-25: when a reaction carries several `e` tags the LAST one is
+                   the target. This page used to take the first, which names a
+                   different note whenever a client sends root/reply markers too.
+                   The rule lives in assets/nostr-like.js so it is defined once. */
+                let targetEventId = (window.NostrLike && window.NostrLike.reactionTarget)
+                    ? window.NostrLike.reactionTarget(ev)
+                    : ((ev.tags.filter(t => t[0] === 'e').pop() || [])[1] || "");
                 let reactionTxt = (ev.content === '+' || !ev.content) ? '👍' : escapeHtml(ev.content);
-                contentHtml = `<div class="t-feed-content fs-3 opacity-75">${reactionTxt} <span class="fs-small opacity-50">on event: ${targetEventId.substring(0,8)}...</span></div>`;
+                contentHtml = `<div class="t-feed-content">${reactionTxt} <span class="fs-small opacity-50">on</span> ${noteTargetHtml(targetEventId)}</div>`;
                 actionButtonsHtml = `<button class="t-feed-btn text-success" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
+                cardTargetId = targetEventId;
             }
             else if (ev.kind === 6 || ev.kind === 16) {
                 badgeText = "> SIGNAL_AMPLIFIED [ ♻️ REPOST ]";
-                let targetEventId = ""; ev.tags.forEach(t => { if(t[0] === 'e' && !targetEventId) targetEventId = t[1]; });
-                contentHtml = `<div class="t-feed-content opacity-75"><i>Broadcasted your event (${targetEventId.substring(0,8)}...) to their network.</i></div>`;
+                let targetEventId = (window.NostrLike && window.NostrLike.reactionTarget)
+                    ? window.NostrLike.reactionTarget(ev)
+                    : ((ev.tags.filter(t => t[0] === 'e').pop() || [])[1] || "");
+                contentHtml = `<div class="t-feed-content opacity-75"><i>Broadcasted your</i> ${noteTargetHtml(targetEventId)} <i>to their network.</i></div>`;
                 actionButtonsHtml = `<button class="t-feed-btn text-success" title="View Raw" onclick="openRawModal('${ev.id}')">[raw]</button>`;
+                cardTargetId = targetEventId;
             }
 
             let card = document.createElement('div');
@@ -376,7 +459,10 @@
                 </div>
             `;
             
-            notifsContainer.prepend(card);
+            /* Newest first. Without this the page put each card wherever a relay
+               happened to answer, which buried a fresh like under an old one. */
+            placeNotificationCard(card, ev);
+            if (cardTargetId) requestNotifTarget(cardTargetId);
             if (window.NostrNote) window.NostrNote.decorateCard(card, ev, {
                 get: (id) => eventsCache[id],
                 load: (id, relay) => window.NostrNote.fetchEventById(id, null, relay ? [relay] : null),
