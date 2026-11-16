@@ -31,6 +31,7 @@
                 <label class="t-form-label mb-2 d-block">CONTENT <span class="text-success">*</span> <span class="text-muted fs-small fw-normal ml-2">Markdown supported.</span></label>
                 <div class="d-flex gap-2 flex-wrap mb-2 p-2 border-dashed bg-surface"><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('**', '**')" title="Bold">[B]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('*', '*')" title="Italic">[I]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('~~', '~~')" title="Strikethrough">[S]</button><span class="text-muted">|</span><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('[', '](https://)')" title="Link">[LINK]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n> ', '')" title="Quote">[QUOTE]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('`', '`')" title="Inline Code">[`]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n```\n', '\n```\n')" title="Code Block">[CODE]</button><span class="text-muted">|</span><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n- ', '')" title="Unordered List">[UL]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n1. ', '')" title="Ordered List">[OL]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n## ', '')" title="Heading 2">[H2]</button><button type="button" class="t-btn t-btn-sm ghost" onclick="insertMarkdown('\n### ', '')" title="Heading 3">[H3]</button></div>
                 <textarea id="articleContent" class="t-editor-textarea" placeholder="Start typing your transmission here..."></textarea>
+            <div id="draftStatus" class="fs-small opacity-50 mt-2"></div>
             </div>
             <div class="d-flex justify-content-end gap-3 flex-wrap mt-4"><button type="button" class="t-btn ghost" onclick="history.back()">[ CANCEL ]</button><button type="button" id="publishBtn" class="t-btn">> BROADCAST_ARTICLE</button></div>
         </div>
@@ -43,7 +44,84 @@
 
     <script src="/assets/terminal.js"></script>
     <script src="/assets/form-utils.js?v=20261011g"></script>
+    <!-- NIP-37 drafts plus a local autosave: a reload must not eat an article. -->
+    <script src="/assets/nostr-draft.js?v=20261116a"></script>
     <script>
+
+        /* ------------------------------------------------ draft autosave (NIP-37)
+           compose.html could lose a 16 KB article to a reload, a closed tab or a
+           stray navigation. The rules live in assets/nostr-draft.js; this only
+           reads the six fields, restores a saved draft when the form is still
+           empty, and reports honestly whether the last save worked. */
+        const DRAFT_FIELDS = {
+            title: 'articleTitle', slug: 'articleSlug', cover: 'articleCover',
+            tags: 'articleTags', summary: 'articleSummary', content: 'articleContent'
+        };
+        let draftSaver = null;
+
+        /* The six fields exist as soon as the document is parsed, so this can run
+           regardless of whether the reader has logged in yet: a restored draft is
+           waiting when the form appears. */
+        document.addEventListener('DOMContentLoaded', function () { initDraftAutosave(); });
+
+        function readDraftFields() {
+            let out = {};
+            for (const key in DRAFT_FIELDS) {
+                let el = document.getElementById(DRAFT_FIELDS[key]);
+                out[key] = el ? el.value : '';
+            }
+            return out;
+        }
+
+        function writeDraftFields(fields) {
+            for (const key in DRAFT_FIELDS) {
+                let el = document.getElementById(DRAFT_FIELDS[key]);
+                if (el && typeof fields[key] === 'string') el.value = fields[key];
+            }
+        }
+
+        function setDraftStatus(text) {
+            let el = document.getElementById('draftStatus');
+            if (el) el.textContent = text || '';
+        }
+
+        function initDraftAutosave() {
+            if (!window.NostrDraft) { setDraftStatus('[ autosave unavailable: module not loaded ]'); return; }
+            if (draftSaver) return;
+
+            /* Restore only when the form is untouched: overwriting something the
+               reader has already typed would be worse than losing the old draft. */
+            let saved = window.NostrDraft.loadLocal(localStorage, currentUserPubkey);
+            let current = readDraftFields();
+            let formIsEmpty = !window.NostrDraft.hasContent(current);
+            if (saved && formIsEmpty) {
+                writeDraftFields(saved.fields);
+                let when = saved.savedAt ? new Date(saved.savedAt).toLocaleString() : 'earlier';
+                setDraftStatus('[ draft from ' + when + ' restored ]');
+            } else if (saved && !formIsEmpty) {
+                setDraftStatus('[ a saved draft exists but this form already has content, left alone ]');
+            }
+
+            draftSaver = window.NostrDraft.createDebouncer(function () {
+                let result = window.NostrDraft.saveLocal(localStorage, currentUserPubkey, readDraftFields(), Date.now());
+                if (result.ok) {
+                    setDraftStatus('[ autosaved ' + new Date().toLocaleTimeString() + ' ]');
+                } else if (result.reason === 'empty') {
+                    setDraftStatus('');
+                } else {
+                    /* Never claim it saved when it did not. */
+                    setDraftStatus('[ AUTOSAVE FAILED: ' + (result.reason || 'unknown') + ' ]');
+                }
+            }, 1200);
+
+            for (const key in DRAFT_FIELDS) {
+                let el = document.getElementById(DRAFT_FIELDS[key]);
+                if (el) el.addEventListener('input', function () { draftSaver.trigger(); });
+            }
+            /* Leaving the page mid-sentence must not drop the last second of work. */
+            window.addEventListener('beforeunload', function () { draftSaver.flush(); });
+        }
+
         let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let relayStatusMap = {}; let activeSockets = [];
         const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn'); const relayModal = document.getElementById('relayModal'); const relayListContainer = document.getElementById('relayListContainer'); const editorContainer = document.getElementById('editorContainer');
         const titleInput = document.getElementById('articleTitle'); const slugInput = document.getElementById('articleSlug'); const coverInput = document.getElementById('articleCover'); const tagsInput = document.getElementById('articleTags'); const summaryInput = document.getElementById('articleSummary'); const contentTextarea = document.getElementById('articleContent'); const publishBtn = document.getElementById('publishBtn');
@@ -74,7 +152,10 @@
             if (summary) tags.push(["summary", summary]); if (cover) tags.push(["image", cover]);
             if (tagsRaw) { let parsedTags = tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== ""); parsedTags.forEach(t => tags.push(["t", t])); }
             let rawEvent = { kind: 30023, created_at: Math.floor(Date.now() / 1000), tags: tags, content: content, pubkey: currentUserPubkey };
-            try { publishBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); if (sentCount > 0) { alert(`> SUCCESS: Broadcasted Long-Form Article to ${sentCount} relays!`); window.location.href = `profile.html?pubkey=${currentUserPubkey}`; } else { alert('> ERROR: No relays connected to broadcast.'); publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE'; } } catch (err) { alert('> ERROR: Failed to sign/broadcast event.'); publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE'; }
+            try { publishBtn.textContent = '> SIGNING...'; let signedEvent = await window.nostr.signEvent(rawEvent); let sentCount = 0; activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { sock.send(JSON.stringify(["EVENT", signedEvent])); sentCount++; } }); if (sentCount > 0) { alert(`> SUCCESS: Broadcasted Long-Form Article to ${sentCount} relays!`); /* The article is published, so the local draft must go: otherwise the next visit
+                   would offer to restore text that already exists as a real post. */
+                   if (window.NostrDraft) window.NostrDraft.clearLocal(localStorage, currentUserPubkey);
+                   window.location.href = `profile.html?pubkey=${currentUserPubkey}`; } else { alert('> ERROR: No relays connected to broadcast.'); publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE'; } } catch (err) { alert('> ERROR: Failed to sign/broadcast event.'); publishBtn.textContent = editIdentifier ? '> UPDATE_ARTICLE' : '> BROADCAST_ARTICLE'; }
         });
 
         window.addEventListener('DOMContentLoaded', loadConfig);
