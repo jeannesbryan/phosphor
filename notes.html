@@ -42,6 +42,9 @@
     <script src="/assets/blossom-auth.js?v=20261017i"></script>
     <script src="/assets/form-utils.js?v=20261017i"></script>
     <script src="/assets/nostr-like.js?v=20261017i"></script>
+    <!-- Profile lookup that retries and can reach profile indexes. Without it a
+         real person shows up as "Node_3B4A". Rules live in that file. -->
+    <script src="/assets/nostr-profile.js?v=20261116b"></script>
     <!-- Aturan judul artikel: renderer selalu mencetak judul dari tag `title`,
          lalu memasang isi lewat marked. Artikel yang isinya dibuka dengan
          `# Judul` yang sama jadi tercetak dua kali. Satu file ini yang
@@ -185,11 +188,42 @@
         function initDB() { return new Promise((resolve) => { let request = indexedDB.open("PhosphorDB", 1); request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) { database.createObjectStore("profiles", { keyPath: "pubkey" }); } }; request.onsuccess = function(e) { db = e.target.result; resolve(true); }; request.onerror = function(e) { resolve(false); }; }); }
         function saveProfileToCache(pubkey, profileData) { if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() }); }
         async function getProfileFromCache(pubkey) { if (!db) return null; return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); }); }
+        /* ---- profile lookup, shared rules in /assets/nostr-profile.js ----
+           Two measured faults made real people show up as "Node_XXXX": the request
+           was sent once, only to sockets already open (nothing retried it), and the
+           profile indexes were never asked. The module queues the request, resends
+           it whenever a socket opens, and reaches the indexes lazily on the second
+           attempt only. Do not re-implement any of this in the page. */
+        let profileSockets = [];
+        let profileRelaysAsked = false;
+        let PROFILE_RELAYS = (window.NostrProfile && window.NostrProfile.DEFAULT_PROFILE_RELAYS)
+            ? window.NostrProfile.DEFAULT_PROFILE_RELAYS.slice() : [];
+        let profileResolver = window.NostrProfile ? window.NostrProfile.createResolver({
+            getSockets: () => activeSockets.concat(profileSockets),
+            openProfileRelays: () => {
+                if (profileRelaysAsked) return;
+                profileRelaysAsked = true;
+                profileSockets = window.NostrProfile.connectProfileRelays(PROFILE_RELAYS, {
+                    onOpen: () => { if (profileResolver) profileResolver.flush(); },
+                    onEvent: (ev) => { if (profileResolver) profileResolver.absorb(ev); }
+                });
+            },
+            onResolve: (pubkey, profile) => {
+                profileCache[pubkey] = profile;
+                saveProfileToCache(pubkey, profile);
+                updatePostUI(pubkey);
+                revealZapButtons(pubkey);
+            }
+        }) : null;
+
         async function requestProfileInfo(pubkey) {
             if (profileCache[pubkey]) return; profileCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
+            /* A cached record may come from an older page version that stored
+               the other handle shape; normalise before reading it. */
+            if (cached && window.NostrProfile) cached = window.NostrProfile.normalizeCached(cached, pubkey);
             if (cached) { profileCache[pubkey] = { name: cached.name, handleLine: cached.handleLine, picture: cached.picture, lud16: cached.lud16 || null, lud06: cached.lud06 || null, pending: false }; if (pubkey === currentUserPubkey && cached.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(cached.picture)}" alt="Me">`; } updatePostUI(pubkey); revealZapButtons(pubkey); } 
-            else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
+            else { if (profileResolver) { profileResolver.lookup(pubkey); } else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); } }
         }
 
         let RELAYS = []; let BLOSSOM_SERVERS = [];
@@ -207,6 +241,8 @@
             try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                /* Optional override; an empty array turns profile indexes off. */
+                if (Array.isArray(config.profile_relays)) PROFILE_RELAYS = config.profile_relays.slice();
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 await checkLocalSessions(); initNotes(); initLikeModule();
             } catch (e) { alert("> ERROR: Missing config.json"); }
@@ -419,6 +455,9 @@
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
+                    /* A profile request may have been made before this relay was
+                       open; send it now instead of leaving that person unnamed. */
+                    if (profileResolver) profileResolver.flush();
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     let filterObj = { "kinds": [30023], "limit": 50 }; if (authorParam) filterObj.authors = [authorParam]; if (articleId) filterObj.ids = [articleId];
                     socket.send(JSON.stringify(["REQ", "fetch-nip23", filterObj]));
@@ -444,12 +483,9 @@
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) { if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) { myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); }); document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; }); } }
                             eventsCache[ev.id] = ev;
                             if (ev.kind === 0) {
-                                try {
-                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${escapeHtml(rawName)} ${escapeHtml(domainPart)}` : escapeHtml(rawName);
-                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handleLine: handleLineStr, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); revealZapButtons(ev.pubkey);
-                                    if (ev.pubkey === currentUserPubkey && meta.picture) { myReplyAvatar.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`; } updatePostUI(ev.pubkey);
-                                } catch(e){}
+                                /* Parsed and escaped once, in assets/nostr-profile.js. This block used to
+                                   be one of seven private copies of the same rule. */
+                                if (profileResolver) { profileResolver.absorb(ev); }
                             }
                             if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) { if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); } }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(targetId => { initMetrics(targetId); if (!metricsCache[targetId].processed.has(ev.id)) { metricsCache[targetId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'replies'))) metricsCache[targetId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'reposts'))) metricsCache[targetId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(targetId,'likes'))) metricsCache[targetId].likes++; if (ev.kind === 9735) metricsCache[targetId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(targetId); } }); }
@@ -468,7 +504,7 @@
 
         function renderMainArticle(ev) {
             initMetrics(ev.id); requestMetrics(ev.id);
-            let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = window.NostrProfile ? window.NostrProfile.displayProfile(profileCache[ev.pubkey], ev.pubkey) : (profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null });
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
             let clientName = "unknown"; let title = "Untitled Article"; let dTagValue = ""; let markdownLines = (ev.content || "").split('\n'); let headingLine = markdownLines.find(line => line.startsWith('# '));
             if (headingLine) title = headingLine.replace('# ', '').trim(); let publishedAt = timeStr;
@@ -538,7 +574,7 @@
             if (document.getElementById(`reply-${ev.id}`)) return;
             initMetrics(ev.id); requestMetrics(ev.id);
 
-            let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null };
+            let shortPub = ev.pubkey.substring(0, 4).toUpperCase(); let info = window.NostrProfile ? window.NostrProfile.displayProfile(profileCache[ev.pubkey], ev.pubkey) : (profileCache[ev.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${ev.pubkey.substring(0, 8)}`, picture: null });
             let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(ev.created_at);
             let clientName = "unknown";
             ev.tags.forEach(t => { if (t[0] === "client") clientName = t[1]; });

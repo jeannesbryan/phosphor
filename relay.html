@@ -36,6 +36,9 @@
     <script src="/assets/blossom-auth.js?v=20261017i"></script>
     <script src="/assets/form-utils.js?v=20261017i"></script>
     <script src="/assets/nostr-like.js?v=20261017i"></script>
+    <!-- Profile lookup that retries and can reach profile indexes. Without it a
+         real person shows up as "Node_3B4A". Rules live in that file. -->
+    <script src="/assets/nostr-profile.js?v=20261116b"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -213,12 +216,43 @@
             if (!db) return null;
             return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); });
         }
+        /* ---- profile lookup, shared rules in /assets/nostr-profile.js ----
+           Two measured faults made real people show up as "Node_XXXX": the request
+           was sent once, only to sockets already open (nothing retried it), and the
+           profile indexes were never asked. The module queues the request, resends
+           it whenever a socket opens, and reaches the indexes lazily on the second
+           attempt only. Do not re-implement any of this in the page. */
+        let profileSockets = [];
+        let profileRelaysAsked = false;
+        let PROFILE_RELAYS = (window.NostrProfile && window.NostrProfile.DEFAULT_PROFILE_RELAYS)
+            ? window.NostrProfile.DEFAULT_PROFILE_RELAYS.slice() : [];
+        let profileResolver = window.NostrProfile ? window.NostrProfile.createResolver({
+            getSockets: () => activeSockets.concat(profileSockets),
+            openProfileRelays: () => {
+                if (profileRelaysAsked) return;
+                profileRelaysAsked = true;
+                profileSockets = window.NostrProfile.connectProfileRelays(PROFILE_RELAYS, {
+                    onOpen: () => { if (profileResolver) profileResolver.flush(); },
+                    onEvent: (ev) => { if (profileResolver) profileResolver.absorb(ev); }
+                });
+            },
+            onResolve: (pubkey, profile) => {
+                profileCache[pubkey] = profile;
+                saveProfileToCache(pubkey, profile);
+                updatePostUI(pubkey);
+                revealZapButtons(pubkey);
+            }
+        }) : null;
+
         async function requestProfileInfo(pubkey) {
             if (profileCache[pubkey]) return;
             profileCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
+            /* A cached record may come from an older page version that stored
+               the other handle shape; normalise before reading it. */
+            if (cached && window.NostrProfile) cached = window.NostrProfile.normalizeCached(cached, pubkey);
             if (cached) { profileCache[pubkey] = { name: cached.name, handleLine: cached.handleLine || cached.handle || `@${pubkey.substring(0, 8)}`, picture: cached.picture, lud16: cached.lud16 || null, lud06: cached.lud06 || null, pending: false }; updatePostUI(pubkey); revealZapButtons(pubkey); } 
-            else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
+            else { if (profileResolver) { profileResolver.lookup(pubkey); } else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); } }
         }
 
         let RELAYS = []; let BLOSSOM_SERVERS = []; let targetWsUrl = "";
@@ -253,6 +287,8 @@
                 await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
+                /* Optional override; an empty array turns profile indexes off. */
+                if (Array.isArray(config.profile_relays)) PROFILE_RELAYS = config.profile_relays.slice();
                 if (!RELAYS.includes(targetWsUrl)) RELAYS.push(targetWsUrl);
                 // NIP-11: show the relay's own information document. Optional —
                 // if the relay does not answer, the explorer below is unaffected.
@@ -512,6 +548,9 @@
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
+                    /* A profile request may have been made before this relay was
+                       open; send it now instead of leaving that person unnamed. */
+                    if (profileResolver) profileResolver.flush();
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     if (url === targetWsUrl) { socket.send(JSON.stringify(["REQ", "target-relay-feed", { "kinds": [1, 6, 16, 20, 21, 22, 34235, 34236, 30023, 30311, 33400], "limit": 60 }])); }
                     if (currentUserPubkey) { socket.send(JSON.stringify(["REQ", "my-bkmrk-" + url, { "kinds": [30003], "authors": [currentUserPubkey] }])); }
@@ -532,12 +571,9 @@
                             if (ev.kind === 30003 && ev.pubkey === currentUserPubkey) { if (!myBookmarkEvent || ev.created_at >= myBookmarkEvent.created_at) { myBookmarkEvent = ev; myBookmarks.clear(); ev.tags.forEach(t => { if (t[0] === 'e') myBookmarks.add(t[1]); }); document.querySelectorAll('.bookmark-btn').forEach(btn => { let id = btn.getAttribute('data-id'); btn.textContent = myBookmarks.has(id) ? '[b] saved' : '[b] save'; }); } }
                             eventsCache[ev.id] = ev;
                             if (ev.kind === 0) {
-                                try {
-                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let handleLineStr = domainPart ? `${escapeHtml(rawName)} ${escapeHtml(domainPart)}` : escapeHtml(rawName);
-                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handleLine: handleLineStr, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false };
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey);
-                                } catch(e){}
+                                /* Parsed and escaped once, in assets/nostr-profile.js. This block used to
+                                   be one of seven private copies of the same rule. */
+                                if (profileResolver) { profileResolver.absorb(ev); }
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 16 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023) {
                                 if (!profileCache[ev.pubkey]) { requestProfileInfo(ev.pubkey); }
@@ -583,8 +619,8 @@
             if (document.getElementById(`reply-${ev.id}`)) return;
             initMetrics(ev.id); requestMetrics(ev.id);
             let isRepost = (ev.kind === 6 || ev.kind === 16); let targetEv = ev; let repostHeader = "";
-            if (isRepost) { try { targetEv = JSON.parse(ev.content); let reposterInfo = profileCache[ev.pubkey] || { name: ev.pubkey.substring(0, 8) }; repostHeader = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${ev.pubkey}" class="text-success author-${ev.pubkey}" style="text-decoration:none;">${escapeHtml(reposterInfo.name)}</a></div>`; } catch(e) { return; } }
-            let shortPub = targetEv.pubkey.substring(0, 4).toUpperCase(); let info = profileCache[targetEv.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${targetEv.pubkey.substring(0, 8)}`, picture: null }; let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(targetEv.created_at);
+            if (isRepost) { try { targetEv = JSON.parse(ev.content); let reposterInfo = window.NostrProfile ? window.NostrProfile.displayProfile(profileCache[ev.pubkey], ev.pubkey) : (profileCache[ev.pubkey] || { name: ev.pubkey.substring(0, 8) }); repostHeader = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${ev.pubkey}" class="text-success author-${ev.pubkey}" style="text-decoration:none;">${escapeHtml(reposterInfo.name)}</a></div>`; } catch(e) { return; } }
+            let shortPub = targetEv.pubkey.substring(0, 4).toUpperCase(); let info = window.NostrProfile ? window.NostrProfile.displayProfile(profileCache[targetEv.pubkey], targetEv.pubkey) : (profileCache[targetEv.pubkey] || { name: `Node_${shortPub}`, handleLine: `@${targetEv.pubkey.substring(0, 8)}`, picture: null }); let avatarHtml = info.picture ? `<img src="${escapeHtml(info.picture)}" alt="Avatar">` : `[${shortPub}]`; let timeStr = timeAgo(targetEv.created_at);
             let parsed = parseActivityData(targetEv); let dTagValue = ""; targetEv.tags.forEach(t => { if (t[0] === "d") dTagValue = t[1]; });
             let isMine = (currentUserPubkey && targetEv.pubkey === currentUserPubkey); let editBtnVisibility = isMine ? '' : 'hidden'; let bmText = myBookmarks.has(targetEv.id) ? '[b] saved' : '[b] save';
             let pulseInfo = window.NostrPulseEvent ? NostrPulseEvent.describe(targetEv) : { isPulse: false, hasExpiration: false, label: '' };

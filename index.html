@@ -51,6 +51,9 @@
     <script src="/assets/form-utils.js?v=20261017i"></script>
     <!-- Like/undo rules (NIP-25 + NIP-09), one module for six pages. -->
     <script src="/assets/nostr-like.js?v=20261017i"></script>
+    <!-- Profile lookup that retries and can reach profile indexes. Without it a
+         real person shows up as "Node_3B4A". Rules live in that file. -->
+    <script src="/assets/nostr-profile.js?v=20261116b"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -322,11 +325,42 @@
             });
         }
 
+        /* ---- profile lookup, shared rules in /assets/nostr-profile.js ----
+           Two measured faults made real people show up as "Node_XXXX": the request
+           was sent once, only to sockets already open (nothing retried it), and the
+           profile indexes were never asked. The module queues the request, resends
+           it whenever a socket opens, and reaches the indexes lazily on the second
+           attempt only. Do not re-implement any of this in the page. */
+        let profileSockets = [];
+        let profileRelaysAsked = false;
+        let PROFILE_RELAYS = (window.NostrProfile && window.NostrProfile.DEFAULT_PROFILE_RELAYS)
+            ? window.NostrProfile.DEFAULT_PROFILE_RELAYS.slice() : [];
+        let profileResolver = window.NostrProfile ? window.NostrProfile.createResolver({
+            getSockets: () => activeSockets.concat(profileSockets),
+            openProfileRelays: () => {
+                if (profileRelaysAsked) return;
+                profileRelaysAsked = true;
+                profileSockets = window.NostrProfile.connectProfileRelays(PROFILE_RELAYS, {
+                    onOpen: () => { if (profileResolver) profileResolver.flush(); },
+                    onEvent: (ev) => { if (profileResolver) profileResolver.absorb(ev); }
+                });
+            },
+            onResolve: (pubkey, profile) => {
+                profileCache[pubkey] = profile;
+                saveProfileToCache(pubkey, profile);
+                updatePostUI(pubkey);
+                revealZapButtons(pubkey);
+            }
+        }) : null;
+
         async function requestProfileInfo(pubkey) {
             if (profileCache[pubkey]) return;
             
             profileCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
+            /* A cached record may come from an older page version that stored
+               the other handle shape; normalise before reading it. */
+            if (cached && window.NostrProfile) cached = window.NostrProfile.normalizeCached(cached, pubkey);
             
             if (cached) {
                 profileCache[pubkey] = {
@@ -340,8 +374,7 @@
                 };
                 updatePostUI(pubkey); revealZapButtons(pubkey);
             } else {
-                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
-                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); });
+                if (profileResolver) { profileResolver.lookup(pubkey); } else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
             }
         }
         // ==========================================================
@@ -423,6 +456,8 @@
                 let res = await fetch('config.json');
                 let config = await res.json();
                 RELAYS = config.relays || [];
+                /* Optional override; an empty array turns profile indexes off. */
+                if (Array.isArray(config.profile_relays)) PROFILE_RELAYS = config.profile_relays.slice();
                 // The note module needs the relay list to fetch quoted notes
                 // (tag "q") — its socket is separate and opened only briefly.
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS);
@@ -835,17 +870,11 @@
                         if (d[2].kind === 0) {
                             try {
                                 let meta = JSON.parse(d[2].content);
-                                let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
-                                let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : (meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${currentUserPubkey.substring(0,8)}`);
-                                
-                                profileCache[currentUserPubkey] = {
-                                    name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6),
-                                    handle: domainPart ? `${rawName} ${domainPart}` : rawName,
-                                    nip05: meta.nip05 || "",
-                                    picture: meta.picture || null,
-                                    pending: false
-                                };
+                                /* One definition of the profile shape, in
+                                   assets/nostr-profile.js. This was the last copy. */
+                                profileCache[currentUserPubkey] = window.NostrProfile
+                                    ? window.NostrProfile.makeProfile(meta, currentUserPubkey)
+                                    : { name: meta.display_name || meta.name || currentUserPubkey.substring(0, 6), handle: '@' + currentUserPubkey.substring(0, 8), nip05: meta.nip05 || "", picture: meta.picture || null, pending: false };
                                 
                                 saveProfileToCache(currentUserPubkey, profileCache[currentUserPubkey]);
                                 if (meta.picture) userAvatarBox.innerHTML = `<img src="${escapeHtml(meta.picture)}" alt="Me">`;
@@ -1189,6 +1218,9 @@
                 relayStatusMap[url] = false;
                 let socket = new WebSocket(url);
                 socket.onopen = function() {
+                    /* A profile request may have been made before this relay was
+                       open; send it now instead of leaving that person unnamed. */
+                    if (profileResolver) profileResolver.flush();
                     onlineCount++;
                     relayStatusMap[url] = true;
                     relayStatusBtn.textContent = `[RELAYS: ${onlineCount}/${RELAYS.length} ONLINE]`;
@@ -1226,22 +1258,9 @@
                                 return;
                             }
                             if (ev.kind === 0) {
-                                try {
-                                    let meta = JSON.parse(ev.content);
-                                    let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : '';
-                                    let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : (meta.name ? `@${meta.name.toLowerCase().replace(/\s+/g, '')}` : `@${ev.pubkey.substring(0,8)}`);
-                                    profileCache[ev.pubkey] = {
-                                        name: meta.display_name || meta.name || ev.pubkey.substring(0, 6),
-                                        handle: domainPart ? `${rawName} ${domainPart}` : rawName,
-                                        nip05: meta.nip05 || "",
-                                        picture: meta.picture || null,
-                                        lud16: meta.lud16 || null,
-                                        lud06: meta.lud06 || null,
-                                        pending: false
-                                    };
-                                    saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey); revealZapButtons(ev.pubkey);
-                                } catch(e){}
+                                /* Parsed and escaped once, in assets/nostr-profile.js. This block used to
+                                   be one of seven private copies of the same rule. */
+                                if (profileResolver) { profileResolver.absorb(ev); }
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) {
                                 let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]);
@@ -1385,7 +1404,13 @@
 
             let repostHtml = "";
             if (repostEv) {
-                let rpInfo = profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) };
+                /* Ask for the reposter's profile too. This path used to read the
+                   cache only, so a reposteer whose name was not already loaded
+                   stayed "Node_XXXX" even though the profile exists on the
+                   indexes (measured: c6ff8f15 was on three relays and never
+                   requested). */
+                requestProfileInfo(repostEv.pubkey);
+                let rpInfo = window.NostrProfile ? window.NostrProfile.displayProfile(profileCache[repostEv.pubkey], repostEv.pubkey) : (profileCache[repostEv.pubkey] || { name: repostEv.pubkey.substring(0,8) });
                 repostHtml = `<div class="text-success fs-small mb-2">> ♻️ REPOSTED BY: <a href="profile.html?pubkey=${repostEv.pubkey}" class="author-${repostEv.pubkey}" style="color:inherit; text-decoration:none;">${escapeHtml(rpInfo.name)}</a></div>`;
             }
             card.className = 't-feed-card';

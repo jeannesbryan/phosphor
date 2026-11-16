@@ -67,16 +67,32 @@
             domain = parts.slice(1).join('@');
         }
         var rawName = meta.name || meta.display_name || String(pubkey || '').substring(0, 8);
-        var handle = local
+        var base = local
             ? '@' + String(local).toLowerCase()
             : '@' + String(rawName).toLowerCase().replace(/\s+/g, '');
-        var handleLine = domain ? escapeHtml(handle) + ' ' + escapeHtml(domain) : escapeHtml(handle);
+
+        /* Two shapes on purpose, because the pages do not render the handle the
+           same way and each was correct for its own page before this module:
+
+           - `handle` is PLAIN text and includes the NIP-05 domain. The pages that
+             put it in with textContent use this one; they need no escaping and
+             would show a literal `&#39;` if we handed them escaped text.
+           - `handleLine` is the same string HTML-ESCAPED, for the pages that set
+             it with innerHTML.
+
+           Both carry the domain, matching what every page did before. */
+        var plain = domain ? base + ' ' + domain : base;
+        var handleLine = domain ? escapeHtml(base) + ' ' + escapeHtml(domain) : escapeHtml(base);
         return {
             name: meta.display_name || meta.name || String(pubkey || '').substring(0, 6),
             handleLine: handleLine,
-            handle: handle,
+            handle: plain,
             nip05: nip05,
             picture: meta.picture || null,
+            /* Carried through untouched: the zap buttons read these two, and a
+               profile without them silently loses the ability to be zapped. */
+            lud16: meta.lud16 || null,
+            lud06: meta.lud06 || null,
             resolved: true
         };
     }
@@ -219,8 +235,99 @@
         };
     }
 
+    /* What to render for a pubkey whose profile may still be loading.
+
+       `profileCache[pk] = { pending: true }` is a truthy object with no `name`, so
+       the old idiom `cache[pk] || { name: ... }` took the pending object and
+       printed the literal string "undefined" into the card. The retries added on
+       2026-11-16 make a profile stay pending longer, which turned a rare glitch
+       into a visible one on relay.html. This is the single place that decides. */
+    function displayProfile(info, pubkey) {
+        if (info && !info.pending && info.name) return info;
+        var fb = fallbackProfile(pubkey);
+        return {
+            name: fb.name,
+            handle: fb.handle,
+            handleLine: fb.handleLine,
+            nip05: '',
+            picture: null,
+            lud16: null,
+            lud06: null,
+            pending: false,
+            resolved: false
+        };
+    }
+
+    function unescapeHtml(str) {
+        return String(str === undefined || str === null ? '' : str)
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&');
+    }
+
+    /* Cached profile records were written by six different page versions over
+       time: some stored a plain `handle`, others an escaped `handleLine`. Reading
+       a record in the other shape is what makes a handle render as "undefined" or
+       show a literal `&#39;` instead of an apostrophe. This returns BOTH shapes
+       whichever one the record happens to have, so every page can keep reading
+       the field it expects. */
+    function normalizeCached(cached, pubkey) {
+        if (!cached) return null;
+        var plain = '';
+        if (typeof cached.handle === 'string' && cached.handle) plain = cached.handle;
+        else if (typeof cached.handleLine === 'string' && cached.handleLine) plain = cached.handleLine;
+        plain = unescapeHtml(plain);
+        return {
+            name: cached.name || String(pubkey || '').substring(0, 6),
+            handle: plain,
+            handleLine: escapeHtml(plain),
+            nip05: cached.nip05 || '',
+            picture: cached.picture || null,
+            lud16: cached.lud16 || null,
+            lud06: cached.lud06 || null,
+            resolved: true
+        };
+    }
+
+    /* Open the profile index sockets. Lives here so the seven pages do not each
+       carry their own copy of this wiring (that copying is what made the bug
+       land in four places at once). Returns the sockets it made, so the caller
+       can include them in getSockets() and have pending requests flushed to them.
+
+       handlers.onOpen()  called once per socket as it opens
+       handlers.onEvent(ev)  called for every EVENT frame; the caller decides
+                             whether to feed it to absorb().
+       A relay that cannot even be constructed is skipped: one bad entry in the
+       config must not stop the rest. */
+    function connectProfileRelays(relays, handlers) {
+        var sockets = [];
+        var onOpen = handlers && handlers.onOpen;
+        var onEvent = handlers && handlers.onEvent;
+        (relays || []).forEach(function (url) {
+            if (!/^wss?:\/\//i.test(String(url || ''))) return;
+            if (typeof global.WebSocket !== 'function') return;
+            var sock;
+            try { sock = new global.WebSocket(url); } catch (e) { return; }
+            sockets.push(sock);
+            sock.onopen = function () { if (onOpen) onOpen(); };
+            sock.onmessage = function (event) {
+                try {
+                    var data = JSON.parse(event.data);
+                    if (data[0] === 'EVENT' && data[2] && onEvent) onEvent(data[2]);
+                } catch (e) { /* a malformed frame must not break the page */ }
+            };
+        });
+        return sockets;
+    }
+
     var api = {
         makeProfile: makeProfile,
+        displayProfile: displayProfile,
+        connectProfileRelays: connectProfileRelays,
+        normalizeCached: normalizeCached,
+        unescapeHtml: unescapeHtml,
         fallbackName: fallbackName,
         fallbackHandle: fallbackHandle,
         fallbackProfile: fallbackProfile,

@@ -34,6 +34,9 @@
     <script src="/assets/blossom-auth.js?v=20261017i"></script>
     <script src="/assets/form-utils.js?v=20261017i"></script>
     <script src="/assets/nostr-like.js?v=20261017i"></script>
+    <!-- Profile lookup that retries and can reach profile indexes. Without it a
+         real person shows up as "Node_3B4A". Rules live in that file. -->
+    <script src="/assets/nostr-profile.js?v=20261116b"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -181,11 +184,42 @@
         function initDB() { return new Promise((resolve) => { let request = indexedDB.open("PhosphorDB", 1); request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) { database.createObjectStore("profiles", { keyPath: "pubkey" }); } }; request.onsuccess = function(e) { db = e.target.result; resolve(true); }; request.onerror = function(e) { resolve(false); }; }); }
         function saveProfileToCache(pubkey, profileData) { if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() }); }
         async function getProfileFromCache(pubkey) { if (!db) return null; return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); }); }
+        /* ---- profile lookup, shared rules in /assets/nostr-profile.js ----
+           Two measured faults made real people show up as "Node_XXXX": the request
+           was sent once, only to sockets already open (nothing retried it), and the
+           profile indexes were never asked. The module queues the request, resends
+           it whenever a socket opens, and reaches the indexes lazily on the second
+           attempt only. Do not re-implement any of this in the page. */
+        let profileSockets = [];
+        let profileRelaysAsked = false;
+        let PROFILE_RELAYS = (window.NostrProfile && window.NostrProfile.DEFAULT_PROFILE_RELAYS)
+            ? window.NostrProfile.DEFAULT_PROFILE_RELAYS.slice() : [];
+        let profileResolver = window.NostrProfile ? window.NostrProfile.createResolver({
+            getSockets: () => activeSockets.concat(profileSockets),
+            openProfileRelays: () => {
+                if (profileRelaysAsked) return;
+                profileRelaysAsked = true;
+                profileSockets = window.NostrProfile.connectProfileRelays(PROFILE_RELAYS, {
+                    onOpen: () => { if (profileResolver) profileResolver.flush(); },
+                    onEvent: (ev) => { if (profileResolver) profileResolver.absorb(ev); }
+                });
+            },
+            onResolve: (pubkey, profile) => {
+                profileCache[pubkey] = profile;
+                saveProfileToCache(pubkey, profile);
+                updatePostUI(pubkey);
+                revealZapButtons(pubkey);
+            }
+        }) : null;
+
         async function requestProfileInfo(pubkey) {
             if (profileCache[pubkey]) return; profileCache[pubkey] = { pending: true };
             let cached = await getProfileFromCache(pubkey);
+            /* A cached record may come from an older page version that stored
+               the other handle shape; normalise before reading it. */
+            if (cached && window.NostrProfile) cached = window.NostrProfile.normalizeCached(cached, pubkey);
             if (cached) { profileCache[pubkey] = { name: cached.name, handle: cached.handle, picture: cached.picture, nip05: cached.nip05, lud16: cached.lud16 || null, lud06: cached.lud06 || null, pending: false }; updatePostUI(pubkey); revealZapButtons(pubkey); } 
-            else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); }
+            else { if (profileResolver) { profileResolver.lookup(pubkey); } else { let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]); activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) sock.send(req); }); } }
         }
 
         let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {};
@@ -203,6 +237,8 @@
             try { await initDB(); let res = await fetch('config.json'); let config = await res.json();
                 let savedRelays = localStorage.getItem('phosphor_user_relays'); let savedBlossom = localStorage.getItem('phosphor_user_blossom');
                 RELAYS = savedRelays ? JSON.parse(savedRelays) : (config.relays || []);
+                /* Optional override; an empty array turns profile indexes off. */
+                if (Array.isArray(config.profile_relays)) PROFILE_RELAYS = config.profile_relays.slice();
                 if (window.NostrNote) window.NostrNote.setRelays(RELAYS); BLOSSOM_SERVERS = savedBlossom ? JSON.parse(savedBlossom) : (config.blossom_servers || []);
                 await checkLocalSessions(); updateAuthState(); initLikeModule();
                 if (currentUserPubkey) { connectAndFetchBookmarks(); } else { document.getElementById('authWarning').classList.remove('hidden'); document.getElementById('bookmarkFeed').classList.add('hidden'); }
@@ -417,6 +453,9 @@
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
+                    /* A profile request may have been made before this relay was
+                       open; send it now instead of leaving that person unnamed. */
+                    if (profileResolver) profileResolver.flush();
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     socket.send(JSON.stringify(["REQ", "my-bookmarks", { "kinds": [30003], "authors": [currentUserPubkey] }]));
                     socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
@@ -444,10 +483,9 @@
                                 }
                             }
                             if (ev.kind === 0) {
-                                try {
-                                    let meta = JSON.parse(ev.content); let nip05Local = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[0] : ''; let rawNameStr = meta.name || meta.display_name || ev.pubkey.substring(0, 8); let rawName = nip05Local ? `@${nip05Local.toLowerCase()}` : `@${rawNameStr.toLowerCase().replace(/\s+/g, '')}`; let domainPart = (meta.nip05 && meta.nip05.includes('@')) ? meta.nip05.split('@')[1] : '';
-                                    profileCache[ev.pubkey] = { name: meta.display_name || meta.name || ev.pubkey.substring(0, 6), handle: domainPart ? `${rawName} ${domainPart}` : rawName, picture: meta.picture || null, nip05: meta.nip05 || "", lud16: meta.lud16 || null, lud06: meta.lud06 || null, pending: false }; saveProfileToCache(ev.pubkey, profileCache[ev.pubkey]); updatePostUI(ev.pubkey); revealZapButtons(ev.pubkey);
-                                } catch(e){}
+                                /* Parsed and escaped once, in assets/nostr-profile.js. This block used to
+                                   be one of seven private copies of the same rule. */
+                                if (profileResolver) { profileResolver.absorb(ev); }
                             }
                             if (ev.kind === 1 || ev.kind === 6 || ev.kind === 7 || ev.kind === 16 || ev.kind === 9735) { let eTags = ev.tags.filter(t => t[0] === 'e').map(t => t[1]); eTags.forEach(tId => { initMetrics(tId); if (!metricsCache[tId].processed.has(ev.id)) { metricsCache[tId].processed.add(ev.id); if (ev.kind === 1 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'replies'))) metricsCache[tId].replies++; if (ev.kind === 6 || ev.kind === 16 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'reposts'))) metricsCache[tId].reposts++; if (ev.kind === 7 && !(window.NostrCount && window.NostrCount.isCountSourced(tId,'likes'))) metricsCache[tId].likes++; if (ev.kind === 9735) metricsCache[tId].zapSats += zapSatsFromEvent(ev); updateMetricsUI(tId); } }); }
                             if (ev.kind === 1 || window.NostrMediaEvent.isMedia(ev) || ev.kind === 30023 || ev.kind === 30311 || ev.kind === 33400 || ev.kind === 1301) {

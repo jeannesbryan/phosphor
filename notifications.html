@@ -158,32 +158,36 @@
         function initDB() { return new Promise((resolve) => { let request = indexedDB.open("PhosphorDB", 1); request.onupgradeneeded = function(e) { let database = e.target.result; if (!database.objectStoreNames.contains("profiles")) { database.createObjectStore("profiles", { keyPath: "pubkey" }); } }; request.onsuccess = function(e) { db = e.target.result; resolve(true); }; request.onerror = function(e) { resolve(false); }; }); }
         function saveProfileToCache(pubkey, profileData) { if (!db) return; let tx = db.transaction("profiles", "readwrite"); let store = tx.objectStore("profiles"); store.put({ pubkey: pubkey, ...profileData, updated_at: Date.now() }); }
         async function getProfileFromCache(pubkey) { if (!db) return null; return new Promise((resolve) => { let tx = db.transaction("profiles", "readonly"); let store = tx.objectStore("profiles"); let req = store.get(pubkey); req.onsuccess = e => resolve(e.target.result); req.onerror = () => resolve(null); }); }
-        /* Profile lookup.
-           Used to send one REQ, once, to whichever sockets happened to be open at
-           that instant, with no retry. Measured on 2026-11-16: the request for
-           b6f2d38b reached strfry and damus only because relay.primal.net had not
-           opened yet, so a real person stayed "Node_B6F2" for the whole session
-           while the same pubkey resolved fine on another load. The shared module
-           queues the request, retries it, resends it when a socket opens, and can
-           reach profile indexes when the timeline relays come up empty. */
-        let profileResolver = null;
-        function initProfileResolver() {
-            if (profileResolver || !window.NostrProfile) return;
-            profileResolver = window.NostrProfile.createResolver({
-                getSockets: () => activeSockets.concat(profileSockets),
-                openProfileRelays: connectProfileRelays,
-                onResolve: (pubkey, profile) => {
-                    profileCache[pubkey] = profile;
-                    saveProfileToCache(pubkey, profile);
-                    updatePostUI(pubkey);
-                }
-            });
-        }
+        /* ---- profile lookup, shared rules in /assets/nostr-profile.js ----
+           Two measured faults made real people show up as "Node_XXXX": the request
+           was sent once, only to sockets already open (nothing retried it), and the
+           profile indexes were never asked. The module queues the request, resends
+           it whenever a socket opens, and reaches the indexes lazily on the second
+           attempt only. Do not re-implement any of this in the page. */
+        let profileResolver = window.NostrProfile ? window.NostrProfile.createResolver({
+            getSockets: () => activeSockets.concat(profileSockets),
+            openProfileRelays: () => {
+                if (profileRelaysAsked) return;
+                profileRelaysAsked = true;
+                profileSockets = window.NostrProfile.connectProfileRelays(PROFILE_RELAYS, {
+                    onOpen: () => { if (profileResolver) profileResolver.flush(); },
+                    onEvent: (ev) => { if (profileResolver) profileResolver.absorb(ev); }
+                });
+            },
+            onResolve: (pubkey, profile) => {
+                profileCache[pubkey] = profile;
+                saveProfileToCache(pubkey, profile);
+                updatePostUI(pubkey);
+            }
+        }) : null;
+
         async function requestProfileInfo(pubkey) {
             if (!pubkey || profileCache[pubkey]) return;
             profileCache[pubkey] = { pending: true };
-            initProfileResolver();
             let cached = await getProfileFromCache(pubkey);
+            /* A cached record may come from an older page version that stored
+               the other handle shape; normalise before reading it. */
+            if (cached && window.NostrProfile) cached = window.NostrProfile.normalizeCached(cached, pubkey);
             if (cached && cached.name) {
                 profileCache[pubkey] = { name: cached.name, handleLine: cached.handleLine || cached.handle || `@${pubkey.substring(0, 8)}`, picture: cached.picture, nip05: cached.nip05 || '', pending: false };
                 updatePostUI(pubkey);
@@ -191,39 +195,18 @@
             }
             /* No cached copy: let the resolver retry. If the module failed to
                load, still ask the open relays once so nothing regresses. */
-            if (profileResolver) { profileResolver.lookup(pubkey); return; }
-            let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
-            activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { try { sock.send(req); } catch (e) {} } });
+            if (profileResolver) { profileResolver.lookup(pubkey); } else {
+                let req = JSON.stringify(["REQ", "prof-lookup-" + pubkey.substring(0, 8), { "kinds": [0], "authors": [pubkey], "limit": 1 }]);
+                activeSockets.forEach(sock => { if (sock && sock.readyState === WebSocket.OPEN) { try { sock.send(req); } catch (e) {} } });
+            }
         }
 
         let RELAYS = []; let BLOSSOM_SERVERS = []; let currentUserPubkey = localStorage.getItem('phosphor_pubkey') || null; let profileCache = {}; let eventsCache = {}; let quoteTargetEvent = null; let relayStatusMap = {}; let activeSockets = [];
 
-        /* Profile indexes: asked for kind 0 only, and connected lazily (the first
-           time a lookup fails on the timeline relays) so a normal visit does not
-           open extra sockets. Probed on 2026-11-16 for the pubkeys that were
-           rendering as Node_XXXX: relay.nostr.net held all five, purplepag.es two,
-           and the four timeline relays together held only two. Trim or extend the
-           list in config.json under "profile_relays"; an empty list disables it. */
-        let profileSockets = []; let profileRelaysAsked = false;
+        /* Optional profile indexes. Set to [] in config.json to disable. */
+        let profileSockets = [];
+        let profileRelaysAsked = false;
         let PROFILE_RELAYS = (window.NostrProfile && window.NostrProfile.DEFAULT_PROFILE_RELAYS) ? window.NostrProfile.DEFAULT_PROFILE_RELAYS.slice() : [];
-
-        function connectProfileRelays() {
-            if (profileRelaysAsked || !PROFILE_RELAYS.length) return;
-            profileRelaysAsked = true;
-            PROFILE_RELAYS.forEach(url => {
-                if (!/^wss?:\/\//i.test(url)) return;
-                let sock;
-                try { sock = new WebSocket(url); } catch (e) { return; }
-                profileSockets.push(sock);
-                sock.onopen = function () { if (profileResolver) profileResolver.flush(); };
-                sock.onmessage = function (event) {
-                    try {
-                        let data = JSON.parse(event.data);
-                        if (data[0] === "EVENT" && data[2] && profileResolver) profileResolver.absorb(data[2]);
-                    } catch (e) {}
-                };
-            });
-        }
 
         const navLoginBtn = document.getElementById('navLoginBtn'); const navUnlockBtn = document.getElementById('navUnlockBtn'); const navBookmarkBtn = document.getElementById('navBookmarkBtn'); const navNotifBtn = document.getElementById('navNotifBtn'); const logoutBtn = document.getElementById('logoutBtn'); const relayStatusBtn = document.getElementById('relayStatusBtn');
         const unauthMessage = document.getElementById('unauthMessage'); const loadingText = document.getElementById('loadingText'); const notifsContainer = document.getElementById('notifs-container');
@@ -333,13 +316,13 @@
             RELAYS.forEach(url => {
                 relayStatusMap[url] = false; let socket = new WebSocket(url);
                 socket.onopen = function() {
+                    /* A profile request may have been made before this relay was
+                       open; send it now instead of leaving that person unnamed. */
+                    if (profileResolver) profileResolver.flush();
                     onlineCount++; relayStatusMap[url] = true; relayStatusBtn.textContent = `[ RELAYS: ${onlineCount}/${RELAYS.length} ONLINE ]`;
                     let subId = "notifs-" + Math.random().toString(36).substring(2);
                     socket.send(JSON.stringify([ "REQ", subId, { "#p": [currentUserPubkey], "kinds": [1, 1111, 6, 7, 16, 20, 21, 22, 34235, 34236], "limit": 50 } ]));
                     socket.send(JSON.stringify(["REQ", "my-network-prefs-" + Math.random(), { "kinds": [10002, 10063], "authors": [currentUserPubkey] }]));
-                    /* A profile request may have been made before this relay was
-                       open; send it now instead of leaving that person unnamed. */
-                    if (profileResolver) profileResolver.flush();
                 };
                 socket.onerror = function() { relayStatusMap[url] = false; }; socket.onclose = function() { relayStatusMap[url] = false; };
                 socket.onmessage = function(event) {
