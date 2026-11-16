@@ -544,5 +544,18 @@
 
         window.addEventListener('DOMContentLoaded', loadConfig);
     </script>
+<script>
+    /* Offline shell: cache the pages and shared assets so the app opens without a
+       network. Relay data still needs a connection, and the UI says so rather than
+       pretending otherwise. Registered after load so it never competes with the
+       first paint. */
+    if ('serviceWorker' in navigator && window.isSecureContext) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').catch(function () {
+                /* Offline support is a bonus, never a reason to break the page. */
+            });
+        });
+    }
+</script>
 </body>
 </html>
