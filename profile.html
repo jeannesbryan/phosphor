@@ -48,6 +48,8 @@
     <!-- NIP-42: answer a relay AUTH challenge, so protected events and
          auth-only relays work. Signing goes through window.nostr. -->
     <script src="/assets/nostr-auth.js?v=20261116a"></script>
+    <!-- Shared helpers: one definition of escaping and of "x ago". -->
+    <script src="/assets/nostr-util.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -532,13 +534,8 @@
         function shareProfileUrl() { let baseUrl = window.location.origin + window.location.pathname; let profileUrl = baseUrl + '?pubkey=' + targetPubkey; navigator.clipboard.writeText(profileUrl).then(() => { alert("> SUCCESS: Profile URL copied to clipboard!\n\n" + profileUrl); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
         
-        function timeAgo(unixTimestamp) {
-            let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 };
-            if (seconds < 60) return "Just now";
-            for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; }
-            return "Just now";
-        }
 
+        function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
         function openRawModal(eventId) { let ev = userEventsList.find(e => e.id === eventId); if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
@@ -1178,8 +1175,8 @@
             if (userEventsList.length > currentDisplayLimit) loadMoreBtn.classList.remove('hidden'); else loadMoreBtn.classList.add('hidden');
         }
 
-        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
+        function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return;
             if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }

@@ -42,6 +42,8 @@
     <!-- NIP-42: answer a relay AUTH challenge, so protected events and
          auth-only relays work. Signing goes through window.nostr. -->
     <script src="/assets/nostr-auth.js?v=20261116a"></script>
+    <!-- Shared helpers: one definition of escaping and of "x ago". -->
+    <script src="/assets/nostr-util.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -317,7 +319,7 @@
         function copyThreadLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
         function copyArticleFeedLink(pubkey, dTag) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let articleUrl = baseUrl + 'notes.html?d=' + encodeURIComponent(dTag) + '&author=' + pubkey; navigator.clipboard.writeText(articleUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + articleUrl); }
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy."); }); }
-        function timeAgo(unixTimestamp) { let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 }; if (seconds < 60) return "Just now"; for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; } return "Just now"; }
+        function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
@@ -708,8 +710,8 @@
             });
         }
 
-        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
+        function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         sendQuoteBtn.addEventListener('click', async function() {
             let quoteText = quoteContentInput.value.trim(); if (!quoteTargetEvent) return; if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", quoteTargetEvent.id, "", "quote"], ["p", quoteTargetEvent.pubkey, ""], ["client", "Phosphor"]], content: `${quoteText}\n\nnostr:${quoteTargetEvent.id}`, pubkey: currentUserPubkey };

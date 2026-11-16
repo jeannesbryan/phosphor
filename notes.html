@@ -55,6 +55,8 @@
          `# Judul` yang sama jadi tercetak dua kali. Satu file ini yang
          memutuskan baris mana yang berulang; jangan menambal per artikel. -->
     <script src="/assets/nostr-article.js?v=20261113a"></script>
+    <!-- Shared helpers: one definition of escaping and of "x ago". -->
+    <script src="/assets/nostr-util.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -314,7 +316,7 @@
         function copyArticleLink() { let url = window.location.href; navigator.clipboard.writeText(url); alert('> LINK COPIED TO CLIPBOARD:\n\n' + url); }
         function copyReplyLink(id) { let baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/'); let threadUrl = baseUrl + 'thread.html?id=' + id; navigator.clipboard.writeText(threadUrl); alert('> LINK COPIED TO CLIPBOARD:\n\n' + threadUrl); }
         function copyRawJson() { let textToCopy = rawEventContent.textContent; navigator.clipboard.writeText(textToCopy).then(() => { alert("> SUCCESS: Raw JSON copied to clipboard!"); }).catch(err => { alert("> ERROR: Failed to copy to clipboard."); }); }
-        function timeAgo(unixTimestamp) { let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 }; if (seconds < 60) return "Just now"; for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; } return "Just now"; }
+        function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
         function calculateReadTime(text) { let words = text.trim().split(/\s+/).length; let minutes = Math.ceil(words / 200); return `${minutes} min read`; }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
@@ -666,8 +668,8 @@
             window.location.href = 'thread.html?id=' + id;
         }
 
-        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
+        function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         sendReplyBtn.addEventListener('click', async function() {
             let replyText = replyContentInput.value.trim(); if (!replyText) { alert('> ERROR: Message is empty!'); return; } if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", articleId || parentEvent?.id || "", "", "root"], ["p", parentEvent ? parentEvent.pubkey : "", ""], ["client", "Phosphor"]], content: replyText, pubkey: currentUserPubkey };

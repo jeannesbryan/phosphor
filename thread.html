@@ -47,6 +47,8 @@
     <!-- NIP-42: answer a relay AUTH challenge, so protected events and
          auth-only relays work. Signing goes through window.nostr. -->
     <script src="/assets/nostr-auth.js?v=20261116a"></script>
+    <!-- Shared helpers: one definition of escaping and of "x ago". -->
+    <script src="/assets/nostr-util.js?v=20261116a"></script>
 </head>
 <body class="t-crt">
     <div class="t-container">
@@ -344,7 +346,7 @@
             });
         }
 
-        function timeAgo(unixTimestamp) { let seconds = Math.floor((Date.now() / 1000) - unixTimestamp); let intervals = { year: 31536000, month: 2592000, day: 86400, hour: 3600, minute: 60 }; if (seconds < 60) return "Just now"; for (let i in intervals) { let count = Math.floor(seconds / intervals[i]); if (count >= 1) return `${count} ${i}${count > 1 ? 's' : ''} ago`; } return "Just now"; }
+        function timeAgo(unixTimestamp) { return window.NostrUtil.timeAgo(unixTimestamp); }
         function openLightbox(imgSrc) { document.getElementById('lightboxImg').src = imgSrc; document.getElementById('lightboxModal').style.display = 'flex'; }
         function openRawModal(eventId) { let ev = eventsCache[eventId]; if (ev) { rawEventContent.textContent = JSON.stringify(ev, null, 2); rawModal.style.display = 'flex'; } }
         function closeRawModal() { rawModal.style.display = 'none'; }
@@ -882,8 +884,8 @@
             window.location.href = 'thread.html?id=' + id;
         }
 
-        function escapeHtml(str) { return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
+        function escapeHtml(str) { return window.NostrUtil.escapeHtml(str); }
         sendReplyBtn.addEventListener('click', async function() {
             let replyText = replyContentInput.value.trim(); if (!replyText) { alert('> ERROR: Message is empty!'); return; } if (!currentUserPubkey || !window.nostr) { alert('> ERROR: Not logged in!'); return; }
             let rawEvent = { kind: 1, created_at: Math.floor(Date.now() / 1000), tags: [["e", postId, "", "root"], ["p", parentEvent ? parentEvent.pubkey : "", ""], ["client", "Phosphor"]], content: replyText, pubkey: currentUserPubkey };
