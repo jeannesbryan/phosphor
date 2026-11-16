@@ -328,6 +328,9 @@ ok('page no longer fires the profile request only once',
 const WIRED = ['index.html', 'profile.html', 'thread.html', 'notes.html', 'bookmark.html', 'relay.html', 'notifications.html'];
 const pages = {};
 for (const name of WIRED) pages[name] = readFileSync(join(root, name), 'utf8');
+/* index.html's card renderer moved to assets/nostr-feed-card.js, and the reposter
+   profile request moved with it. Scan it alongside the page. */
+pages['index.html'] += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');
 
 for (const name of WIRED) {
     const src = pages[name];
@@ -369,7 +372,7 @@ ok('relay.html passes the cached entry for the reposter',
 ok('notes.html passes the cached entry (both render paths)',
     (pages['notes.html'].match(/displayProfile\(profileCache\[ev\.pubkey\], ev\.pubkey\)/g) || []).length === 2);
 ok('index.html passes the cached entry for the reposter',
-    /displayProfile\(profileCache\[repostEv\.pubkey\], repostEv\.pubkey\)/.test(pages['index.html']));
+    /displayProfile\((?:\.\.\.)?(?:ctx\.)?profileCache\[repostEv\.pubkey\], repostEv\.pubkey\)/.test(pages['index.html']));
 /* Reading the cache without ever requesting the profile leaves the reposter as
    Node_XXXX forever, even when the profile exists on an index relay. */
 ok('index.html requests the reposter profile before rendering it',

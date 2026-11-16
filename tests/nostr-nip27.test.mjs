@@ -283,7 +283,8 @@ import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WIRED = ['index.html', 'profile.html', 'thread.html', 'notes.html', 'bookmark.html', 'relay.html', 'notifications.html'];
 for (const name of WIRED) {
-    const src = readFileSync(join(root, name), 'utf8');
+    let src = readFileSync(join(root, name), 'utf8');
+    if (name === 'index.html') src += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');   // card renderer moved there
     ok(name + ': loads the NIP-27 module',
         /<script src="\/assets\/nostr-nip27\.js\?v=[^"]+"><\/script>/.test(src));
     ok(name + ': calls upgrade after inserting a card',

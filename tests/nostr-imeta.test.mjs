@@ -293,6 +293,8 @@ const PAGES = ['index.html', 'thread.html', 'notes.html', 'notifications.html',
 
 const src = {};
 for (const p of PAGES) src[p] = readFileSync(join(root, p), 'utf8');
+/* The card renderer moved to assets/nostr-feed-card.js; scan it with index.html. */
+src['index.html'] += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');
 
 // every page that can upload media must load the module
 for (const p of PAGES) {

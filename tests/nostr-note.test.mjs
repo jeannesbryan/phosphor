@@ -374,7 +374,8 @@ const PAGES = ['index.html', 'profile.html', 'thread.html', 'notes.html',
                'notifications.html', 'bookmark.html', 'relay.html'];
 let calls = 0, copies = 0;
 for (const p of PAGES) {
-    const html = readFileSync(join(root, p), 'utf8');
+    let html = readFileSync(join(root, p), 'utf8');
+    if (p === 'index.html') html += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');   // card renderer moved there
     calls += (html.match(/renderContentText\(/g) || []).length;
     copies += (html.match(/contentText\.replace\(\/\(https/g) || []).length;
 }

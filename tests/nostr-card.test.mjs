@@ -145,7 +145,9 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const idx = readFileSync(join(root, 'index.html'), 'utf8');
+/* index.html's card renderer now lives in assets/nostr-feed-card.js, so these
+   page-level guards scan both: a move must not look like a deletion. */
+const idx = readFileSync(join(root, 'index.html'), 'utf8') + readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');
 const prof = readFileSync(join(root, 'profile.html'), 'utf8');
 
 for (const [name, src] of [['index.html', idx], ['profile.html', prof]]) {

@@ -205,7 +205,10 @@ const PAGES = ['index.html', 'profile.html', 'thread.html', 'notes.html',
                'notifications.html', 'bookmark.html', 'relay.html'];
 let calls = 0;
 for (const p of PAGES) {
-    const html = readFileSync(join(root, p), 'utf8');
+    let html = readFileSync(join(root, p), 'utf8');
+    /* The card renderer moved to assets/nostr-feed-card.js; scan it with index.html
+       so a move cannot look like a missing assembler call. */
+    if (p === 'index.html') html += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');
     ok(`${p}: calls the shared assembler`, html.includes('assembleMedia('));
     ok(`${p}: no inline media classifier (mediaElements.push)`, !html.includes('mediaElements.push'),
         'the classifier was copied back into this page');
@@ -220,7 +223,10 @@ eq('ten media sites use the one shared assembler', calls, 10);
    spoilerAttrs, whose declaration had lived inside the block that was deleted —
    the page parsed fine but threw at runtime for any note with media. */
 for (const p of PAGES) {
-    const html = readFileSync(join(root, p), 'utf8');
+    let html = readFileSync(join(root, p), 'utf8');
+    /* The card renderer moved to assets/nostr-feed-card.js; scan it with index.html
+       so a move cannot look like a missing assembler call. */
+    if (p === 'index.html') html += readFileSync(join(root, 'assets', 'nostr-feed-card.js'), 'utf8');
     // Each call is written on one line (profile, thread and bookmark have two:
     // a pulse branch and a normal branch).
     const calls = html.split('\n').filter((l) => l.includes('assembleMedia(contentText,'));
